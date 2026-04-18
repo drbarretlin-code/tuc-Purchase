@@ -231,3 +231,44 @@ input:focus, select:focus, textarea:focus {
   border-collapse: collapse;
   margin: 10px 0;
 }
+
+/* RWD Layout */
+@media (max-width: 1200px) {
+  .main-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Scaling Container for Preview */
+.preview-zoom-container {
+  transform-origin: top center;
+  transition: transform 0.3s ease;
+  width: min-content;
+  margin: 0 auto;
+}
+
+.input-with-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.input-with-label label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.custom-spec-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.custom-spec-row input {
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.6rem;
+}

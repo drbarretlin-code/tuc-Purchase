@@ -11,10 +11,11 @@ interface Props {
   isTextArea?: boolean;
   required?: boolean;
   placeholder?: string;
+  inputType?: string;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
-  label, value, onChange, hints, onHintToggle, isTextArea = true, required = false, placeholder
+  label, value, onChange, hints, onHintToggle, isTextArea = true, required = false, placeholder, inputType = "text"
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
@@ -37,7 +38,7 @@ const SectionEditor: React.FC<Props> = ({
         />
       ) : (
         <input
-          type="text"
+          type={inputType}
           style={{ width: '100%' }}
           value={value}
           onChange={(e) => onChange(e.target.value)}
