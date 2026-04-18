@@ -154,13 +154,11 @@ function App() {
     }
   };
 
-  const handleExportAll = (format: 'json' | 'csv') => {
+  const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
-    const content = format === 'json' 
-      ? JSON.stringify(list, null, 2)
-      : "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
+    const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
     
-    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
+    const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -386,9 +384,6 @@ function App() {
                 <BookOpen size={24} color="var(--tuc-red)" /> 雲端歷史檔案查閱器
               </h2>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="ghost-button" onClick={() => handleExportAll('json')} style={{ fontSize: '0.8rem' }}>
-                  <Download size={16} /> 匯出 JSON
-                </button>
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
                   <Download size={16} /> 匯出 CSV
                 </button>
@@ -405,8 +400,8 @@ function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
+                    <th style={{ textAlign: 'left', padding: '12px', width: '60px' }}>項次</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>顯示名稱</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>歸屬設備</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>上傳人</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>日期</th>
                     <th style={{ textAlign: 'center', padding: '12px' }}>操作</th>
@@ -415,10 +410,10 @@ function App() {
                 <tbody>
                   {filteredFiles.length === 0 ? (
                     <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
-                  ) : filteredFiles.map((f) => (
+                  ) : filteredFiles.map((f, idx) => (
                     <tr key={f.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
+                      <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
                       <td style={{ padding: '12px', color: 'white' }}>{f.display_name}</td>
-                      <td style={{ padding: '12px', color: '#bbb' }}>{f.equipment_name}</td>
                       <td style={{ padding: '12px', color: '#bbb' }}>{f.requester}</td>
                       <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString()}</td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>

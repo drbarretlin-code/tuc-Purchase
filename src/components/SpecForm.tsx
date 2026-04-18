@@ -22,6 +22,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isKMOpen, setIsKMOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [filesInQueue, setFilesInQueue] = useState(0);
+  const [currentUploadingName, setCurrentUploadingName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string, displayName: string}[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -34,6 +37,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
   const currentDate = new Date().toLocaleDateString('zh-TW');
+
+  // V6.5 中斷復原檢查
+  useEffect(() => {
+    const interruptedJob = localStorage.getItem('tuc_active_upload_job');
+    if (interruptedJob) {
+      const { completed, total } = JSON.parse(interruptedJob);
+      if (completed.length < total) {
+        alert(`【系統提示】偵測到前次上傳程序中斷。\n已成功上傳的檔案如下：\n- ${completed.join('\n- ')}\n\n請重新上傳剩餘檔案以完成歸納作業。`);
+      }
+      localStorage.removeItem('tuc_active_upload_job');
+    }
+  }, []);
 
   // 初始化 TUC 建議內容
   useEffect(() => {
@@ -266,38 +281,46 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !supabase) return;
 
+    const fileList = Array.from(files);
     setUploadingFile(true);
+    setUploadProgress(0);
+    setFilesInQueue(fileList.length);
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     
+    // 初始化中斷追蹤
+    localStorage.setItem('tuc_active_upload_job', JSON.stringify({
+      total: fileList.length,
+      completed: []
+    }));
+
+    // 防誤關閉視窗
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     try {
       const newUploads: {name: string, url: string, displayName: string}[] = [];
       let totalAdded = 0;
       let totalSkipped = 0;
 
-      for (const file of Array.from(files)) {
-        // 使用純 ASCII 隨機路徑以確保 100% 存儲相容性，檔名保留在顯示名稱中
+      // 第一階段：極速併行上傳至 Storage 與資料表紀錄
+      console.log('[效能優化] 啟動併行上傳流程...');
+      const uploadResults = await Promise.all(fileList.map(async (file) => {
         const ext = file.name.split('.').pop();
         const randomStr = Math.random().toString(36).substring(2, 8);
         const fileName = `${Date.now()}_${randomStr}.${ext}`;
         
-        const { error } = await supabase.storage
-          .from('spec-files')
-          .upload(fileName, file);
+        // 上傳至 Storage
+        const { error: storageError } = await supabase.storage.from('spec-files').upload(fileName, file);
+        if (storageError) throw storageError;
 
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('spec-files')
-          .getPublicUrl(fileName);
-
-        // 生成顯示名稱：原檔名 + 申請人員
+        const { data: { publicUrl } } = supabase.storage.from('spec-files').getPublicUrl(fileName);
         const reqName = data.requester || '未知申請人';
         const displayName = `${file.name} (${reqName})`;
 
-        newUploads.push({ name: file.name, url: publicUrl, displayName });
-        
-        // V6.0: 寫入雲端檔案歷史紀錄表
-        console.log('[Debug] 正在寫入檔案元數據到資料表 tuc_uploaded_files...');
+        // 寫入元數據
         const { error: dbError } = await supabase.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
@@ -306,35 +329,53 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           requester: reqName,
           equipment_name: data.equipmentName || '未命名設備'
         });
+        if (dbError) throw dbError;
 
-        if (dbError) {
-          console.error('[Debug] 資料表寫入失敗:', dbError);
-          throw new Error(`資料庫寫入失敗: ${dbError.message}`);
-        } else {
-          console.log('[Debug] 資料室寫入成功。');
-        }
+        return { file, url: publicUrl, displayName };
+      }));
 
-        const { processFileToKnowledge } = await import('../lib/knowledgeParser');
+      // 第二階段：智慧順序解析 (保護 API 額度)
+      console.log('[智慧排隊] 啟動 AI 解析隊列...');
+      const { processFileToKnowledge } = await import('../lib/knowledgeParser');
+      
+      const completedNames: string[] = [];
+      for (let i = 0; i < uploadResults.length; i++) {
+        const { file, url, displayName } = uploadResults[i];
+        setCurrentUploadingName(file.name);
+        setFilesInQueue(uploadResults.length - i);
+
+        // 執行 AI 萃取
         const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
 
-        // 批次上傳時，每份檔案間隔 3 秒，確保 API 配額有足夠時間進行冷卻回充
-        await new Promise(r => setTimeout(r, 3000));
+        // 更新持久化狀態
+        completedNames.push(file.name);
+        localStorage.setItem('tuc_active_upload_job', JSON.stringify({
+          total: fileList.length,
+          completed: completedNames
+        }));
+
+        newUploads.push({ name: file.name, url, displayName });
+        setUploadProgress(Math.round(((i + 1) / uploadResults.length) * 100));
+
+        // 智慧延遲：若非最後一個檔案，則等待一下以防 API 報錯 (根據免費版 RPM 優化為 2秒)
+        if (i < uploadResults.length - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
 
-      // 更新列表並保留最近 5 個用於呈現
-      setUploadedFiles(prev => {
-        const combined = [...prev, ...newUploads];
-        return combined.slice(-5);
-      });
-
+      setUploadedFiles(prev => [...prev, ...newUploads].slice(-10));
+      localStorage.removeItem('tuc_active_upload_job');
       alert(`檔案上傳並解析完成！\n成功歸納：${totalAdded} 條關鍵建議\n過濾重複：${totalSkipped} 條項目 (已跳過)`);
     } catch (err: any) {
-      console.error(err);
-      alert(`上傳或解析失敗: ${err.message || '未知錯誤'}`);
+      console.error('[Debug] 上傳或解析異常:', err);
+      alert(`上傳或解析程序中斷: ${err.message || '未知錯誤'}\n已成功完成的部分將保留。`);
     } finally {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       setUploadingFile(false);
+      setUploadProgress(0);
+      setCurrentUploadingName('');
     }
   };
 
@@ -666,7 +707,29 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <FolderOpen size={20} /> 歷史檔案內容歸納
                 </h3>
                 <div style={{ border: '2px dashed var(--border-color)', borderRadius: '16px', padding: '3rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-                  {uploadingFile ? <Loader2 className="animate-spin" size={32} color="var(--tuc-red)" /> : (
+                  {uploadingFile ? (
+                    <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+                      <Loader2 className="animate-spin" size={32} color="var(--tuc-red)" style={{ margin: '0 auto 1.5rem' }} />
+                      <div style={{ height: '10px', width: '100%', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div 
+                          style={{ 
+                            width: `${uploadProgress}%`, 
+                            height: '100%', 
+                            background: 'linear-gradient(90deg, var(--tuc-red), #ff4d4d)', 
+                            transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 0 10px rgba(230,0,18,0.3)'
+                          }} 
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <p style={{ color: 'white', fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>正在解析系統資源...</p>
+                        <p style={{ color: 'var(--tuc-red)', fontSize: '0.9rem', fontWeight: '600', margin: '4px 0' }}>{currentUploadingName}</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>
+                          佇列剩餘：<span style={{ color: 'white' }}>{filesInQueue}</span> 份 | 總進度：<span style={{ color: 'white' }}>{uploadProgress}%</span>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
                     <>
                       <FileUp size={48} color="#555" style={{ marginBottom: '1rem' }} />
                       <label className="primary-button" style={{ display: 'inline-flex', cursor: 'pointer', padding: '0.75rem 2rem' }}>
