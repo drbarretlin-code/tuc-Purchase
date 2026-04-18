@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload, PenTool, BookOpen } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload, PenTool, BookOpen, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -40,6 +40,10 @@ function App() {
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [cloudSpecs, setCloudSpecs] = useState<any[]>([]);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+  const [showCloudInspector, setShowCloudInspector] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -102,6 +106,33 @@ function App() {
       alert('雲端連線失敗，請檢查 Supabase 設定或網路。');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const fetchCloudSpecs = async () => {
+    if (!supabase) return;
+    setIsLoadingCloud(true);
+    try {
+      const { data: list, error } = await supabase
+        .from('specs')
+        .select('title, department, requester, created_at')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setCloudSpecs(list || []);
+      setShowCloudInspector(true);
+    } catch (err) {
+      alert('無法取得雲端資料');
+    } finally {
+      setIsLoadingCloud(false);
+    }
+  };
+
+  const handleDeleteApiKey = () => {
+    if (confirm('確定要刪除 API Key 嗎？')) {
+      setTempKey('');
+      setApiKey('');
+      localStorage.removeItem('tuc_gemini_key');
     }
   };
 
@@ -210,7 +241,7 @@ function App() {
       {/* Config Modal */}
       {showConfig && (
         <div className="modal-overlay">
-          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '450px' }}>
+          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldAlert size={24} color="var(--tuc-red)" /> 系統設定
@@ -222,18 +253,82 @@ function App() {
             
             <div className="input-with-label">
               <label>Gemini API Key (用於建議補充)</label>
-              <input 
-                type="password" 
-                value={tempKey} 
-                onChange={(e) => setTempKey(e.target.value)}
-                placeholder="貼入您的 API Key..."
-                style={{ width: '100%', marginBottom: '1rem' }}
-              />
+              <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
+                <input 
+                  type={showApiKey ? "text" : "password"} 
+                  value={tempKey} 
+                  onChange={(e) => setTempKey(e.target.value)}
+                  placeholder="貼入您的 API Key..."
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  onClick={() => setShowApiKey(!showApiKey)} 
+                  className="icon-btn" 
+                  style={{ padding: '0 8px' }}
+                >
+                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />} 
+                </button>
+                <button 
+                  onClick={handleDeleteApiKey} 
+                  className="icon-btn" 
+                  style={{ padding: '0 8px', color: '#EF4444' }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-              注意：API Key 會儲存在您的瀏覽器本地端。
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', marginTop: '4px' }}>
+              注意：API Key 會加密儲存在您的瀏覽器本地端。
             </div>
-            <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center' }}>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CloudUpload size={18} /> 資料庫管理
+              </h3>
+              <button 
+                className="ghost-button" 
+                onClick={fetchCloudSpecs} 
+                style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
+                disabled={isLoadingCloud}
+              >
+                {isLoadingCloud ? '讀取中...' : '一鍵查閱雲端備份內容現況'}
+              </button>
+            </div>
+
+            {showCloudInspector && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '1rem', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>雲端資料列表</span>
+                  <button onClick={() => setShowCloudInspector(false)} style={{ fontSize: '0.7rem', color: '#666', background: 'none', border: 'none' }}>關閉列表</button>
+                </div>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                  <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: '#222' }}>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>設備名稱</th>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>單位</th>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>人員</th>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>日期</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cloudSpecs.length === 0 ? (
+                        <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>無備份資料</td></tr>
+                      ) : cloudSpecs.map((spec, i) => (
+                        <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '8px' }}>{spec.title}</td>
+                          <td style={{ padding: '8px' }}>{spec.department}</td>
+                          <td style={{ padding: '8px' }}>{spec.requester}</td>
+                          <td style={{ padding: '8px' }}>{new Date(spec.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <Save size={18} /> 儲存設定
             </button>
           </div>

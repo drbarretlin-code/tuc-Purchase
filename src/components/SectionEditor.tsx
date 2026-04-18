@@ -70,27 +70,45 @@ const SectionEditor: React.FC<Props> = ({
             <Book size={14} />
             <span>TUC 知識庫建議 (勾選導入)</span>
           </div>
-          {tucHints.map((hint) => (
-            <div 
-              key={hint.id} 
-              onClick={() => onTUCHintToggle?.(hint.id)}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'flex-start', 
-                gap: '0.75rem', 
-                padding: '0.5rem',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                transition: 'background 0.2s',
+          
+          {tucHints.length >= 2 ? (
+            <select 
+              value="" 
+              onChange={(e) => {
+                if (e.target.value) onTUCHintToggle?.(e.target.value);
               }}
-              className="hint-item"
+              style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
             >
-              {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
-              <div style={{ fontSize: '0.875rem' }}>
-                <p style={{ margin: 0 }}>{hint.content}</p>
+              <option value="" disabled>點擊選擇建議以導入...</option>
+              {tucHints.map(hint => (
+                <option key={hint.id} value={hint.id}>
+                  {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
+                </option>
+              ))}
+            </select>
+          ) : (
+            tucHints.map((hint) => (
+              <div 
+                key={hint.id} 
+                onClick={() => onTUCHintToggle?.(hint.id)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '0.75rem', 
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  transition: 'background 0.2s',
+                }}
+                className="hint-item"
+              >
+                {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
+                <div style={{ fontSize: '0.875rem' }}>
+                  <p style={{ margin: 0 }}>{hint.content}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 

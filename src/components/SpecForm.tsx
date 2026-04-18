@@ -194,9 +194,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     updateField('signOffGrid', newGrid);
   };
 
-  const isDropdownCell = (row: number, col: number) => {
-    const targets = ['0-0', '0-2', '1-0', '1-2', '2-0', '2-2'];
-    return targets.includes(`${row}-${col}`);
+  const isDropdownCell = (_row: number, col: number) => {
+    // 列 0,1,2 的第 5 欄 (index 4) 為單位選擇
+    return col === 4;
   };
 
   const handleExportJSON = () => {

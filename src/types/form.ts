@@ -111,7 +111,7 @@ export interface FormState {
   // 規格確認及會簽
   applicantName: string;
   deptHeadName: string;
-  signOffGrid: string[][]; // 4 rows x 6 columns
+  signOffGrid: string[][]; // 3 rows x 6 columns
 }
 
 export const INITIAL_FORM_STATE: FormState = {
@@ -209,5 +209,5 @@ export const INITIAL_FORM_STATE: FormState = {
   tableTUCHints: [],
   applicantName: '',
   deptHeadName: '',
-  signOffGrid: Array(4).fill(null).map(() => Array(6).fill(''))
+  signOffGrid: Array(3).fill(null).map(() => Array(6).fill(''))
 };

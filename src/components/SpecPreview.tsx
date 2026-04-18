@@ -264,7 +264,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                   </tr>
                   <tr>
                     <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(4, 30px)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, 30px)' }}>
                         {data.signOffGrid.map((row, ri) => 
                           row.map((cell, ci) => (
                             <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
