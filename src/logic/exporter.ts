@@ -1,50 +1,14 @@
 import { 
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
-  AlignmentType, WidthType, HeadingLevel
+  AlignmentType, WidthType, HeadingLevel, VerticalAlign, BorderStyle
 } from 'docx';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
-export const exportToPDF = async (elementId: string, data: FormState) => {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-  const timestamp = formatDate(new Date());
-  const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
-
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff'
-  });
-  
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  
-  const imgProps = pdf.getImageProperties(imgData);
-  const imgWidth = pdfWidth;
-  const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-
-  let heightLeft = imgHeight;
-  let position = 0;
-
-  // 第一頁
-  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-  heightLeft -= pdfHeight;
-
-  // 若還有剩餘高度，則分頁
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-  }
-
-  pdf.save(`${filename}.pdf`);
+export const exportToPDF = async (_elementId: string, _data: FormState) => {
+  // 對於高品質、可搜尋、且具有完美分頁邏輯的需求，呼叫瀏覽器原生列印對話框是最穩定的方案。
+  // 注意：CSS 的 @media print 樣式已在 index.css 中配置完成。
+  window.print();
 };
 
 const formatDate = (date: Date) => {
@@ -62,36 +26,49 @@ export const exportToWord = async (data: FormState) => {
   const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
   const hasImages = data.images.length > 0;
 
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+
   const headerContent = [
-    new Paragraph({
-      children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 100 }
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+        insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200 }
+                }),
+                new Paragraph({
+                  children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200, after: 400 }
+                })
+              ]
+            })
+          ]
+        })
+      ]
     }),
     new Paragraph({
-      children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 }
+      children: [new TextRun({ text: `申請單位：${data.department || 'NA'}   申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })],
+      alignment: AlignmentType.LEFT
     }),
     new Paragraph({
-      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 300 }
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: `申請日期：${new Date().toLocaleDateString()}`, bold: true, size: 24 })
-      ],
+      children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })],
       alignment: AlignmentType.RIGHT,
-      spacing: { after: 300 }
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: `申請單位：${data.department || 'NA'}`, size: 24 }),
-        new TextRun({ text: "      ", size: 24 }),
-        new TextRun({ text: `申請人員：${data.requester || 'NA'} (分機: ${data.extension || 'NA'})`, size: 24 })
-      ],
-      alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     })
   ];
@@ -168,24 +145,25 @@ export const exportToWord = async (data: FormState) => {
       // Row 1: Applicant / Dept Head
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: data.applicantName })], width: { size: 25, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })], columnSpan: 3, width: { size: 45, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+          new TableCell({ children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], width: { size: 25, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+          new TableCell({ children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], columnSpan: 3, width: { size: 45, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
         ]
       }),
       // Main 3x6 Sign-off Matrix Rows
       ...data.signOffGrid.map(row => new TableRow({
         children: row.map(cell => new TableCell({
           children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
-          width: { size: 16.66, type: WidthType.PERCENTAGE }
+          width: { size: 16.66, type: WidthType.PERCENTAGE },
+          verticalAlign: VerticalAlign.CENTER
         }))
       })),
       // Final Vendor Confirmation Row
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: "" }), new Paragraph({ text: "" }), new Paragraph({ text: "" })], columnSpan: 5 })
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+          new TableCell({ children: [new Paragraph({ text: " " }), new Paragraph({ text: " " }), new Paragraph({ text: " " })], columnSpan: 5, verticalAlign: VerticalAlign.CENTER })
         ]
       })
     ]
