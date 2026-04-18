@@ -50,7 +50,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     ${text.substring(0, 5000)}
   `;
 
-  // 多模型回退與終極頻率限制重試機制 (V4.9 擴張版)
+  // 多模型回退與終極連線協議機制 (V5.0)
   const modelsToTry = [
     "gemini-2.0-flash", 
     "gemini-1.5-pro", 
@@ -63,12 +63,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   for (const modelId of modelsToTry) {
     let retryCount = 0;
-    const maxRetries = 5; // 提升重試極限
-    let fallbackNeeded = false;
+    const maxRetries = 5; 
+    let skipThisModel = false;
 
     while (retryCount < maxRetries) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelId });
+        // 同時支援 v1 與 v1beta 接口
+        const currentApiVersion = (modelId === "gemini-2.0-flash") ? 'v1beta' : 'v1';
+        const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: currentApiVersion as any });
         const result = await model.generateContent(prompt);
         finalJsonResponse = result.response.text();
         break; 
@@ -76,32 +78,29 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         const status = err.status || 0;
         const msg = err.message || "";
 
-        // 如果是 429 頻率限制，執行更深度的指數退避重試
+        // 429 頻率限制
         if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
           retryCount++;
-          // 指數退避 sequence: 4s, 8s, 16s, 32s, 64s
+          if (retryCount >= maxRetries) {
+            console.warn(`[拋棄] 模型 ${modelId} 已達 5 次重試上限，切換至下一備援模型...`);
+            skipThisModel = true;
+            break;
+          }
           const delay = Math.pow(2, retryCount) * 2000;
-          console.warn(`[深度重試] 模型 ${modelId} 觸發頻率限制，將在 ${delay}ms 後進行第 ${retryCount}/5 次嘗試...`);
+          console.warn(`[頻控重試] ${modelId} (${retryCount}/5)，等待 ${delay}ms...`);
           await wait(delay);
           continue;
         }
 
-        // 只有 404 或明確的模型錯誤才進行 Fallback
-        if (status === 404 || msg.includes("404") || msg.includes("not found")) {
-          console.warn(`[跳轉] 模型 ${modelId} 不存在 (404)，嘗試切換下一個模型...`);
-          fallbackNeeded = true;
-          break;
-        }
-
-        // 其他嚴重錯誤
-        if (modelId === modelsToTry[modelsToTry.length - 1]) throw err;
-        fallbackNeeded = true;
+        // 404 模型找不到或其他嚴重錯誤
+        console.warn(`[切換] 模型 ${modelId} 發生不可恢復錯誤 (${status})，嘗試下一個...`);
+        skipThisModel = true;
         break;
       }
     }
 
     if (finalJsonResponse) break; 
-    if (!fallbackNeeded) break; 
+    if (skipThisModel) continue;
   }
 
   if (!finalJsonResponse) {
