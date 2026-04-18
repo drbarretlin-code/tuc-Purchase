@@ -82,8 +82,10 @@ function App() {
   }, [isResizing, showPreview, isMobile]);
 
   const handleSaveConfig = () => {
-    setApiKey(tempKey);
-    localStorage.setItem('tuc_gemini_key', tempKey);
+    const cleanKey = tempKey.trim();
+    setApiKey(cleanKey);
+    setTempKey(cleanKey);
+    localStorage.setItem('tuc_gemini_key', cleanKey);
     setShowConfig(false);
   };
 
@@ -291,7 +293,10 @@ function App() {
                   value={tempKey} 
                   onChange={(e) => setTempKey(e.target.value)}
                   placeholder="貼入您的 API Key..."
-                  style={{ flex: 1 }}
+                  style={{ 
+                    flex: 1,
+                    borderColor: (tempKey && (!tempKey.startsWith('AIza') || tempKey.length < 30)) ? '#EF4444' : 'var(--border-color)'
+                  }}
                 />
                 <button 
                   onClick={() => setShowApiKey(!showApiKey)} 
@@ -308,6 +313,11 @@ function App() {
                   <Trash2 size={16} />
                 </button>
               </div>
+              {tempKey && !tempKey.startsWith('AIza') && (
+                <div style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '4px', fontWeight: 'bold' }}>
+                  警告：金鑰應以 "AIza" 開頭，請確認是否貼入正確。
+                </div>
+              )}
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', marginTop: '4px' }}>
               注意：API Key 會加密儲存在您的瀏覽器本地端。

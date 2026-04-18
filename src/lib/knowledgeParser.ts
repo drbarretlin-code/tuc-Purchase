@@ -12,6 +12,10 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
   
+  if (!finalKey.startsWith('AIza') || finalKey.length < 30) {
+    throw new Error("偵測到不正確的 API Key 格式。金鑰通常以 'AIza' 開頭，請檢查您的系統設定。");
+  }
+  
   const genAI = new GoogleGenerativeAI(finalKey);
   let text = '';
   
