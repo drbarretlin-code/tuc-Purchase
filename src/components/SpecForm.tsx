@@ -121,33 +121,49 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const toggleTUCHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
-    const hints = (data[field] as AIHintSelection[]).map(h => 
-      h.id === hintId ? { ...h, selected: !h.selected } : h
+    const currentHints = data[field] as AIHintSelection[];
+    const targetHint = currentHints.find(h => h.id === hintId);
+    if (!targetHint) return;
+
+    const newSelected = !targetHint.selected;
+    const nextHints = currentHints.map(h => 
+      h.id === hintId ? { ...h, selected: newSelected } : h
     );
-    
-    const selectedHint = (data[field] as AIHintSelection[]).find(h => h.id === hintId);
-    if (selectedHint && !selectedHint.selected) {
-      const currentText = data[contentField] as string;
-      const separator = currentText ? '\n' : '';
-      updateField(contentField, currentText + separator + selectedHint.content);
+
+    let nextContent = data[contentField] as string;
+    if (newSelected) {
+      const separator = nextContent ? '\n' : '';
+      nextContent = nextContent + separator + targetHint.content;
     }
-    
-    updateField(field, hints);
+
+    onChange({
+      ...data,
+      [field]: nextHints,
+      [contentField]: nextContent
+    });
   };
 
   const toggleHistoryHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
-    const hints = (data[field] as AIHintSelection[]).map(h => 
-      h.id === hintId ? { ...h, selected: !h.selected } : h
+    const currentHints = data[field] as AIHintSelection[];
+    const targetHint = currentHints.find(h => h.id === hintId);
+    if (!targetHint) return;
+
+    const newSelected = !targetHint.selected;
+    const nextHints = currentHints.map(h => 
+      h.id === hintId ? { ...h, selected: newSelected } : h
     );
-    
-    const selectedHint = (data[field] as AIHintSelection[]).find(h => h.id === hintId);
-    if (selectedHint && !selectedHint.selected) {
-      const currentText = data[contentField] as string;
-      const separator = currentText ? '\n' : '';
-      updateField(contentField, currentText + separator + selectedHint.content);
+
+    let nextContent = data[contentField] as string;
+    if (newSelected) {
+      const separator = nextContent ? '\n' : '';
+      nextContent = nextContent + separator + targetHint.content;
     }
-    
-    updateField(field, hints);
+
+    onChange({
+      ...data,
+      [field]: nextHints,
+      [contentField]: nextContent
+    });
   };
 
   const updateSignOff = (row: number, col: number, value: string) => {
@@ -387,6 +403,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onTUCHintToggle={(id) => toggleTUCHint('mechTUCHints', 'mechSpecs', id)}
                        onHistoryHintToggle={(id) => toggleHistoryHint('mechHistoryHints', 'mechSpecs', id)}
                     />
+                    <SectionEditor 
+                       label="3. 物理特性規格" 
+                       value={data.physSpecs} 
+                       onChange={(v) => updateField('physSpecs', v)} 
+                       placeholder="預設：依台燿規定"
+                    />
+                    <SectionEditor 
+                       label="4. 信賴特性規格" 
+                       value={data.relySpecs} 
+                       onChange={(v) => updateField('relySpecs', v)} 
+                       placeholder="預設：依台燿規定"
+                    />
                   </div>
                 </div>
               </div>
@@ -408,6 +436,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
                   <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v) => updateField('workPeriod', v)} isTextArea={false} />
                 </div>
+                {/* 驗收欄位移回此處 */}
+                <SectionEditor 
+                  label="驗收要求" 
+                  value={data.acceptanceDesc} 
+                  onChange={(v) => updateField('acceptanceDesc', v)} 
+                  tucHints={data.acceptanceTUCHints}
+                  historyHints={data.acceptanceHistoryHints}
+                  onTUCHintToggle={(id) => toggleTUCHint('acceptanceTUCHints', 'acceptanceDesc', id)}
+                  onHistoryHintToggle={(id) => toggleHistoryHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
+                />
                 <SectionEditor 
                    label="十. 遵守事項" 
                    value={data.complianceDesc} 
@@ -425,15 +463,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
                 <ImageUpload images={data.images} onChange={(imgs) => updateField('images', imgs)} />
                 <div style={{ marginTop: '2.5rem' }}>
-                  <SectionEditor 
-                    label="十二. 驗收要求 (建議事項)" 
-                    value={data.acceptanceDesc} 
-                    onChange={(v) => updateField('acceptanceDesc', v)} 
-                    tucHints={data.acceptanceTUCHints}
-                    historyHints={data.acceptanceHistoryHints}
-                    onTUCHintToggle={(id) => toggleTUCHint('acceptanceTUCHints', 'acceptanceDesc', id)}
-                    onHistoryHintToggle={(id) => toggleHistoryHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
-                  />
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求表格</h4>
                   <SpecTable data={data.tableData} onChange={(td) => updateField('tableData', td)} />
                 </div>
               </div>
