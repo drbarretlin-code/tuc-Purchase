@@ -313,11 +313,26 @@ function App() {
                   <Trash2 size={16} />
                 </button>
               </div>
-              {tempKey && !tempKey.startsWith('AIza') && (
-                <div style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '4px', fontWeight: 'bold' }}>
-                  警告：金鑰應以 "AIza" 開頭，請確認是否貼入正確。
-                </div>
-              )}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                <button 
+                  className="ghost-button" 
+                  style={{ fontSize: '0.75rem', padding: '4px 12px' }}
+                  onClick={async () => {
+                    if (!tempKey) return alert('請先輸入金鑰');
+                    const { checkGeminiConnectivity } = await import('./lib/knowledgeParser');
+                    const res = await checkGeminiConnectivity(tempKey);
+                    alert(res.message);
+                  }}
+                >
+                  <Cpu size={14} style={{ marginRight: '4px' }} /> 測試連線並列出模型
+                </button>
+                {tempKey && !tempKey.startsWith('AIza') && (
+                  <div style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                    警告：金鑰應以 "AIza" 開頭
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', marginTop: '4px' }}>
               注意：API Key 會加密儲存在您的瀏覽器本地端。

@@ -6,6 +6,42 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+/**
+ * 測試 API 連通性並檢查可用模型
+ */
+export const checkGeminiConnectivity = async (apiKey: string) => {
+  const finalKey = apiKey.trim();
+  if (!finalKey) throw new Error("API Key 為空");
+  
+  try {
+    // 使用 REST 直接獲取模型列表，這是最權威的權限診斷方式
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${finalKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (response.status === 200) {
+      const modelNames = data.models?.map((m: any) => m.name.replace('models/', '')) || [];
+      return {
+        success: true,
+        count: modelNames.length,
+        models: modelNames,
+        message: `連線成功！共發現 ${modelNames.length} 個可用模型。`
+      };
+    } else {
+      return {
+        success: false,
+        status: response.status,
+        message: `連線失敗 (${response.status}): ${data.error?.message || '未知錯誤'}`
+      };
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `網路請求錯誤: ${err.message}`
+    };
+  }
+};
+
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
   const finalKey = rawKey.trim();
@@ -56,7 +92,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     ${text.substring(0, 5000)}
   `;
 
-  // 多模型回退與終極連線協議機制 (V5.4 深度診斷版)
+  // 多模型回退與終極連線協議機制 (V5.5 診斷修復版)
   const modelsToTry = [
     "gemini-2.0-flash", 
     "gemini-1.5-pro", 
@@ -68,61 +104,57 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
   for (const modelId of modelsToTry) {
-    // 冗餘格式嘗試：同時嘗試原始 ID 與帶 models/ 前綴的 ID
-    const pathFormats = [modelId, `models/${modelId}`];
+    // 修正 V5.4 的冗餘 bug，恢復單一路徑格式，SDK 會自動處理前綴
+    const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
     let modelSuccess = false;
 
-    for (const finalId of pathFormats) {
-      const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
-      for (const apiVer of versionsToTry) {
-        let retryCount = 0;
-        const maxRetries = 5; 
-        let skipThisPath = false;
+    for (const apiVer of versionsToTry) {
+      let retryCount = 0;
+      const maxRetries = 5; 
+      let skipThisVersion = false;
 
-        while (retryCount < maxRetries) {
-          try {
-            console.log(`[連線中] 嘗試 ${finalId} (${apiVer})...`);
-            const model = genAI.getGenerativeModel({ model: finalId }, { apiVersion: apiVer as any });
-            const result = await model.generateContent(prompt);
-            finalJsonResponse = result.response.text();
-            if (finalJsonResponse) {
-              modelSuccess = true;
-              break; 
-            }
-          } catch (err: any) {
-            const status = err.status || 0;
-            const msg = err.message || "";
-
-            // 429 頻率限制
-            if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-              retryCount++;
-              if (retryCount >= maxRetries) {
-                skipThisPath = true;
-                break;
-              }
-              const delay = Math.pow(2, retryCount) * 2000;
-              console.warn(`[限流] ${finalId} 繁忙，重試第 ${retryCount} 次...`);
-              await wait(delay);
-              continue;
-            }
-
-            // 404 情形下，嘗試下一路徑格式或版本
-            console.warn(`[排除路徑] ${finalId} (${apiVer}) 狀態: ${status}`);
-            skipThisPath = true;
-            break;
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`[解析中] 正在嘗試模型: ${modelId} (${apiVer})...`);
+          const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: apiVer as any });
+          const result = await model.generateContent(prompt);
+          finalJsonResponse = result.response.text();
+          if (finalJsonResponse) {
+            modelSuccess = true;
+            break; 
           }
+        } catch (err: any) {
+          const status = err.status || 0;
+          const msg = err.message || "";
+
+          // 429 頻率限制
+          if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              skipThisVersion = true;
+              break;
+            }
+            const delay = Math.pow(2, retryCount) * 2000;
+            console.warn(`[頻控] ${modelId} 限流，等待 ${delay}ms...`);
+            await wait(delay);
+            continue;
+          }
+
+          // 404 或其他錯誤
+          console.warn(`[無效] ${modelId} (${apiVer}) 狀態: ${status}`);
+          skipThisVersion = true;
+          break;
         }
-        if (modelSuccess) break;
-        if (skipThisPath) continue;
       }
       if (modelSuccess) break;
+      if (skipThisVersion) continue;
     }
     if (finalJsonResponse) break; 
   }
 
   if (!finalJsonResponse) {
-    console.error("[核心導航失敗] 掃描了所有模型格局與 2 套協議均無效。這代表 API Key 可能失效或專案未開通。");
-    throw new Error("AI 解析服務連線失敗。請確認您的 API Key 是否正確？以及 Google AI Studio 的專案是否正常。");
+    console.error("[核心導航失敗] 掃描了 5 個備援模型均回報不可用。這通常與 API Key 的權限或 Google 服務配額有關。");
+    throw new Error("AI 解析服務連線失敗。請確認您的 API Key 是否正確？以及專案是否已在 Google AI Studio 開通。");
   }
   
   // 簡單清理 JSON 字符串
@@ -134,7 +166,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   let addedCount = 0;
   let skippedCount = 0;
   
-  // 逐條檢查重複
   const targetEq = equipmentName || '未命名設備';
   for (const item of indexData) {
     const { data: existing } = await supabase
@@ -142,7 +173,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       .select('id')
       .eq('category', item.category)
       .eq('content', item.content)
-      // 使用現有的 metadata 欄位來存放並檢查設備名稱，確保去重精準度
       .contains('metadata', { equipment_name: targetEq })
       .maybeSingle();
 
