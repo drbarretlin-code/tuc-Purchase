@@ -34,6 +34,7 @@ function App() {
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [tempKey, setTempKey] = useState(apiKey);
 
   const handleSaveConfig = () => {
@@ -67,7 +68,7 @@ function App() {
   };
 
   return (
-    <div className="app-container" style={{ padding: '1rem', maxWidth: '1800px', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="app-container" style={{ padding: '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: 'var(--tuc-red)', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -75,12 +76,26 @@ function App() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
-            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.0 Powered by Supabase</p>
+            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.1</p>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {lastSaved && <span style={{ fontSize: '0.75rem', color: '#4ADE80' }}>上次存檔: {lastSaved}</span>}
+          
+          <button 
+            onClick={() => setShowPreview(!showPreview)} 
+            className="icon-btn" 
+            style={{ 
+              padding: '0.5rem 1rem', 
+              background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
+              borderColor: showPreview ? '#333' : 'var(--tuc-red)',
+              color: 'white'
+            }}
+          >
+             {showPreview ? '隱藏正式預覽' : '顯示正式預覽'}
+          </button>
+
           <button 
             onClick={handleCloudSave} 
             disabled={isSaving}
@@ -95,9 +110,24 @@ function App() {
         </div>
       </header>
 
-      <main className="main-grid" style={{ gridTemplateColumns: 'minmax(450px, 1fr) 210mm', flex: 1, overflow: 'hidden', gap: '1.5rem' }}>
-        <SpecForm data={data} onChange={setData} />
-        <SpecPreview data={data} />
+      <main className="main-grid" style={{ 
+        gridTemplateColumns: showPreview ? '1fr 210mm' : '1fr 0px', 
+        gap: showPreview ? '1.5rem' : '0',
+        flex: 1, 
+        overflow: 'hidden' 
+      }}>
+        <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
+          <SpecForm data={data} onChange={setData} />
+        </div>
+        <div style={{ 
+          width: showPreview ? '210mm' : '0', 
+          opacity: showPreview ? 1 : 0, 
+          pointerEvents: showPreview ? 'auto' : 'none',
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden'
+        }}>
+          <SpecPreview data={data} />
+        </div>
       </main>
 
       {/* Config Modal */}

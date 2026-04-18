@@ -82,6 +82,7 @@ h1, h2, h3, h4 {
   grid-template-columns: 1fr 1.2fr;
   gap: 2rem;
   flex: 1;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (max-width: 1024px) {
@@ -290,6 +291,23 @@ input:focus, select:focus, textarea:focus {
   padding: 1rem 0;
   flex-shrink: 0;
   overflow-y: auto;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-sidebar.collapsed {
+  width: 64px;
+}
+
+.form-sidebar.collapsed .sidebar-nav-item span,
+.form-sidebar.collapsed h2,
+.form-sidebar.collapsed p {
+  display: none;
+}
+
+.form-sidebar.collapsed .sidebar-nav-item {
+  padding: 1rem;
+  justify-content: center;
+  border-left: none;
 }
 
 .sidebar-nav-item {

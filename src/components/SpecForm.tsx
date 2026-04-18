@@ -23,6 +23,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [isKMOpen, setIsKMOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string}[]>([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
   const currentDate = new Date().toLocaleDateString('zh-TW');
@@ -236,10 +237,22 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     <div className="form-section glass-panel" style={{ height: 'calc(100vh - 120px)', padding: 0, overflow: 'hidden' }}>
       <div className="form-layout">
         {/* 左側側邊欄導航 */}
-        <aside className="form-sidebar">
-          <div style={{ padding: '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>編輯目錄</h2>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>TUC 採購規範產生器</p>
+        <aside className={`form-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+          <div style={{ padding: isSidebarCollapsed ? '0.5rem' : '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {!isSidebarCollapsed && (
+              <div>
+                <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>編輯目錄</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>TUC 採購規範產生器</p>
+              </div>
+            )}
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              className="icon-btn" 
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)' }}
+              title={isSidebarCollapsed ? "展開目錄" : "收合目錄"}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
           </div>
           {tabs.map((tab, index) => (
             <button
@@ -248,7 +261,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               className={`sidebar-nav-item ${activeTab === index ? 'active' : ''}`}
             >
               {tab.icon}
-              <span>{tab.label}</span>
+              {!isSidebarCollapsed && <span>{tab.label}</span>}
             </button>
           ))}
         </aside>
