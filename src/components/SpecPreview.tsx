@@ -9,14 +9,12 @@ interface Props {
 }
 
 const SpecPreview: React.FC<Props> = ({ data }) => {
-  const [copied, setCopied] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [scale, setScale] = useState(1);
   const [zoomMode, setZoomMode] = useState<'auto' | number>('auto');
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 處理縮放邏輯
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
@@ -39,7 +37,6 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [zoomMode, data]);
 
-  // 處理頁數邏輯
   useEffect(() => {
     if (previewRef.current) {
       const height = previewRef.current.scrollHeight;
@@ -48,29 +45,29 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     }
   }, [data, scale]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const renderSelectedHints = (hints: any[]) => {
-    const selected = hints.filter(h => h.selected);
-    if (selected.length === 0) return null;
-    return (
-      <div style={{ marginTop: '0.25rem', paddingLeft: '1.2rem', color: '#555', fontSize: '10pt', fontStyle: 'italic' }}>
-        {selected.map((h, i) => (
-          <div key={i}>• {h.content}</div>
-        ))}
-      </div>
-    );
-  };
-
   const hasImages = data.images.length > 0;
+  const currentDate = new Date().toLocaleDateString('zh-TW');
 
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 1rem', flexShrink: 0 }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #preview-paper, #preview-paper * { visibility: visible; }
+          #preview-paper { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 210mm !important; 
+            margin: 0 !important; 
+            padding: 20mm !important;
+            box-shadow: none !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 1rem', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FileText color="#E60012" size={24} />
           <h3 style={{ margin: 0 }}>正式預覽</h3>
@@ -89,13 +86,10 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleCopy} className="icon-btn" title="複製資料 JSON">
-            <span style={{ fontSize: '0.7rem' }}>{copied ? '已複製' : '複製'}</span>
-          </button>
-          <button onClick={() => exportToWord(data, 'TUC_Spec')} className="icon-btn">
+          <button onClick={() => exportToWord(data)} className="icon-btn">
             <FileJson size={18} /><span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>匯出 Word</span>
           </button>
-          <button onClick={() => exportToPDF('preview-paper', 'TUC_Spec')} className="primary-button" style={{ padding: '0.4rem 1rem' }}>
+          <button onClick={() => exportToPDF('preview-paper', data)} className="primary-button" style={{ padding: '0.4rem 1rem' }}>
             <Download size={16} /><span style={{ marginLeft: '4px' }}>匯出 PDF</span>
           </button>
         </div>
@@ -117,6 +111,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           }}>
             {/* Header */}
             <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
+              <div style={{ position: 'absolute', right: 0, top: 0, fontSize: '9pt', color: '#666' }}>填單日期：{currentDate}</div>
               <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>台燿科技股份有限公司</h1>
               <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>Taiwan Union Technology Corporation</h2>
               <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
@@ -162,19 +157,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>六、 設計要求</h4>
               <div style={{ marginLeft: '1.2rem' }}>
                 <div style={{ marginBottom: '4px' }}><strong>1. 環保要求：</strong> {data.envRequirements}</div>
-                {renderSelectedHints(data.envAIHints)}
                 <div style={{ margin: '4px 0' }}><strong>2. 法規要求：</strong> {data.regRequirements}</div>
-                {renderSelectedHints(data.regAIHints)}
                 <div><strong>3. 維護要求：</strong> {data.maintRequirements}</div>
               </div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>七、 安全要求：</h4>
-              <div style={{ marginLeft: '1.2rem' }}>
-                {data.safetyRequirements}
-                {renderSelectedHints(data.safetyAIHints)}
-              </div>
+              <div style={{ marginLeft: '1.2rem' }}>{data.safetyRequirements}</div>
             </div>
 
             <div className="doc-section">
@@ -188,26 +178,6 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                   <span style={{ color: '#666', fontSize: '9pt' }}>2. 機構特性規格:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.mechSpecs}</div>
                 </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>3. 物理特性要求:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.physSpecs}</div>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>4. 信賴特性要求:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.relySpecs}</div>
-                </div>
-                {data.customSpec1Name && (
-                  <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                    <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec1Name}:</span>
-                    <div style={{ wordBreak: 'break-all' }}>{data.customSpec1Value}</div>
-                  </div>
-                )}
-                {data.customSpec2Name && (
-                  <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                    <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec2Name}:</span>
-                    <div style={{ wordBreak: 'break-all' }}>{data.customSpec2Value}</div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -218,7 +188,6 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                 <div style={{ margin: '8px 0' }}><strong>完工日期：</strong> {data.deliveryDate || 'NA'} | <strong>工期（天）：</strong> {data.workPeriod || 'NA'}</div>
                 <strong>驗收：</strong>
                 <div>{data.acceptanceDesc}</div>
-                {renderSelectedHints(data.acceptanceAIHints)}
               </div>
             </div>
 

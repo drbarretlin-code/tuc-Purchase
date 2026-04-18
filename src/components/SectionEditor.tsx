@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Circle, Book, History } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -8,8 +8,10 @@ interface Props {
   onChange: (val: string) => void;
   hints?: AIHintSelection[];
   tucHints?: AIHintSelection[];
+  historyHints?: AIHintSelection[];
   onHintToggle?: (id: string) => void;
   onTUCHintToggle?: (id: string) => void;
+  onHistoryHintToggle?: (id: string) => void;
   isTextArea?: boolean;
   required?: boolean;
   placeholder?: string;
@@ -17,7 +19,7 @@ interface Props {
 }
 
 const SectionEditor: React.FC<Props> = ({ 
-  label, value, onChange, hints, tucHints, onHintToggle, onTUCHintToggle, isTextArea = true, required = false, placeholder, inputType = "text"
+  label, value, onChange, hints, tucHints, historyHints, onHintToggle, onTUCHintToggle, onHistoryHintToggle, isTextArea = true, required = false, placeholder, inputType = "text"
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
@@ -85,6 +87,44 @@ const SectionEditor: React.FC<Props> = ({
         </div>
       )}
 
+      {/* 歷史檔案參考 (RAG) */}
+      {historyHints && historyHints.length > 0 && (
+        <div className="history-hints-box" style={{ 
+          marginTop: '0.75rem', 
+          padding: '0.75rem',
+          background: 'rgba(16, 185, 129, 0.05)',
+          border: '1px dashed rgba(16, 185, 129, 0.3)',
+          borderRadius: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#10B981' }}>
+            <History size={14} />
+            <span>TUC 歷史參考 (來自上傳檔案)</span>
+          </div>
+          {historyHints.map((hint) => (
+            <div 
+              key={hint.id} 
+              onClick={() => onHistoryHintToggle?.(hint.id)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'flex-start', 
+                gap: '0.75rem', 
+                padding: '0.5rem',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                transition: 'background 0.2s',
+              }}
+              className="hint-item"
+            >
+              {hint.selected ? <CheckCircle2 size={16} color="#10B981" /> : <Circle size={16} color="#4B5563" />}
+              <div style={{ fontSize: '0.875rem' }}>
+                <p style={{ margin: 0 }}>{hint.content}</p>
+                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>來源: {(hint as any).source}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* AI 建議補充 */}
       {hints && hints.length > 0 && (
         <div className="ai-hints-box" style={{ 
@@ -113,20 +153,9 @@ const SectionEditor: React.FC<Props> = ({
               }}
               className="hint-item"
             >
-              {hint.selected ? <CheckCircle2 size={16} color="#4ADE80" /> : <Circle size={16} color="#4B5563" />}
+              {hint.selected ? <CheckCircle2 size={16} color="#E60012" /> : <Circle size={16} color="#4B5563" />}
               <div style={{ fontSize: '0.875rem' }}>
                 <p style={{ margin: 0 }}>{hint.content}</p>
-                {hint.link && (
-                  <a 
-                    href={hint.link} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ fontSize: '0.75rem', color: '#60A5FA', textDecoration: 'none' }}
-                  >
-                    [參考連結]
-                  </a>
-                )}
               </div>
             </div>
           ))}

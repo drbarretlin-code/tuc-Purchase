@@ -10,7 +10,7 @@ import {
   Info, Settings, Hammer, Table, 
   ChevronRight, ChevronLeft, User, Building2, Hash, PenTool,
   BookOpen, Download, Upload, FolderOpen, Loader2,
-  Package, ShieldCheck, Zap, FileUp
+  Package, ShieldCheck, Zap, FileUp, Calendar
 } from 'lucide-react';
 
 interface Props {
@@ -25,6 +25,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string}[]>([]);
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
+  const currentDate = new Date().toLocaleDateString('zh-TW');
 
   // 初始化 TUC 建議內容
   useEffect(() => {
@@ -59,7 +60,47 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     }
   }, []);
 
+  const loadHistoryHints = async (tabIndex: number) => {
+    const categoryMap: Record<number, {key: keyof FormState, category: string}[]> = {
+      0: [{ key: 'appearanceHistoryHints', category: 'appearance' }],
+      1: [
+        { key: 'envHistoryHints', category: 'environmental' },
+        { key: 'regHistoryHints', category: 'technical' },
+        { key: 'maintHistoryHints', category: 'technical' },
+        { key: 'safetyHistoryHints', category: 'safety' },
+        { key: 'elecHistoryHints', category: 'technical' },
+        { key: 'mechHistoryHints', category: 'technical' }
+      ],
+      2: [
+        { key: 'installHistoryHints', category: 'installation' },
+        { key: 'complianceHistoryHints', category: 'compliance' }
+      ],
+      3: [{ key: 'acceptanceHistoryHints', category: 'technical' }]
+    };
+
+    const targets = categoryMap[tabIndex];
+    if (!targets) return;
+
+    const { getHistorySuggestions } = await import('../lib/knowledgeParser');
+    const newData = { ...data };
+    let changed = false;
+
+    for (const target of targets) {
+      const currentHistory = data[target.key] as AIHintSelection[];
+      if (currentHistory.length === 0) {
+        const results = await getHistorySuggestions(target.category);
+        if (results.length > 0) {
+          (newData[target.key] as any) = results;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) onChange(newData);
+  };
+
   useEffect(() => {
+    loadHistoryHints(activeTab);
     const formContainer = document.querySelector('.form-content-area');
     if (formContainer) {
       formContainer.scrollTo({ top: 0, behavior: 'smooth' });
@@ -84,7 +125,21 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       h.id === hintId ? { ...h, selected: !h.selected } : h
     );
     
-    // 如果選中，自動加入主內容並取消標籤 (直接併入文字)
+    const selectedHint = (data[field] as AIHintSelection[]).find(h => h.id === hintId);
+    if (selectedHint && !selectedHint.selected) {
+      const currentText = data[contentField] as string;
+      const separator = currentText ? '\n' : '';
+      updateField(contentField, currentText + separator + selectedHint.content);
+    }
+    
+    updateField(field, hints);
+  };
+
+  const toggleHistoryHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
+    const hints = (data[field] as AIHintSelection[]).map(h => 
+      h.id === hintId ? { ...h, selected: !h.selected } : h
+    );
+    
     const selectedHint = (data[field] as AIHintSelection[]).find(h => h.id === hintId);
     if (selectedHint && !selectedHint.selected) {
       const currentText = data[contentField] as string;
@@ -149,10 +204,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         .getPublicUrl(fileName);
 
       setUploadedFiles(prev => [...prev, { name: file.name, url: publicUrl }]);
-      alert('檔案上傳成功！');
+      
+      const { processFileToKnowledge } = await import('../lib/knowledgeParser');
+      const count = await processFileToKnowledge(file);
+      alert(`檔案上傳並歸納成功！已提取 ${count} 條過往規範建議。`);
     } catch (err) {
       console.error(err);
-      alert('上傳失敗。');
+      alert('上傳或歸納失敗。');
     } finally {
       setUploadingFile(false);
     }
@@ -188,7 +246,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ marginRight: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Calendar size={14} /> 填單日期：{currentDate}
+          </div>
           <button className="icon-btn" onClick={() => setIsKMOpen(true)} title="開啟 TUC 知識庫手冊" style={{ color: 'var(--tuc-red)' }}>
             <BookOpen size={16} />
           </button>
@@ -200,7 +261,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* 主要編輯區 - 全寬 */}
         <div className="form-content-area" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', scrollbarWidth: 'thin' }}>
           
           {activeTab === 0 && (
@@ -247,7 +307,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   value={data.appearance} 
                   onChange={(v) => updateField('appearance', v)} 
                   tucHints={data.appearanceTUCHints}
+                  historyHints={data.appearanceHistoryHints}
                   onTUCHintToggle={(id) => toggleTUCHint('appearanceTUCHints', 'appearance', id)}
+                  onHistoryHintToggle={(id) => toggleHistoryHint('appearanceHistoryHints', 'appearance', id)}
                 />
                 <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v) => updateField('quantityUnit', v)} isTextArea={false} />
                 <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} />
@@ -265,21 +327,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    value={data.envRequirements} 
                    onChange={(v) => updateField('envRequirements', v)} 
                    tucHints={data.envTUCHints}
+                   historyHints={data.envHistoryHints}
                    onTUCHintToggle={(id) => toggleTUCHint('envTUCHints', 'envRequirements', id)}
+                   onHistoryHintToggle={(id) => toggleHistoryHint('envHistoryHints', 'envRequirements', id)}
                 />
                 <SectionEditor 
                    label="2. 法規要求" 
                    value={data.regRequirements} 
                    onChange={(v) => updateField('regRequirements', v)} 
                    tucHints={data.regTUCHints}
+                   historyHints={data.regHistoryHints}
                    onTUCHintToggle={(id) => toggleTUCHint('regTUCHints', 'regRequirements', id)}
+                   onHistoryHintToggle={(id) => toggleHistoryHint('regHistoryHints', 'regRequirements', id)}
                 />
                 <SectionEditor 
                    label="3. 維護要求" 
                    value={data.maintRequirements} 
                    onChange={(v) => updateField('maintRequirements', v)} 
                    tucHints={data.maintTUCHints}
+                   historyHints={data.maintHistoryHints}
                    onTUCHintToggle={(id) => toggleTUCHint('maintTUCHints', 'maintRequirements', id)}
+                   onHistoryHintToggle={(id) => toggleHistoryHint('maintHistoryHints', 'maintRequirements', id)}
                 />
               </div>
 
@@ -290,7 +358,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    value={data.safetyRequirements} 
                    onChange={(v) => updateField('safetyRequirements', v)} 
                    tucHints={data.safetyTUCHints}
+                   historyHints={data.safetyHistoryHints}
                    onTUCHintToggle={(id) => toggleTUCHint('safetyTUCHints', 'safetyRequirements', id)}
+                   onHistoryHintToggle={(id) => toggleHistoryHint('safetyHistoryHints', 'safetyRequirements', id)}
                 />
               </div>
 
@@ -302,14 +372,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      value={data.elecSpecs} 
                      onChange={(v) => updateField('elecSpecs', v)} 
                      tucHints={data.elecTUCHints}
+                     historyHints={data.elecHistoryHints}
                      onTUCHintToggle={(id) => toggleTUCHint('elecTUCHints', 'elecSpecs', id)}
+                     onHistoryHintToggle={(id) => toggleHistoryHint('elecHistoryHints', 'elecSpecs', id)}
                   />
                   <SectionEditor 
                      label="2. 機構特性規格" 
                      value={data.mechSpecs} 
                      onChange={(v) => updateField('mechSpecs', v)} 
                      tucHints={data.mechTUCHints}
+                     historyHints={data.mechHistoryHints}
                      onTUCHintToggle={(id) => toggleTUCHint('mechTUCHints', 'mechSpecs', id)}
+                     onHistoryHintToggle={(id) => toggleHistoryHint('mechHistoryHints', 'mechSpecs', id)}
                   />
                 </div>
               </div>
@@ -324,7 +398,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                  value={data.installStandard} 
                  onChange={(v) => updateField('installStandard', v)} 
                  tucHints={data.installTUCHints}
+                 historyHints={data.installHistoryHints}
                  onTUCHintToggle={(id) => toggleTUCHint('installTUCHints', 'installStandard', id)}
+                 onHistoryHintToggle={(id) => toggleHistoryHint('installHistoryHints', 'installStandard', id)}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
@@ -335,7 +411,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                  value={data.complianceDesc} 
                  onChange={(v) => updateField('complianceDesc', v)} 
                  tucHints={data.complianceTUCHints}
+                 historyHints={data.complianceHistoryHints}
                  onTUCHintToggle={(id) => toggleTUCHint('complianceTUCHints', 'complianceDesc', id)}
+                 onHistoryHintToggle={(id) => toggleHistoryHint('complianceHistoryHints', 'complianceDesc', id)}
               />
             </div>
           )}
@@ -350,7 +428,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   value={data.acceptanceDesc} 
                   onChange={(v) => updateField('acceptanceDesc', v)} 
                   tucHints={data.acceptanceTUCHints}
+                  historyHints={data.acceptanceHistoryHints}
                   onTUCHintToggle={(id) => toggleTUCHint('acceptanceTUCHints', 'acceptanceDesc', id)}
+                  onHistoryHintToggle={(id) => toggleHistoryHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                 />
                 <SpecTable data={data.tableData} onChange={(td) => updateField('tableData', td)} />
               </div>
@@ -364,7 +444,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <SectionEditor label="申請人" value={data.applicantName} onChange={v => updateField('applicantName', v)} isTextArea={false} />
                 <SectionEditor label="單位主管" value={data.deptHeadName} onChange={v => updateField('deptHeadName', v)} isTextArea={false} />
               </div>
-              
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                 <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣 (4 x 6)</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
@@ -409,7 +488,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   </>
                 )}
               </div>
-              
               <div style={{ marginTop: '2.5rem' }}>
                 {uploadedFiles.map((f, i) => (
                   <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -436,7 +514,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         </button>
       </div>
 
-      {/* 知識庫彈窗 */}
       <KnowledgeModal isOpen={isKMOpen} onClose={() => setIsKMOpen(false)} />
     </div>
   );

@@ -7,9 +7,11 @@ import html2canvas from 'html2canvas';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
-export const exportToPDF = async (elementId: string, filename: string) => {
+export const exportToPDF = async (elementId: string, data: FormState) => {
   const element = document.getElementById(elementId);
   if (!element) return;
+  const timestamp = formatDate(new Date());
+  const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
 
   const canvas = await html2canvas(element, {
     scale: 2,
@@ -28,22 +30,43 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   pdf.save(`${filename}.pdf`);
 };
 
-export const exportToWord = async (data: FormState, filename: string) => {
+const formatDate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${y}${m}${d}_${h}${min}${s}`;
+};
+
+export const exportToWord = async (data: FormState) => {
+  const timestamp = formatDate(new Date());
+  const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
   const hasImages = data.images.length > 0;
 
   const headerContent = [
     new Paragraph({
-      children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 36 })],
+      children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 100 }
+      spacing: { before: 200, after: 100 }
     }),
     new Paragraph({
-      children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 24 })],
+      children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 }
     }),
     new Paragraph({
-      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 32 })],
+      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: {} })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 600 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: `申請單位：${data.department || 'NA'}`, size: 24 }),
+        new TextRun({ text: "      ", size: 24 }),
+        new TextRun({ text: `申請人員：${data.requester || 'NA'} (分機: ${data.extension || 'NA'})`, size: 24 })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     })
