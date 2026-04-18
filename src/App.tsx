@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload, PenTool } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload, PenTool, BookOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -38,10 +38,20 @@ function App() {
   const [tempKey, setTempKey] = useState(apiKey);
   const [isResizing, setIsResizing] = useState(false);
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !showPreview) return;
+      if (!isResizing || !showPreview || isMobile) return;
       const newPercentage = (e.clientX / window.innerWidth) * 100;
       if (newPercentage > 20 && newPercentage < 80) {
         setSplitPercentage(newPercentage);
@@ -63,7 +73,7 @@ function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, showPreview]);
+  }, [isResizing, showPreview, isMobile]);
 
   const handleSaveConfig = () => {
     setApiKey(tempKey);
@@ -96,76 +106,106 @@ function App() {
   };
 
   return (
-    <div className="app-container" style={{ padding: '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'var(--tuc-red)', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Cpu color="white" size={20} />
+    <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
+          <div style={{ background: 'var(--tuc-red)', width: isMobile ? '28px' : '36px', height: isMobile ? '28px' : '36px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Cpu color="white" size={isMobile ? 16 : 20} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
-            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.1</p>
+            <h1 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
+            {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.2</p>}
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {lastSaved && <span style={{ fontSize: '0.75rem', color: '#4ADE80' }}>上次存檔: {lastSaved}</span>}
+          {!isMobile && lastSaved && <span style={{ fontSize: '0.75rem', color: '#4ADE80' }}>上次存檔: {lastSaved}</span>}
           
-          <button 
-            onClick={() => setShowPreview(!showPreview)} 
-            className="icon-btn" 
-            style={{ 
-              padding: '0.5rem 1rem', 
-              background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
-              borderColor: showPreview ? '#333' : 'var(--tuc-red)',
-              color: 'white'
-            }}
-          >
-             {showPreview ? <span className="header-btn-text">隱藏正式預覽</span> : <span className="header-btn-text">顯示正式預覽</span>}
-             {!showPreview && <><PenTool size={16} /> <span className="header-btn-text">顯示預覽</span></>}
-          </button>
+          {!isMobile && (
+            <button 
+              onClick={() => setShowPreview(!showPreview)} 
+              className="icon-btn" 
+              style={{ 
+                padding: '0.5rem 1rem', 
+                background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
+                borderColor: showPreview ? '#333' : 'var(--tuc-red)',
+                color: 'white'
+              }}
+            >
+               {showPreview ? <span className="header-btn-text">隱藏正式預覽</span> : <span className="header-btn-text">顯示正式預覽</span>}
+               {!showPreview && <><PenTool size={16} /> <span className="header-btn-text">顯示預覽</span></>}
+            </button>
+          )}
 
           <button 
             onClick={handleCloudSave} 
             disabled={isSaving}
             className="icon-btn" 
-            style={{ padding: '0.5rem 1rem', border: '1px solid #333', borderColor: isSaving ? 'rgba(255,255,255,0.1)' : '#333' }}
+            style={{ padding: isMobile ? '0.4rem' : '0.5rem 1rem', border: '1px solid #333' }}
           >
-            {isSaving ? '同步中...' : <><CloudUpload size={16} /> <span className="header-btn-text">雲端備份</span></>}
+            {isMobile ? <CloudUpload size={18} /> : (isSaving ? '同步中...' : <><CloudUpload size={16} /> <span className="header-btn-text">雲端備份</span></>)}
           </button>
           <button onClick={() => setShowConfig(true)} className="icon-btn">
-            <Settings size={20} />
+            <Settings size={isMobile ? 18 : 20} />
           </button>
         </div>
       </header>
 
       <main className="main-grid" style={{ 
-        gridTemplateColumns: showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px', 
+        gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'), 
         gap: 0,
         flex: 1, 
-        overflow: 'hidden' 
+        overflow: 'hidden',
+        paddingBottom: isMobile ? '70px' : '0'
       }}>
-        <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
-          <SpecForm data={data} onChange={setData} />
-        </div>
+        {/* 手機版：根據切換顯示編輯或預覽 */}
+        {(!isMobile || mobileAppTab === 'edit') && (
+          <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
+            <SpecForm data={data} onChange={setData} />
+          </div>
+        )}
 
-        {showPreview && (
+        {!isMobile && showPreview && (
           <div 
             className={`layout-resizer ${isResizing ? 'active' : ''}`} 
             onMouseDown={() => setIsResizing(true)}
           />
         )}
 
-        <div style={{ 
-          minWidth: 0,
-          opacity: showPreview ? 1 : 0, 
-          pointerEvents: showPreview ? 'auto' : 'none',
-          transition: isResizing ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflow: 'hidden'
-        }}>
-          <SpecPreview data={data} />
-        </div>
+        {(!isMobile || mobileAppTab === 'preview') && (
+          <div style={{ 
+            minWidth: 0,
+            height: '100%',
+            opacity: (!isMobile && !showPreview) ? 0 : 1, 
+            pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
+            transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            overflow: 'auto',
+            background: isMobile ? 'white' : 'transparent'
+          }}>
+            <SpecPreview data={data} />
+          </div>
+        )}
       </main>
+
+      {/* 手機版底部導覽 */}
+      {isMobile && (
+        <nav className="bottom-nav">
+          <button 
+            className={`nav-tab ${mobileAppTab === 'edit' ? 'active' : ''}`}
+            onClick={() => setMobileAppTab('edit')}
+          >
+            <PenTool size={22} />
+            編輯內容
+          </button>
+          <button 
+            className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
+            onClick={() => setMobileAppTab('preview')}
+          >
+            <BookOpen size={22} />
+            查看預覽
+          </button>
+        </nav>
+      )}
 
       {/* Config Modal */}
       {showConfig && (
