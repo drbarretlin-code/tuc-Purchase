@@ -10,10 +10,11 @@ interface Props {
   onHintToggle?: (id: string) => void;
   isTextArea?: boolean;
   required?: boolean;
+  placeholder?: string;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
-  label, value, onChange, hints, onHintToggle, isTextArea = true, required = false 
+  label, value, onChange, hints, onHintToggle, isTextArea = true, required = false, placeholder
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
@@ -32,7 +33,7 @@ const SectionEditor: React.FC<Props> = ({
           style={{ width: '100%', minHeight: '100px' }}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={`請輸入${label}...`}
+          placeholder={placeholder || `請輸入${label}...`}
         />
       ) : (
         <input
@@ -40,7 +41,7 @@ const SectionEditor: React.FC<Props> = ({
           style={{ width: '100%' }}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={`請輸入${label}...`}
+          placeholder={placeholder || `請輸入${label}...`}
         />
       )}
 

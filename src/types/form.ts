@@ -60,6 +60,10 @@ export interface FormState {
   mechSpecs: string;
   physSpecs: string;
   relySpecs: string;
+  customSpec1Name: string;
+  customSpec1Value: string;
+  customSpec2Name: string;
+  customSpec2Value: string;
   
   // 九. 安裝程序
   installStandard: string;
@@ -100,6 +104,10 @@ export const INITIAL_FORM_STATE: FormState = {
   mechSpecs: '依台燿規定',
   physSpecs: '依台燿規定',
   relySpecs: '依台燿規定',
+  customSpec1Name: '',
+  customSpec1Value: '',
+  customSpec2Name: '',
+  customSpec2Value: '',
   installStandard: `1. PLC以及人機程式修改，施工當天即提供修改前後程式備份
 2. PLC程式修改，原則保留原始程式，另新增輔助接點作新舊功能切替使用，達到可快速復原功能
 3. 工程依職業安全衛生法令規範作業

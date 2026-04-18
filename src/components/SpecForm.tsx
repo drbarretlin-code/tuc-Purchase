@@ -5,7 +5,7 @@ import ImageUpload from './ImageUpload';
 import SpecTable from './SpecTable';
 import { 
   Info, Settings, HardHat, Hammer, Table, 
-  ChevronRight, ChevronLeft, Send 
+  ChevronRight, ChevronLeft, Send, Phone
 } from 'lucide-react';
 
 interface Props {
@@ -76,15 +76,26 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         {activeTab === 0 && (
           <div className="tab-pane">
             <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>基本與請購項目</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 2.5fr', gap: '1rem' }}>
               <SectionEditor label="申請單位" value={data.department} onChange={(v) => updateField('department', v)} isTextArea={false} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr', gap: '1rem', alignItems: 'flex-end' }}>
                 <SectionEditor label="申請人員" value={data.requester} onChange={(v) => updateField('requester', v)} isTextArea={false} />
-                <SectionEditor label="分機" value={data.extension} onChange={(v) => updateField('extension', v)} isTextArea={false} />
+                <div className="input-with-icon">
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
+                    <Phone size={12} style={{ marginRight: '4px' }} /> 電話
+                  </label>
+                  <input type="text" value={data.extension} onChange={(e) => updateField('extension', e.target.value)} placeholder="分機號碼" />
+                </div>
+                <div className="input-with-icon">
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
+                     分機
+                  </label>
+                  <input type="text" placeholder="####" />
+                </div>
               </div>
             </div>
             
-            <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
               <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><HardHat size={16} /> 請購項目</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <SectionEditor label="設備名稱" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} isTextArea={false} />
@@ -99,7 +110,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             </div>
 
             <div style={{ marginTop: '1.5rem' }}>
-              <SectionEditor label="一. 名稱 (由系統自動結合)" value={`${data.equipmentName}${data.model ? ` ${data.model}` : ''} (${data.category})`} onChange={() => {}} isTextArea={false} />
+              <SectionEditor label="一. 名稱" value={`${data.equipmentName}${data.model ? ` ${data.model}` : ''} (${data.category})`} onChange={() => {}} isTextArea={false} />
               <SectionEditor label="需求說明 (必填)" value={data.requirementDesc} onChange={(v) => updateField('requirementDesc', v)} required />
               <SectionEditor label="二. 品相 (顏色、尺寸、重量、材質、表面處理)" value={data.appearance} onChange={(v) => updateField('appearance', v)} />
               <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v) => updateField('quantityUnit', v)} isTextArea={false} />
@@ -123,6 +134,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <SectionEditor label="2. 機構特性規格" value={data.mechSpecs} onChange={(v) => updateField('mechSpecs', v)} />
               <SectionEditor label="3. 物理特性要求" value={data.physSpecs} onChange={(v) => updateField('physSpecs', v)} />
               <SectionEditor label="4. 信賴特性要求" value={data.relySpecs} onChange={(v) => updateField('relySpecs', v)} />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input style={{ flex: 0.4 }} placeholder="自定義項目1" value={data.customSpec1Name} onChange={e => updateField('customSpec1Name', e.target.value)} />
+                <input style={{ flex: 0.6 }} placeholder="請輸入數值/要求" value={data.customSpec1Value} onChange={e => updateField('customSpec1Value', e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input style={{ flex: 0.4 }} placeholder="自定義項目2" value={data.customSpec2Name} onChange={e => updateField('customSpec2Name', e.target.value)} />
+                <input style={{ flex: 0.6 }} placeholder="請輸入數值/要求" value={data.customSpec2Value} onChange={e => updateField('customSpec2Value', e.target.value)} />
+              </div>
             </div>
           </div>
         )}
@@ -132,8 +151,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>九. 安裝程序要求</h3>
             <SectionEditor label="施工標準 (自動編號)" value={data.installStandard} onChange={(v) => updateField('installStandard', v)} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <SectionEditor label="交期" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} />
-              <SectionEditor label="工期" value={data.workPeriod} onChange={(v) => updateField('workPeriod', v)} isTextArea={false} />
+              <SectionEditor label="交期（天）" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} placeholder="請輸入最後完工日" />
+              <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v) => updateField('workPeriod', v)} isTextArea={false} placeholder="請輸入總工期日數" />
             </div>
             <SectionEditor label="驗收說明" value={data.acceptanceDesc} onChange={(v) => updateField('acceptanceDesc', v)} hints={data.acceptanceAIHints} onHintToggle={(id) => toggleHint('acceptance', id)} />
             <SectionEditor label="驗收補充說明" value={data.acceptanceExtra} onChange={(v) => updateField('acceptanceExtra', v)} />
@@ -145,7 +164,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
         {activeTab === 3 && (
           <div className="tab-pane">
-            <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說 (限 6 張)</h3>
+            <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說 (限 2x3 共 6 張)</h3>
             <ImageUpload images={data.images} onChange={(imgs) => updateField('images', imgs)} />
             
             <h3 style={{ margin: '2rem 0 1.5rem', color: 'white' }}>十二. 驗收要求表格</h3>

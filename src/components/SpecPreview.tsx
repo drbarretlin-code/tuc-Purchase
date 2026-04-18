@@ -16,14 +16,12 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   useEffect(() => {
     if (previewRef.current) {
       const height = previewRef.current.scrollHeight;
-      const calculatedTotal = Math.max(1, Math.ceil(height / 1050)); // A4 roughly 1050px at scale
+      const calculatedTotal = Math.max(1, Math.ceil(height / 1050)); 
       setTotalPages(calculatedTotal);
     }
   }, [data]);
 
   const handleCopy = () => {
-    // 這裡可以使用 generateDraftMarkdown 來產生純文字
-    // 但因為結構變複雜，暫略
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -32,10 +30,9 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     const selected = hints.filter(h => h.selected);
     if (selected.length === 0) return null;
     return (
-      <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#F9FAFB', borderLeft: '3px solid #E60012', fontSize: '0.8rem' }}>
-        <strong>AI 建議參考：</strong>
+      <div style={{ marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>
         {selected.map((h, i) => (
-          <div key={i}>{h.content} <a href={h.link} target="_blank" rel="noreferrer" style={{ color: '#3B82F6' }}>[來源]</a></div>
+          <div key={i}>{h.content}</div>
         ))}
       </div>
     );
@@ -57,110 +54,145 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
 
       <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 180px)', background: '#333', padding: '1rem', borderRadius: '8px' }}>
         <div id="preview-paper" ref={previewRef} className="preview-content" style={{ 
-          width: '210mm', minHeight: '297mm', background: 'white', margin: '0 auto', padding: '20mm', boxShadow: '0 0 10px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' 
+          width: '210mm', minHeight: '297mm', background: 'white', margin: '0 auto', padding: '15mm 20mm', boxShadow: '0 0 10px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
         }}>
           {/* Header */}
-          <div style={{ borderBottom: '2px solid black', paddingBottom: '1rem', marginBottom: '1.5rem', position: 'relative' }}>
-            <h1 style={{ textAlign: 'center', margin: '0', fontSize: '18pt' }}>台燿科技股份有限公司</h1>
-            <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem', fontSize: '14pt', fontWeight: 'normal' }}>Taiwan Union Technology Corporation</h2>
+          <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
+            <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt', fontFamily: 'Microsoft JhengHei' }}>台燿科技股份有限公司</h1>
+            <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>Taiwan Union Technology Corporation</h2>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <h3 style={{ margin: '0', fontSize: '16pt' }}>請購驗收規範表</h3>
-              <div style={{ fontSize: '10pt' }}>頁數：1 / {totalPages}</div>
+              <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>請購驗收規範表</h3>
+              <div style={{ fontSize: '11pt' }}>頁數：1 / {totalPages}</div>
             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '10pt' }}>
+            <div>申請單位：{data.department || 'NA'}</div>
+            <div>申請人員：{data.requester || 'NA'} (分機: {data.extension || 'NA'})</div>
           </div>
 
           {/* Sections I - III */}
           <div className="doc-section">
-            <h4>一、 名稱：<span className="doc-value">{getFullSpecName(data)}</span></h4>
-            <div style={{ marginLeft: '1.5rem' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>一、 名稱：<span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
+            <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
               <strong>需求說明：</strong>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{data.requirementDesc || 'NA'}</div>
+              <div style={{ whiteSpace: 'pre-wrap', color: '#333' }}>{data.requirementDesc || 'NA'}</div>
             </div>
           </div>
 
           <div className="doc-section">
-            <h4>二、 品相：</h4>
-            <div style={{ marginLeft: '1.5rem', whiteSpace: 'pre-wrap' }}>{data.appearance || 'NA'}</div>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>二、 品相：</h4>
+            <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{data.appearance || 'NA'}</div>
           </div>
 
           <div className="doc-section">
-            <h4>三、 數量、單位：<span className="doc-value">{data.quantityUnit || 'NA'}</span></h4>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>三、 數量、單位：<span style={{ fontWeight: 'normal' }}>{data.quantityUnit || 'NA'}</span></h4>
           </div>
 
-          {/* Sections IV - V */}
           <div className="doc-section">
-            <h4>四、 工程適用範圍：<span className="doc-value">{data.equipmentName || 'NA'}</span></h4>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>四、 工程(或設備)適用範圍(Scope)：</h4>
+            <div style={{ marginLeft: '1.2rem' }}>{data.equipmentName || 'NA'}</div>
           </div>
+
           <div className="doc-section">
-            <h4>五、 工程適用區間：<span className="doc-value">{data.equipmentName ? `${data.equipmentName} 所在位置周遭區域` : 'NA'}</span></h4>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>五、 工程(或設備)適用區間(Range)：</h4>
+            <div style={{ marginLeft: '1.2rem' }}>{data.equipmentName ? `${data.equipmentName} 所在位置周遭區域` : 'NA'}</div>
           </div>
 
           {/* Section VI */}
           <div className="doc-section">
-            <h4>六、 設計要求</h4>
-            <div style={{ marginLeft: '1.5rem' }}>
-              <p><strong>1. 環保要求：</strong> {data.envRequirements}</p>
-              {renderSelectedHints(data.envAIHints)}
-              <p><strong>2. 法規要求：</strong> {data.regRequirements}</p>
-              {renderSelectedHints(data.regAIHints)}
-              <p><strong>3. 維護要求：</strong> {data.maintRequirements}</p>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>六、 設計要求</h4>
+            <div style={{ marginLeft: '1.2rem' }}>
+              <div style={{ marginBottom: '4px' }}><strong>1. 環保要求：</strong> {data.envRequirements}</div>
+              <div style={{ paddingLeft: '2rem' }}>{renderSelectedHints(data.envAIHints)}</div>
+              
+              <div style={{ margin: '4px 0' }}><strong>2. 法規要求：</strong> {data.regRequirements}</div>
+              <div style={{ paddingLeft: '2rem' }}>{renderSelectedHints(data.regAIHints)}</div>
+              
+              <div><strong>3. 維護要求：</strong> {data.maintRequirements}</div>
             </div>
           </div>
 
           {/* Section VII */}
-          <div className="doc-section">
-            <h4>七、 安全要求</h4>
-            <div style={{ marginLeft: '1.5rem' }}>
-              <p>{data.safetyRequirements}</p>
+          <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>七、 安全要求：</h4>
+            <div style={{ marginLeft: '1.2rem' }}>
+              <div>{data.safetyRequirements}</div>
               {renderSelectedHints(data.safetyAIHints)}
             </div>
           </div>
 
           {/* Section VIII */}
-          <div className="doc-section">
-            <h4>八、 特性要求</h4>
-            <table style={{ width: '100%', border: 'none', marginLeft: '1rem' }}>
-              <tbody>
-                <tr><td style={{ border: 'none', color: '#666' }}>1. 電氣特性規格:</td><td style={{ border: 'none' }}>{data.elecSpecs}</td></tr>
-                <tr><td style={{ border: 'none', color: '#666' }}>2. 機構特性規格:</td><td style={{ border: 'none' }}>{data.mechSpecs}</td></tr>
-                <tr><td style={{ border: 'none', color: '#666' }}>3. 物理特性要求:</td><td style={{ border: 'none' }}>{data.physSpecs}</td></tr>
-                <tr><td style={{ border: 'none', color: '#666' }}>4. 信賴特性要求:</td><td style={{ border: 'none' }}>{data.relySpecs}</td></tr>
-              </tbody>
-            </table>
+          <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>八、 特性要求</h4>
+            <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
+              <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <span style={{ color: '#666', fontSize: '9pt' }}>1. 電氣特性規格:</span>
+                <div style={{ wordBreak: 'break-all' }}>{data.elecSpecs}</div>
+              </div>
+              <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <span style={{ color: '#666', fontSize: '9pt' }}>2. 機構特性規格:</span>
+                <div style={{ wordBreak: 'break-all' }}>{data.mechSpecs}</div>
+              </div>
+              <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <span style={{ color: '#666', fontSize: '9pt' }}>3. 物理特性要求:</span>
+                <div style={{ wordBreak: 'break-all' }}>{data.physSpecs}</div>
+              </div>
+              <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <span style={{ color: '#666', fontSize: '9pt' }}>4. 信賴特性要求:</span>
+                <div style={{ wordBreak: 'break-all' }}>{data.relySpecs}</div>
+              </div>
+              {data.customSpec1Name && (
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                  <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec1Name}:</span>
+                  <div style={{ wordBreak: 'break-all' }}>{data.customSpec1Value}</div>
+                </div>
+              )}
+              {data.customSpec2Name && (
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                  <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec2Name}:</span>
+                  <div style={{ wordBreak: 'break-all' }}>{data.customSpec2Value}</div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Section IX */}
-          <div className="doc-section">
-            <h4>九、 安裝程序要求</h4>
-            <div style={{ marginLeft: '1.5rem' }}>
+          <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>九、 安裝程序要求(施工標準、交期、工期)：</h4>
+            <div style={{ marginLeft: '1.2rem' }}>
               <strong>施工標準：</strong>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', marginBottom: '1rem' }}>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', padding: '4px 0' }}>
                 {processAutoNumbering(data.installStandard)}
               </div>
-              <p><strong>交期：</strong> {data.deliveryDate || 'NA'} | <strong>工期：</strong> {data.workPeriod || 'NA'}</p>
-              <p><strong>驗收：</strong> {data.acceptanceDesc}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', margin: '8px 0' }}>
+                <div><strong>交期（天）：</strong> {data.deliveryDate || 'NA'}</div>
+                <div><strong>工期（天）：</strong> {data.workPeriod || 'NA'}</div>
+              </div>
+              <strong>驗收：</strong>
+              <div style={{ marginTop: '2px' }}>{data.acceptanceDesc}</div>
               {renderSelectedHints(data.acceptanceAIHints)}
-              <div style={{ fontSize: '9pt', color: '#555', fontStyle: 'italic' }}>{data.acceptanceExtra}</div>
+              <div style={{ fontSize: '9pt', color: '#555', fontStyle: 'italic', marginTop: '4px' }}>{data.acceptanceExtra}</div>
             </div>
           </div>
 
           {/* Section X */}
-          <div className="doc-section">
-            <h4>十、 遵守事項</h4>
-            <div style={{ marginLeft: '1.5rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>
+          <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十、 遵守事項：</h4>
+            <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt', marginTop: '4px' }}>
               {processAutoNumbering(data.complianceDesc)}
             </div>
           </div>
 
           {/* Section XI */}
           {data.images.length > 0 && (
-            <div className="doc-section">
-              <h4>十一、 圖說</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            <div className="doc-section" style={{ pageBreakBefore: 'auto' }}>
+              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十一、 圖說</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '10px' }}>
                 {data.images.map(img => (
-                  <div key={img.id} style={{ textAlign: 'center' }}>
-                    <img src={img.url} style={{ width: '100%', height: '100px', objectFit: 'cover', border: '1px solid #ddd' }} />
-                    <div style={{ fontSize: '8pt', marginTop: '4px' }}>{img.caption}</div>
+                  <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px', borderRadius: '4px' }}>
+                    <img src={img.url} style={{ width: '100%', height: '180px', objectFit: 'contain', background: '#fcfcfc' }} />
+                    <div style={{ fontSize: '9pt', marginTop: '8px', fontWeight: 'bold', color: '#444' }}>{img.caption}</div>
                   </div>
                 ))}
               </div>
@@ -168,16 +200,28 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           )}
 
           {/* Section XII */}
-          <div className="doc-section">
-            <h4>十二、 請購驗收要求</h4>
-            <table style={{ border: '1px solid black', width: '100%' }}>
+          <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十二、 請購驗收要求</h4>
+            <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px' }}>
               <thead>
-                <tr style={{ background: '#f0f0f0' }}><th>類別</th><th>項目</th><th>規格要求</th><th>測試方法</th><th>樣品數</th><th>確認</th></tr>
+                <tr style={{ background: '#f5f5f5' }}>
+                  <th style={{ border: '1px solid black', width: '15%' }}>類別</th>
+                  <th style={{ border: '1px solid black', width: '20%' }}>項目</th>
+                  <th style={{ border: '1px solid black' }}>規格要求</th>
+                  <th style={{ border: '1px solid black', width: '15%' }}>測試方法</th>
+                  <th style={{ border: '1px solid black', width: '10%' }}>樣品數</th>
+                  <th style={{ border: '1px solid black', width: '10%' }}>確認</th>
+                </tr>
               </thead>
               <tbody>
                 {data.tableData.map((row, i) => (
                   <tr key={i}>
-                    <td>{row.category || ' '}</td><td>{row.item || ' '}</td><td>{row.spec}</td><td>{row.method}</td><td>{row.samples}</td><td>{row.confirmation}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category}</td>
+                    <td style={{ border: '1px solid black' }}>{row.item}</td>
+                    <td style={{ border: '1px solid black' }}>{row.spec}</td>
+                    <td style={{ border: '1px solid black' }}>{row.method}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.confirmation}</td>
                   </tr>
                 ))}
               </tbody>

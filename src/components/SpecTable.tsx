@@ -39,8 +39,8 @@ const SpecTable: React.FC<Props> = ({ data, onChange }) => {
         <tbody>
           {data.map((row, index) => (
             <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <td><input style={{ padding: '4px' }} value={row.category} onChange={(e) => updateCell(index, 'category', e.target.value)} /></td>
-              <td><input style={{ padding: '4px' }} value={row.item} onChange={(e) => updateCell(index, 'item', e.target.value)} /></td>
+              <td><input style={{ padding: '4px', width: '80px' }} value={row.category} onChange={(e) => updateCell(index, 'category', e.target.value)} placeholder="類別" /></td>
+              <td><input style={{ padding: '4px' }} value={row.item} onChange={(e) => updateCell(index, 'item', e.target.value)} placeholder="項目" /></td>
               <td><input style={{ padding: '4px' }} value={row.spec} onChange={(e) => updateCell(index, 'spec', e.target.value)} /></td>
               <td><input style={{ padding: '4px' }} value={row.method} onChange={(e) => updateCell(index, 'method', e.target.value)} /></td>
               <td><input style={{ padding: '4px' }} value={row.samples} onChange={(e) => updateCell(index, 'samples', e.target.value)} /></td>
