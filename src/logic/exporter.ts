@@ -1,6 +1,6 @@
 import { 
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
-  AlignmentType, WidthType, HeadingLevel, VerticalAlign
+  AlignmentType, WidthType, HeadingLevel, VerticalAlign, BorderStyle
 } from 'docx';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
@@ -95,37 +95,33 @@ export const exportToWord = async (data: FormState) => {
   }
 
   // Flattened Sign-off Table (Fixed structure with Twips for maximum stability)
-  const signOffTableCount = 6;
-  const tableWidth = 9070; // Total width in twips for A4 with margins
-  const colWidth = Math.floor(tableWidth / signOffTableCount);
 
+  // Flattened Sign-off Table (Highly Stable with Table-level ColumnWidths)
+  const twipsPerCol = 1511; // 9066 total
   const signOffTable = new Table({
-    width: { size: tableWidth, type: WidthType.DXA }, // DXA is Twips
+    width: { size: twipsPerCol * 6, type: WidthType.DXA },
+    columnWidths: [twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol],
     rows: [
-      // Row 1: Applicant / Dept Head
+      // Row 1: Applicant / Dept Head (Mapped to 6-col grid [1, 1, 1, 3])
       new TableRow({
         children: [
           new TableCell({ 
             children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], 
             shading: { fill: "F9F9F9" }, 
-            width: { size: colWidth, type: WidthType.DXA }, 
             verticalAlign: VerticalAlign.CENTER 
           }),
           new TableCell({ 
             children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], 
-            width: { size: colWidth * 1.5, type: WidthType.DXA }, 
             verticalAlign: VerticalAlign.CENTER 
           }),
           new TableCell({ 
             children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })], alignment: AlignmentType.CENTER })], 
             shading: { fill: "F9F9F9" }, 
-            width: { size: colWidth, type: WidthType.DXA }, 
             verticalAlign: VerticalAlign.CENTER 
           }),
           new TableCell({ 
             children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], 
             columnSpan: 3, 
-            width: { size: colWidth * 2.5, type: WidthType.DXA }, 
             verticalAlign: VerticalAlign.CENTER 
           }),
         ]
@@ -134,7 +130,6 @@ export const exportToWord = async (data: FormState) => {
       ...data.signOffGrid.map(row => new TableRow({
         children: row.map(cell => new TableCell({
           children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
-          width: { size: colWidth, type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER
         }))
       })),
@@ -144,15 +139,32 @@ export const exportToWord = async (data: FormState) => {
           new TableCell({ 
             children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })], 
             shading: { fill: "F9F9F9" }, 
-            width: { size: colWidth, type: WidthType.DXA }, 
             verticalAlign: VerticalAlign.CENTER 
           }),
           new TableCell({ 
-            children: [new Paragraph({ text: " " }), new Paragraph({ text: " " }), new Paragraph({ text: " " })], 
+            children: [new Paragraph({ text: " " }), new Paragraph({ text: " " })], 
             columnSpan: 5, 
-            width: { size: colWidth * 5, type: WidthType.DXA },
             verticalAlign: VerticalAlign.CENTER 
           })
+        ]
+      })
+    ]
+  });
+
+  // Header Info Table (To ensure Unit, Requester, Date are on one row)
+  const infoTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+      left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+      insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `申請單位：${data.department || 'NA'}`, size: 20 })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
         ]
       })
     ]
@@ -193,15 +205,8 @@ export const exportToWord = async (data: FormState) => {
           style: "TUCCenter", 
           spacing: { before: 200, after: 300 } 
         }),
-        new Paragraph({
-          children: [new TextRun({ text: `申請單位：${data.department || 'NA'}   申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })],
-          alignment: AlignmentType.LEFT
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })],
-          alignment: AlignmentType.RIGHT,
-          spacing: { after: 400 }
-        }),
+        infoTable,
+        new Paragraph({ text: "", spacing: { after: 400 } }),
         ...bodyContent,
         ...optionalSections,
         new Paragraph({ 
