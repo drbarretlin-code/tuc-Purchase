@@ -36,6 +36,34 @@ function App() {
   const [showConfig, setShowConfig] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [tempKey, setTempKey] = useState(apiKey);
+  const [isResizing, setIsResizing] = useState(false);
+  const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !showPreview) return;
+      const newPercentage = (e.clientX / window.innerWidth) * 100;
+      if (newPercentage > 20 && newPercentage < 80) {
+        setSplitPercentage(newPercentage);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.classList.remove('unselectable');
+    };
+
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.classList.add('unselectable');
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, showPreview]);
 
   const handleSaveConfig = () => {
     setApiKey(tempKey);
@@ -112,19 +140,27 @@ function App() {
       </header>
 
       <main className="main-grid" style={{ 
-        gridTemplateColumns: showPreview ? '1fr 210mm' : '1fr 0px', 
-        gap: showPreview ? '1.5rem' : '0',
+        gridTemplateColumns: showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px', 
+        gap: 0,
         flex: 1, 
         overflow: 'hidden' 
       }}>
         <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
           <SpecForm data={data} onChange={setData} />
         </div>
+
+        {showPreview && (
+          <div 
+            className={`layout-resizer ${isResizing ? 'active' : ''}`} 
+            onMouseDown={() => setIsResizing(true)}
+          />
+        )}
+
         <div style={{ 
-          width: showPreview ? '210mm' : '0', 
+          minWidth: 0,
           opacity: showPreview ? 1 : 0, 
           pointerEvents: showPreview ? 'auto' : 'none',
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: isResizing ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden'
         }}>
           <SpecPreview data={data} />

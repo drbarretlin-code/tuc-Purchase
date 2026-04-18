@@ -445,3 +445,35 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.9rem !important;
   }
 }
+
+/* Draggable Resizer */
+.layout-resizer {
+  width: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: col-resize;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  user-select: none;
+}
+
+.layout-resizer:hover, .layout-resizer.active {
+  background: var(--tuc-red);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.layout-resizer::after {
+  content: "::";
+  color: var(--text-secondary);
+  font-size: 8px;
+  font-weight: bold;
+}
+
+.unselectable {
+  user-select: none !important;
+  pointer-events: none !important;
+}
