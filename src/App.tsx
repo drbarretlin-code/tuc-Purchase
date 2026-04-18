@@ -20,7 +20,6 @@ function App() {
     return initialState;
   });
 
-  const [lastSaved] = useState<string | null>(null);
 
   useEffect(() => {
     const profile = {
@@ -48,7 +47,7 @@ function App() {
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   useEffect(() => {
     const handleResize = () => {
