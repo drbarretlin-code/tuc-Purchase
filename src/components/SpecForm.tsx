@@ -113,7 +113,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     { label: '施工作業', icon: <Hammer size={18} /> },
     { label: '圖說表格', icon: <Table size={18} /> },
     { label: '會簽確認', icon: <PenTool size={18} /> },
-    { label: '資產檔案', icon: <FolderOpen size={18} /> },
+    { label: '歷史檔案上傳與歸納', icon: <FolderOpen size={18} /> },
   ];
 
   const updateField = (field: keyof FormState, value: any) => {

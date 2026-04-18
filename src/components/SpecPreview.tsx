@@ -111,12 +111,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           }}>
             {/* Header */}
             <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
-              <div style={{ position: 'absolute', right: 0, top: 0, fontSize: '9pt', color: '#666' }}>填單日期：{currentDate}</div>
               <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>台燿科技股份有限公司</h1>
               <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>Taiwan Union Technology Corporation</h2>
               <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
                 <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>請購驗收規範表</h3>
-                <div style={{ position: 'absolute', right: 0, bottom: 0, fontSize: '11pt' }}>頁數：1 / {totalPages}</div>
+                <div style={{ position: 'absolute', right: 0, bottom: 0, textAlign: 'right' }}>
+                  <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>日期：{currentDate}</div>
+                  <div style={{ fontSize: '11pt' }}>頁數：1 / {totalPages}</div>
+                </div>
               </div>
             </div>
 
