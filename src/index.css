@@ -615,5 +615,10 @@ input:focus, select:focus, textarea:focus {
     width: 100% !important;
     min-height: auto !important;
     background: white !important;
+    box-sizing: border-box !important;
+  }
+
+  * {
+    box-sizing: border-box !important;
   }
 }

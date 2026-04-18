@@ -55,15 +55,16 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           body * { visibility: hidden; }
           #preview-paper, #preview-paper * { visibility: visible; }
           #preview-paper { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 210mm !important; 
+            position: static !important;
+            width: 100% !important; 
             margin: 0 !important; 
-            padding: 20mm !important;
+            padding: 0 !important;
             box-shadow: none !important;
+            border: none !important;
+            display: block !important;
           }
           .no-print { display: none !important; }
+          * { box-sizing: border-box !important; }
         }
       `}</style>
 
