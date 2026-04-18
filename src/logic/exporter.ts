@@ -29,33 +29,6 @@ export const exportToWord = async (data: FormState) => {
   const now = new Date();
   const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
 
-  const headerContent = [
-    new Paragraph({
-      children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 100 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `申請單位：${data.department || 'NA'}   申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })],
-      alignment: AlignmentType.LEFT
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })],
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: 400 }
-    })
-  ];
-
   const bodyContent = [
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `一、 名稱：${getFullSpecName(data)}`, bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: "需求說明：", bold: true })] }),
@@ -121,32 +94,65 @@ export const exportToWord = async (data: FormState) => {
     );
   }
 
-  // Flattened Sign-off Table (Fixed structure for Word compatibility)
+  // Flattened Sign-off Table (Fixed structure with Twips for maximum stability)
+  const signOffTableCount = 6;
+  const tableWidth = 9070; // Total width in twips for A4 with margins
+  const colWidth = Math.floor(tableWidth / signOffTableCount);
+
   const signOffTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: tableWidth, type: WidthType.DXA }, // DXA is Twips
     rows: [
       // Row 1: Applicant / Dept Head
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-          new TableCell({ children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], width: { size: 25, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-          new TableCell({ children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], columnSpan: 3, width: { size: 45, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+          new TableCell({ 
+            children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], 
+            shading: { fill: "F9F9F9" }, 
+            width: { size: colWidth, type: WidthType.DXA }, 
+            verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], 
+            width: { size: colWidth * 1.5, type: WidthType.DXA }, 
+            verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })], alignment: AlignmentType.CENTER })], 
+            shading: { fill: "F9F9F9" }, 
+            width: { size: colWidth, type: WidthType.DXA }, 
+            verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], 
+            columnSpan: 3, 
+            width: { size: colWidth * 2.5, type: WidthType.DXA }, 
+            verticalAlign: VerticalAlign.CENTER 
+          }),
         ]
       }),
       // Main 3x6 Sign-off Matrix Rows
       ...data.signOffGrid.map(row => new TableRow({
         children: row.map(cell => new TableCell({
           children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
-          width: { size: 16.66, type: WidthType.PERCENTAGE },
+          width: { size: colWidth, type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER
         }))
       })),
       // Final Vendor Confirmation Row
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-          new TableCell({ children: [new Paragraph({ text: " " }), new Paragraph({ text: " " }), new Paragraph({ text: " " })], columnSpan: 5, verticalAlign: VerticalAlign.CENTER })
+          new TableCell({ 
+            children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })], 
+            shading: { fill: "F9F9F9" }, 
+            width: { size: colWidth, type: WidthType.DXA }, 
+            verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ text: " " }), new Paragraph({ text: " " }), new Paragraph({ text: " " })], 
+            columnSpan: 5, 
+            width: { size: colWidth * 5, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.CENTER 
+          })
         ]
       })
     ]
@@ -158,14 +164,51 @@ export const exportToWord = async (data: FormState) => {
         document: {
           run: { font: "Microsoft JhengHei", size: 22 }
         }
-      }
+      },
+      paragraphStyles: [
+        {
+          id: "TUCMainTitle",
+          name: "TUC Main Title",
+          basedOn: "Normal",
+          next: "Normal",
+          run: { size: 40, bold: true, font: "Microsoft JhengHei" },
+          paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 200, after: 100 } }
+        },
+        {
+          id: "TUCCenter",
+          name: "TUC Center",
+          basedOn: "Normal",
+          next: "Normal",
+          run: { size: 22, font: "Microsoft JhengHei" },
+          paragraph: { alignment: AlignmentType.CENTER }
+        }
+      ]
     },
     sections: [{
       children: [
-        ...headerContent,
+        new Paragraph({ text: "台燿科技股份有限公司", style: "TUCMainTitle" }),
+        new Paragraph({ text: "Taiwan Union Technology Corporation", style: "TUCCenter", spacing: { after: 200 } }),
+        new Paragraph({ 
+          children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })], 
+          style: "TUCCenter", 
+          spacing: { before: 200, after: 300 } 
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `申請單位：${data.department || 'NA'}   申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })],
+          alignment: AlignmentType.LEFT
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })],
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 400 }
+        }),
         ...bodyContent,
         ...optionalSections,
-        new Paragraph({ children: [new TextRun({ text: "規格確認及會簽", bold: true, size: 24 })], spacing: { before: 400, after: 200 }, alignment: AlignmentType.CENTER }),
+        new Paragraph({ 
+          children: [new TextRun({ text: "規格確認及會簽", bold: true })], 
+          style: "TUCCenter", 
+          spacing: { before: 400, after: 200 } 
+        }),
         signOffTable
       ]
     }]
