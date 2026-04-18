@@ -180,6 +180,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                   <span style={{ color: '#666', fontSize: '9pt' }}>2. 機構特性規格:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.mechSpecs}</div>
                 </div>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+                  <span style={{ color: '#666', fontSize: '9pt' }}>3. 物理特性規格:</span>
+                  <div style={{ wordBreak: 'break-all' }}>{data.physSpecs}</div>
+                </div>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+                  <span style={{ color: '#666', fontSize: '9pt' }}>4. 信賴特性規格:</span>
+                  <div style={{ wordBreak: 'break-all' }}>{data.relySpecs}</div>
+                </div>
               </div>
             </div>
 
@@ -214,7 +222,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                 </div>
 
                 <div className="doc-section">
-                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十二、 驗收要求表格</h4>
+                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十二、 驗收要求</h4>
                   <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '9pt' }}>
                     <thead>
                       <tr style={{ background: '#f5f5f5' }}>

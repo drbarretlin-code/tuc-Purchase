@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-export const processFileToKnowledge = async (file: File, apiKey?: string) => {
+export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
   const finalKey = rawKey.trim();
   
@@ -59,18 +59,39 @@ export const processFileToKnowledge = async (file: File, apiKey?: string) => {
   const cleanJson = jsonResponse.replace(/```json|```/g, '').trim();
   const indexData = JSON.parse(cleanJson);
 
-  // 儲存至 Supabase
-  if (!supabase) return;
-  const insertData = indexData.map((item: any) => ({
-    category: item.category,
-    content: item.content,
-    source_file_name: file.name
-  }));
+  if (!supabase) return { added: 0, skipped: 0 };
 
-  const { error } = await supabase.from('tuc_history_knowledge').insert(insertData);
-  if (error) throw error;
+  let addedCount = 0;
+  let skippedCount = 0;
   
-  return insertData.length;
+  // 逐條檢查重複
+  const targetEq = equipmentName || '未命名設備';
+  for (const item of indexData) {
+    const { data: existing } = await supabase
+      .from('tuc_history_knowledge')
+      .select('id')
+      .eq('category', item.category)
+      .eq('content', item.content)
+      // 使用現有的 metadata 欄位來存放並檢查設備名稱，確保去重精準度
+      .contains('metadata', { equipment_name: targetEq })
+      .maybeSingle();
+
+    if (existing) {
+      skippedCount++;
+      continue;
+    }
+
+    const { error } = await supabase.from('tuc_history_knowledge').insert({
+      category: item.category,
+      content: item.content,
+      source_file_name: file.name,
+      metadata: { equipment_name: targetEq }
+    });
+
+    if (!error) addedCount++;
+  }
+  
+  return { added: addedCount, skipped: skippedCount };
 };
 
 export const getHistorySuggestions = async (category: string) => {

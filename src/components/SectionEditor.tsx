@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book, History } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -41,13 +41,20 @@ const SectionEditor: React.FC<Props> = ({
           placeholder={placeholder || `請輸入${label}...`}
         />
       ) : (
-        <input
-          type={inputType}
-          style={{ width: '100%' }}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder || `請輸入${label}...`}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={inputType}
+            style={{ width: '100%', paddingRight: inputType === 'date' ? '40px' : '10px' }}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder || `請輸入${label}...`}
+          />
+          {inputType === 'date' && (
+            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+              <Calendar size={16} />
+            </div>
+          )}
+        </div>
       )}
 
       {/* TUC 建議新增 (優先顯示) */}

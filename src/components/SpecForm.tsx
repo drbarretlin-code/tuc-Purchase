@@ -48,6 +48,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       { key: 'safetyTUCHints', source: 'safetyRequirements' },
       { key: 'elecTUCHints', source: 'elecSpecs' },
       { key: 'mechTUCHints', source: 'mechSpecs' },
+      { key: 'physTUCHints', source: 'physSpecs' },
+      { key: 'relyTUCHints', source: 'relySpecs' },
       { key: 'installTUCHints', source: 'installStandard' },
       { key: 'acceptanceTUCHints', source: 'acceptanceDesc' },
       { key: 'complianceTUCHints', source: 'complianceDesc' },
@@ -77,7 +79,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         { key: 'maintHistoryHints', category: 'technical' },
         { key: 'safetyHistoryHints', category: 'safety' },
         { key: 'elecHistoryHints', category: 'technical' },
-        { key: 'mechHistoryHints', category: 'technical' }
+        { key: 'mechHistoryHints', category: 'technical' },
+        { key: 'physHistoryHints', category: 'technical' },
+        { key: 'relyHistoryHints', category: 'technical' }
       ],
       2: [
         { key: 'installHistoryHints', category: 'installation' },
@@ -140,8 +144,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      const separator = nextContent ? '\n' : '';
+      // 導入：確保以新段落開始
+      const separator = nextContent && !nextContent.endsWith('\n\n') ? (nextContent.endsWith('\n') ? '\n' : '\n\n') : '';
       nextContent = nextContent + separator + targetHint.content;
+    } else {
+      // 取消勾選：自動從主編輯區移除該段文字
+      nextContent = nextContent.replace(targetHint.content, '').trim();
+      // 清理多餘的連續換行
+      nextContent = nextContent.replace(/\n{3,}/g, '\n\n');
     }
 
     onChange({
@@ -163,8 +173,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      const separator = nextContent ? '\n' : '';
+      const separator = nextContent && !nextContent.endsWith('\n\n') ? (nextContent.endsWith('\n') ? '\n' : '\n\n') : '';
       nextContent = nextContent + separator + targetHint.content;
+    } else {
+      nextContent = nextContent.replace(targetHint.content, '').trim();
+      nextContent = nextContent.replace(/\n{3,}/g, '\n\n');
     }
 
     onChange({
@@ -219,7 +232,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     
     try {
       const newUploads: {name: string, url: string, displayName: string}[] = [];
-      let totalParsed = 0;
+      let totalAdded = 0;
+      let totalSkipped = 0;
 
       for (const file of Array.from(files)) {
         const fileName = `${Date.now()}_${file.name}`;
@@ -241,17 +255,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         newUploads.push({ name: file.name, url: publicUrl, displayName });
         
         const { processFileToKnowledge } = await import('../lib/knowledgeParser');
-        const count = await processFileToKnowledge(file, userApiKey);
-        totalParsed += count || 0;
+        const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);
+        totalAdded += result?.added || 0;
+        totalSkipped += result?.skipped || 0;
       }
 
-      // 更新列表並保留最近 5 個
+      // 更新列表並保留最近 5 個用於呈現
       setUploadedFiles(prev => {
         const combined = [...prev, ...newUploads];
         return combined.slice(-5);
       });
 
-      alert(`檔案上傳成功！共歸納 ${totalParsed} 條關鍵建議到知識庫。`);
+      alert(`檔案上傳並解析完成！\n成功歸納：${totalAdded} 條關鍵建議\n過濾重複：${totalSkipped} 條項目 (已跳過)`);
     } catch (err: any) {
       console.error(err);
       alert(`上傳或解析失敗: ${err.message || '未知錯誤'}`);
@@ -467,12 +482,20 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        value={data.physSpecs} 
                        onChange={(v) => updateField('physSpecs', v)} 
                        placeholder="預設：依台燿規定"
+                       tucHints={data.physTUCHints}
+                       historyHints={data.physHistoryHints}
+                       onTUCHintToggle={(id) => toggleTUCHint('physTUCHints', 'physSpecs', id)}
+                       onHistoryHintToggle={(id) => toggleHistoryHint('physHistoryHints', 'physSpecs', id)}
                     />
                     <SectionEditor 
                        label="4. 信賴特性規格" 
                        value={data.relySpecs} 
                        onChange={(v) => updateField('relySpecs', v)} 
                        placeholder="預設：依台燿規定"
+                       tucHints={data.relyTUCHints}
+                       historyHints={data.relyHistoryHints}
+                       onTUCHintToggle={(id) => toggleTUCHint('relyTUCHints', 'relySpecs', id)}
+                       onHistoryHintToggle={(id) => toggleHistoryHint('relyHistoryHints', 'relySpecs', id)}
                     />
                   </div>
                 </div>
@@ -522,7 +545,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
                 <ImageUpload images={data.images} onChange={(imgs) => updateField('images', imgs)} />
                 <div style={{ marginTop: '2.5rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求表格</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求</h4>
                   <SpecTable data={data.tableData} onChange={(td) => updateField('tableData', td)} />
                 </div>
               </div>

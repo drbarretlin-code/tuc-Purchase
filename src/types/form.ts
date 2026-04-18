@@ -74,7 +74,11 @@ export interface FormState {
   mechTUCHints: AIHintSelection[];
   mechHistoryHints: AIHintSelection[];
   physSpecs: string;
+  physTUCHints: AIHintSelection[];
+  physHistoryHints: AIHintSelection[];
   relySpecs: string;
+  relyTUCHints: AIHintSelection[];
+  relyHistoryHints: AIHintSelection[];
   customSpec1Name: string;
   customSpec1Value: string;
   customSpec2Name: string;
@@ -144,7 +148,11 @@ export const INITIAL_FORM_STATE: FormState = {
   mechTUCHints: [],
   mechHistoryHints: [],
   physSpecs: '依台燿規定',
+  physTUCHints: [],
+  physHistoryHints: [],
   relySpecs: '依台燿規定',
+  relyTUCHints: [],
+  relyHistoryHints: [],
   customSpec1Name: '',
   customSpec1Value: '',
   customSpec2Name: '',
@@ -197,8 +205,6 @@ export const INITIAL_FORM_STATE: FormState = {
     { category: '功能', item: '運轉測試', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '品質', item: '外觀檢驗', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '產能', item: '出力測速', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-    { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-    { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
   ],
   tableTUCHints: [],
   applicantName: '',
