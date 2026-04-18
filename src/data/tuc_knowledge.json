@@ -1,58 +1,70 @@
-[
-  {
-    "category": "職業安全",
-    "title": "職業安全衛生法",
-    "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=N0060001",
-    "keywords": ["安全", "衛生", "職安", "OSHA", "防護", "危害"],
-    "summary": "規範勞動場所安全衛生，防止職業災害發生。"
-  },
-  {
-    "category": "環境保護",
-    "title": "水污染防治法",
-    "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=O0040001",
-    "keywords": ["水污", "廢水", "排放", "環保", "造水"],
-    "summary": "規範事業廢水排放標準，保護水體品質。"
-  },
-  {
-    "category": "建築營造",
-    "title": "公共工程施工綱要規範 (PCCES)",
-    "url": "https://pcces.pcc.gov.tw/CSINew/",
-    "keywords": ["施工", "鋼要", "規範", "PCCES", "Division", "基礎"],
-    "summary": "行政院公共工程委員會制定的標準施工規範，含 Division 01-48。"
-  },
-  {
-    "category": "機電/空調",
-    "title": "ASHRAE Standards",
-    "url": "https://www.ashrae.org/technical-resources/standards-and-guidelines",
-    "keywords": ["空調", "HVAC", "清淨室", "無塵室", "通風", "ASHRAE"],
-    "summary": "美國冷凍空調學會標準，全球空調設計權威。"
-  },
-  {
-    "category": "機電/空調",
-    "title": "SEMI Standards",
-    "url": "https://www.semi.org/en/products-services/standards",
-    "keywords": ["半導體", "無塵室", "SEMI", "化學品", "供應系統"],
-    "summary": "半導體產業國際標準，特別針對無塵室與化學系統。"
-  },
-  {
-    "category": "消防安全",
-    "title": "NFPA 400 (Hazardous Materials Code)",
-    "url": "https://www.nfpa.org/Codes-and-Standards",
-    "keywords": ["消防", "危險物品", "NFPA", "化學儲存", "標示"],
-    "summary": "美國國家消防協會危險材料管理規範。"
-  },
-  {
-    "category": "國家標準",
-    "title": "CNS 中華民國國家標準",
-    "url": "https://www.cnsonline.com.tw/",
-    "keywords": ["CNS", "標準", "零件規格", "國家標準"],
-    "summary": "台灣所有工業零件、材料、安全測試之基準。"
-  },
-  {
-    "category": "管理系統",
-    "title": "ISO 45001 / 14001 / 9001",
-    "url": "https://www.iso.org/standards.html",
-    "keywords": ["ISO", "環安衛", "品質", "管理系統"],
-    "summary": "國際標準化組織之職業安全、環境與品質管理標準。"
+{
+  "regulations": [
+    {
+      "category": "職業安全",
+      "title": "職業安全衛生法",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=N0060001",
+      "keywords": ["安全", "衛生", "職安", "OSHA", "防護", "危害"],
+      "summary": "規範勞動場所安全衛生，防止職業災害發生。"
+    },
+    {
+      "category": "環境保護",
+      "title": "水污染防治法",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=O0040001",
+      "keywords": ["水污", "廢水", "排放", "環保", "造水"],
+      "summary": "規範事業廢水排放標準，保護水體品質。"
+    },
+    {
+      "category": "建築營造",
+      "title": "公共工程施工綱要規範 (PCCES)",
+      "url": "https://pcces.pcc.gov.tw/CSINew/",
+      "keywords": ["施工", "鋼要", "規範", "PCCES", "Division", "基礎"],
+      "summary": "行政院公共工程委員會制定的標準施工規範，含 Division 01-48。"
+    },
+    {
+      "category": "機電/空調",
+      "title": "ASHRAE Standards",
+      "url": "https://www.ashrae.org/technical-resources/standards-and-guidelines",
+      "keywords": ["空調", "HVAC", "清淨室", "無塵室", "通風", "ASHRAE"],
+      "summary": "美國冷凍空調學會標準，全球空調設計權威。"
+    }
+  ],
+  "fieldHints": {
+    "appearance": [
+      { "id": "t1", "content": "機殼顏色：台燿標準白 (RAL 9010) 粉體烤漆，漆膜厚度需達 60μm 以上。" },
+      { "id": "t2", "content": "表面處理：全機邊緣需做 R角或倒角處理，不得有利邊或毛刺；不鏽鋼部分採髮絲紋處理。" }
+    ],
+    "envRequirements": [
+      { "id": "t3", "content": "符合 RoHS 2.0 綠色採購規範，所有組件需提供不含六大有害物質之證明。" },
+      { "id": "t4", "content": "能效指標：需具備經濟部能源局節能標章，待機功耗需低於 5W。" }
+    ],
+    "regRequirements": [
+      { "id": "t5", "content": "機器設備符合《職業安全衛生法》第七條之安全標準，具備 TS 合格標章。" },
+      { "id": "t6", "content": "壓力容器部分需符合《危險性設備檢查細則》，並取得協會發給之合格證。" }
+    ],
+    "maintRequirements": [
+      { "id": "t7", "content": "模組化設計：耗材更換位置應設於正面，且不需特殊工具即可快速拆裝。" },
+      { "id": "t8", "content": "保養週期：需內建保養時數提示系統，並提供一年份建議備品清單。" }
+    ],
+    "safetyRequirements": [
+      { "id": "t9", "content": "緊急停止按鈕：需位於顯眼位置且具備防誤觸護蓋，符合 ISO 13850 規範。" },
+      { "id": "t10", "content": "防護網：轉動部位需安裝安全防護網，連動安全開關 (Interlock)，開門即斷電。" }
+    ],
+    "elecSpecs": [
+      { "id": "t11", "content": "電氣箱需具備 IP54 等級防塵防水，內部配線需有編號管標誌並符合 CNS 13054。" },
+      { "id": "t12", "content": "具備過載保護與漏電斷路器 (30mA/0.1sec)，接地電阻需小於 10Ω。" }
+    ],
+    "installStandard": [
+      { "id": "t13", "content": "施工標準：遵照公共工程施工綱要規範 Division 01 施工管理與品質控制。" },
+      { "id": "t14", "content": "驗收檢查點：施工前需提交施工計畫書，施工中需保留埋設物拍照記錄。" }
+    ],
+    "acceptanceDesc": [
+      { "id": "t15", "content": "具公信力之第三方檢測報告：含噪音測試、溫濕度穩定度測試及電氣安全測試。" },
+      { "id": "t16", "content": "驗收文件：需提供操作手冊 (繁體中文)、維護手冊、電路圖及零件 BOM 表。" }
+    ],
+    "complianceDesc": [
+      { "id": "t17", "content": "施工期間嚴禁吸菸、嚼食檳榔，並每日執行環境清潔 (5S) 工作。" },
+      { "id": "t18", "content": "遵守台燿科技《承攬商安全衛生管理手冊》，入場人員需領有勞安卡。" }
+    ]
   }
-]
+}

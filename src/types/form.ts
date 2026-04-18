@@ -3,7 +3,7 @@ export type 工程類別 = '新增' | '修繕' | '整改' | '優化' | '購置';
 export interface AIHintSelection {
   id: string;
   content: string;
-  link: string;
+  link?: string;
   selected: boolean;
 }
 
@@ -38,6 +38,7 @@ export interface FormState {
   
   // 二. 品相
   appearance: string;
+  appearanceTUCHints: AIHintSelection[];
   
   // 三. 數量與單位
   quantityUnit: string;
@@ -45,19 +46,25 @@ export interface FormState {
   // 六. 設計要求
   envRequirements: string;
   envAIHints: AIHintSelection[];
+  envTUCHints: AIHintSelection[];
   
   regRequirements: string;
   regAIHints: AIHintSelection[];
+  regTUCHints: AIHintSelection[];
   
   maintRequirements: string;
+  maintTUCHints: AIHintSelection[];
   
   // 七. 安全要求
   safetyRequirements: string;
   safetyAIHints: AIHintSelection[];
+  safetyTUCHints: AIHintSelection[];
   
   // 八. 特性要求
   elecSpecs: string;
+  elecTUCHints: AIHintSelection[];
   mechSpecs: string;
+  mechTUCHints: AIHintSelection[];
   physSpecs: string;
   relySpecs: string;
   customSpec1Name: string;
@@ -67,20 +74,24 @@ export interface FormState {
   
   // 九. 安裝程序
   installStandard: string;
+  installTUCHints: AIHintSelection[];
   deliveryDate: string;
   workPeriod: string;
   acceptanceDesc: string;
   acceptanceAIHints: AIHintSelection[];
+  acceptanceTUCHints: AIHintSelection[];
   acceptanceExtra: string;
   
   // 十. 遵守事項
   complianceDesc: string;
+  complianceTUCHints: AIHintSelection[];
   
   // 十一. 圖說
   images: SpecImage[];
   
   // 十二. 驗收要求表格
   tableData: TableRowData[];
+  tableTUCHints: AIHintSelection[];
 
   // 規格確認及會簽
   applicantName: string;
@@ -97,16 +108,23 @@ export const INITIAL_FORM_STATE: FormState = {
   category: '新增',
   requirementDesc: '',
   appearance: '',
+  appearanceTUCHints: [],
   quantityUnit: '',
   envRequirements: '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
   envAIHints: [],
+  envTUCHints: [],
   regRequirements: '符合國家法規',
   regAIHints: [],
+  regTUCHints: [],
   maintRequirements: '依台燿規定',
+  maintTUCHints: [],
   safetyRequirements: '設計與安裝符合職業安全衛生法令規範',
   safetyAIHints: [],
+  safetyTUCHints: [],
   elecSpecs: '依台燿規定',
+  elecTUCHints: [],
   mechSpecs: '依台燿規定',
+  mechTUCHints: [],
   physSpecs: '依台燿規定',
   relySpecs: '依台燿規定',
   customSpec1Name: '',
@@ -128,10 +146,12 @@ export const INITIAL_FORM_STATE: FormState = {
 13. 施工日期須配合業主許可日期進行
 14. 本工程金屬類廢棄物須清運至tuc指定位置，其餘非金屬類廢棄物承包商須負責處理
 15. 承包工程當訂單確定後須提供進廠相關資料，如附件內容`,
+  installTUCHints: [],
   deliveryDate: '',
   workPeriod: '',
   acceptanceDesc: '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收',
   acceptanceAIHints: [],
+  acceptanceTUCHints: [],
   acceptanceExtra: '補充說明',
   complianceDesc: `1. 工程設施驗收後保固一年，工程費用含萬分之7工程保險
 2. 施工配合本公司安排日期((不含例假日))，施工期間遇有臨時問題需停工配合本公司安排
@@ -150,6 +170,7 @@ export const INITIAL_FORM_STATE: FormState = {
 15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
 16. 電力/電控盤與旋轉/傳動機構張貼警告標語
 17. 因本工程造成設施(備)損(傷)壞須賠償。`,
+  complianceTUCHints: [],
   images: [],
   tableData: [
     { category: '功能', item: '運轉測試', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
@@ -158,6 +179,7 @@ export const INITIAL_FORM_STATE: FormState = {
     { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
   ],
+  tableTUCHints: [],
   applicantName: '',
   deptHeadName: '',
   signOffGrid: Array(4).fill(null).map(() => Array(6).fill(''))

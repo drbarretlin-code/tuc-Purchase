@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import type { FormState, 工程類別 } from '../types/form';
+import type { FormState, 工程類別, AIHintSelection } from '../types/form';
 import SectionEditor from './SectionEditor';
 import ImageUpload from './ImageUpload';
 import SpecTable from './SpecTable';
 import tucKnowledge from '../data/tuc_knowledge.json';
+import KnowledgeModal from './KnowledgeModal';
 import { supabase } from '../lib/supabase';
 import { 
   Info, Settings, Hammer, Table, 
   ChevronRight, ChevronLeft, User, Building2, Hash, PenTool,
-  BookOpen, Download, Upload, ExternalLink, Search, FileUp, FolderOpen, Loader2,
-  Package, ShieldCheck, Zap
+  BookOpen, Download, Upload, FolderOpen, Loader2,
+  Package, ShieldCheck, Zap, FileUp
 } from 'lucide-react';
 
 interface Props {
@@ -19,11 +20,44 @@ interface Props {
 
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isKMOpen, setIsKMOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string}[]>([]);
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
+
+  // 初始化 TUC 建議內容
+  useEffect(() => {
+    const newData = { ...data };
+    let changed = false;
+
+    const fieldsToHint = [
+      { key: 'appearanceTUCHints', source: 'appearance' },
+      { key: 'envTUCHints', source: 'envRequirements' },
+      { key: 'regTUCHints', source: 'regRequirements' },
+      { key: 'maintTUCHints', source: 'maintRequirements' },
+      { key: 'safetyTUCHints', source: 'safetyRequirements' },
+      { key: 'elecTUCHints', source: 'elecSpecs' },
+      { key: 'mechTUCHints', source: 'mechSpecs' },
+      { key: 'installTUCHints', source: 'installStandard' },
+      { key: 'acceptanceTUCHints', source: 'acceptanceDesc' },
+      { key: 'complianceTUCHints', source: 'complianceDesc' },
+    ];
+
+    fieldsToHint.forEach(({ key, source }) => {
+      const fieldKey = key as keyof FormState;
+      const hints = (data[fieldKey] as AIHintSelection[]) || [];
+      if (hints.length === 0 && tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints]) {
+        const sourceHints = tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints];
+        (newData[fieldKey] as any) = sourceHints.map(h => ({ ...h, selected: false }));
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      onChange(newData);
+    }
+  }, []);
 
   useEffect(() => {
     const formContainer = document.querySelector('.form-content-area');
@@ -43,6 +77,22 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const updateField = (field: keyof FormState, value: any) => {
     onChange({ ...data, [field]: value });
+  };
+
+  const toggleTUCHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
+    const hints = (data[field] as AIHintSelection[]).map(h => 
+      h.id === hintId ? { ...h, selected: !h.selected } : h
+    );
+    
+    // 如果選中，自動加入主內容並取消標籤 (直接併入文字)
+    const selectedHint = (data[field] as AIHintSelection[]).find(h => h.id === hintId);
+    if (selectedHint && !selectedHint.selected) {
+      const currentText = data[contentField] as string;
+      const separator = currentText ? '\n' : '';
+      updateField(contentField, currentText + separator + selectedHint.content);
+    }
+    
+    updateField(field, hints);
   };
 
   const updateSignOff = (row: number, col: number, value: string) => {
@@ -108,12 +158,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     }
   };
 
-  const filteredKnowledge = tucKnowledge.filter(item => 
-    item.title.includes(searchTerm) || 
-    item.keywords.some(k => k.includes(searchTerm)) ||
-    item.category.includes(searchTerm)
-  );
-
   return (
     <div className="form-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
       {/* 頁籤導覽列 */}
@@ -145,6 +189,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           ))}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="icon-btn" onClick={() => setIsKMOpen(true)} title="開啟 TUC 知識庫手冊" style={{ color: 'var(--tuc-red)' }}>
+            <BookOpen size={16} />
+          </button>
           <label className="icon-btn" style={{ cursor: 'pointer' }} title="導入專案 (.json)">
             <Upload size={16} /><input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
           </label>
@@ -153,7 +200,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* 主要編輯區 */}
+        {/* 主要編輯區 - 全寬 */}
         <div className="form-content-area" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', scrollbarWidth: 'thin' }}>
           
           {activeTab === 0 && (
@@ -195,7 +242,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               </div>
 
               <div style={{ marginTop: '1.5rem' }}>
-                <SectionEditor label="二. 品相" value={data.appearance} onChange={(v) => updateField('appearance', v)} />
+                <SectionEditor 
+                  label="二. 品相" 
+                  value={data.appearance} 
+                  onChange={(v) => updateField('appearance', v)} 
+                  tucHints={data.appearanceTUCHints}
+                  onTUCHintToggle={(id) => toggleTUCHint('appearanceTUCHints', 'appearance', id)}
+                />
                 <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v) => updateField('quantityUnit', v)} isTextArea={false} />
                 <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} />
               </div>
@@ -205,30 +258,59 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           {activeTab === 1 && (
             <div className="tab-pane">
               <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>技術與設計要求</h3>
-              
               <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
                 <h4 className="section-title"><Package size={16} /> 六. 設計要求</h4>
-                <SectionEditor label="1. 環保要求" value={data.envRequirements} onChange={(v) => updateField('envRequirements', v)} />
-                <SectionEditor label="2. 法規要求" value={data.regRequirements} onChange={(v) => updateField('regRequirements', v)} />
-                <SectionEditor label="3. 維護要求" value={data.maintRequirements} onChange={(v) => updateField('maintRequirements', v)} />
+                <SectionEditor 
+                   label="1. 環保要求" 
+                   value={data.envRequirements} 
+                   onChange={(v) => updateField('envRequirements', v)} 
+                   tucHints={data.envTUCHints}
+                   onTUCHintToggle={(id) => toggleTUCHint('envTUCHints', 'envRequirements', id)}
+                />
+                <SectionEditor 
+                   label="2. 法規要求" 
+                   value={data.regRequirements} 
+                   onChange={(v) => updateField('regRequirements', v)} 
+                   tucHints={data.regTUCHints}
+                   onTUCHintToggle={(id) => toggleTUCHint('regTUCHints', 'regRequirements', id)}
+                />
+                <SectionEditor 
+                   label="3. 維護要求" 
+                   value={data.maintRequirements} 
+                   onChange={(v) => updateField('maintRequirements', v)} 
+                   tucHints={data.maintTUCHints}
+                   onTUCHintToggle={(id) => toggleTUCHint('maintTUCHints', 'maintRequirements', id)}
+                />
               </div>
 
               <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
                 <h4 className="section-title"><ShieldCheck size={16} /> 七. 安全要求</h4>
-                <SectionEditor label="安全要求內容" value={data.safetyRequirements} onChange={(v) => updateField('safetyRequirements', v)} />
+                <SectionEditor 
+                   label="安全要求內容" 
+                   value={data.safetyRequirements} 
+                   onChange={(v) => updateField('safetyRequirements', v)} 
+                   tucHints={data.safetyTUCHints}
+                   onTUCHintToggle={(id) => toggleTUCHint('safetyTUCHints', 'safetyRequirements', id)}
+                />
               </div>
 
               <div className="doc-section-box">
                 <h4 className="section-title"><Zap size={16} /> 八. 特性要求</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <SectionEditor label="1. 電氣特性規格" value={data.elecSpecs} onChange={(v) => updateField('elecSpecs', v)} />
-                  <SectionEditor label="2. 機構特性規格" value={data.mechSpecs} onChange={(v) => updateField('mechSpecs', v)} />
-                  <SectionEditor label="3. 物理特性要求" value={data.physSpecs} onChange={(v) => updateField('physSpecs', v)} />
-                  <SectionEditor label="4. 信賴特性要求" value={data.relySpecs} onChange={(v) => updateField('relySpecs', v)} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem', borderTop: '1px solid #222', paddingTop: '1rem' }}>
-                   <SectionEditor label="自定義項目1 (名稱)" value={data.customSpec1Name} onChange={v => updateField('customSpec1Name', v)} isTextArea={false} />
-                   <SectionEditor label="自定義項目1 (內容)" value={data.customSpec1Value} onChange={v => updateField('customSpec1Value', v)} isTextArea={false} />
+                  <SectionEditor 
+                     label="1. 電氣特性規格" 
+                     value={data.elecSpecs} 
+                     onChange={(v) => updateField('elecSpecs', v)} 
+                     tucHints={data.elecTUCHints}
+                     onTUCHintToggle={(id) => toggleTUCHint('elecTUCHints', 'elecSpecs', id)}
+                  />
+                  <SectionEditor 
+                     label="2. 機構特性規格" 
+                     value={data.mechSpecs} 
+                     onChange={(v) => updateField('mechSpecs', v)} 
+                     tucHints={data.mechTUCHints}
+                     onTUCHintToggle={(id) => toggleTUCHint('mechTUCHints', 'mechSpecs', id)}
+                  />
                 </div>
               </div>
             </div>
@@ -237,12 +319,24 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           {activeTab === 2 && (
             <div className="tab-pane">
               <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>九. 安裝與遵守事項</h3>
-              <SectionEditor label="九. 安裝程序要求" value={data.installStandard} onChange={(v) => updateField('installStandard', v)} />
+              <SectionEditor 
+                 label="施工標準 (九)" 
+                 value={data.installStandard} 
+                 onChange={(v) => updateField('installStandard', v)} 
+                 tucHints={data.installTUCHints}
+                 onTUCHintToggle={(id) => toggleTUCHint('installTUCHints', 'installStandard', id)}
+              />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
                 <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v) => updateField('workPeriod', v)} isTextArea={false} />
               </div>
-              <SectionEditor label="十. 遵守事項" value={data.complianceDesc} onChange={(v) => updateField('complianceDesc', v)} />
+              <SectionEditor 
+                 label="十. 遵守事項" 
+                 value={data.complianceDesc} 
+                 onChange={(v) => updateField('complianceDesc', v)} 
+                 tucHints={data.complianceTUCHints}
+                 onTUCHintToggle={(id) => toggleTUCHint('complianceTUCHints', 'complianceDesc', id)}
+              />
             </div>
           )}
 
@@ -251,6 +345,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
               <ImageUpload images={data.images} onChange={(imgs) => updateField('images', imgs)} />
               <div style={{ marginTop: '2.5rem' }}>
+                <SectionEditor 
+                  label="十二. 驗收要求 (建議事項)" 
+                  value={data.acceptanceDesc} 
+                  onChange={(v) => updateField('acceptanceDesc', v)} 
+                  tucHints={data.acceptanceTUCHints}
+                  onTUCHintToggle={(id) => toggleTUCHint('acceptanceTUCHints', 'acceptanceDesc', id)}
+                />
                 <SpecTable data={data.tableData} onChange={(td) => updateField('tableData', td)} />
               </div>
             </div>
@@ -302,7 +403,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 {uploadingFile ? <Loader2 className="animate-spin" size={32} color="var(--tuc-red)" /> : (
                   <>
                     <FileUp size={48} color="#555" style={{ marginBottom: '1rem' }} />
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>上傳相關技術手冊 (docx/pdf)，系統將自動歸納。</p>
                     <label className="primary-button" style={{ display: 'inline-flex', cursor: 'pointer', padding: '0.75rem 2rem' }}>
                       選取檔案上傳 <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                     </label>
@@ -311,78 +411,33 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               </div>
               
               <div style={{ marginTop: '2.5rem' }}>
-                <h4 style={{ color: 'white', marginBottom: '1rem' }}>已上傳檔案</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {uploadedFiles.map((f, i) => (
-                    <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{f.name}</span>
-                      <a href={f.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#60A5FA', textDecoration: 'none', background: 'rgba(96,165,250,0.1)', padding: '0.4rem 0.8rem', borderRadius: '4px' }}>檢視檔案</a>
-                    </div>
-                  ))}
-                  {uploadedFiles.length === 0 && <div style={{ textAlign: 'center', color: '#555', padding: '3rem', border: '1px inset rgba(255,255,255,0.05)', borderRadius: '10px' }}>目前無備份檔案。</div>}
-                </div>
+                {uploadedFiles.map((f, i) => (
+                  <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{f.name}</span>
+                    <a href={f.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#60A5FA', textDecoration: 'none', background: 'rgba(96,165,250,0.1)', padding: '0.4rem 0.8rem', borderRadius: '4px' }}>檢視檔案</a>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
-
-        {/* 知識庫側邊欄 */}
-        <div className="kms-sidebar" style={{ width: '320px', borderLeft: '1px solid var(--border-color)', padding: '1.5rem', overflowY: 'auto', background: 'rgba(255,255,255,0.01)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem', color: 'var(--tuc-red)' }}>
-            <BookOpen size={20} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>TUC 知識庫建議</h4>
-          </div>
-          
-          <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
-            <input 
-              type="text" 
-              placeholder="搜尋法規或技術關鍵字..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '0.6rem 2.5rem 0.6rem 1rem', fontSize: '0.85rem', borderRadius: '25px', background: 'rgba(0,0,0,0.2)' }}
-            />
-            <Search size={16} style={{ position: 'absolute', right: '12px', top: '10px', color: '#555' }} />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {filteredKnowledge.length > 0 ? filteredKnowledge.map((item, idx) => (
-              <div key={idx} className="knowledge-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', transition: 'transform 0.2s' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--tuc-red)', fontWeight: '800', marginBottom: '4px', textTransform: 'uppercase' }}>{item.category}</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '6px', color: '#f0f0f0' }}>{item.title}</div>
-                <div style={{ fontSize: '0.8rem', color: '#999', marginBottom: '0.75rem', lineHeight: '1.5' }}>{item.summary}</div>
-                <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none', fontWeight: '600' }}>
-                  <ExternalLink size={12} /> 瀏覽法規內容
-                </a>
-              </div>
-            )) : (
-              <div style={{ textAlign: 'center', color: '#555', padding: '3rem 1rem' }}>查無相關知識點</div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* 底部導覽列 */}
-      <div style={{ borderTop: '1px solid var(--border-color)', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.1)' }}>
-        <button 
-          disabled={activeTab === 0}
-          onClick={() => setActiveTab(prev => prev - 1)}
-          className="ghost-button"
-          style={{ padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: activeTab === 0 ? '#444' : 'white' }}
-        >
+      <div style={{ borderTop: '1px solid var(--border-color)', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between' }}>
+        <button disabled={activeTab === 0} onClick={() => setActiveTab(prev => prev - 1)} className="ghost-button">
           <ChevronLeft size={20} /> 上一區塊
         </button>
         <button 
-          onClick={() => {
-            if (activeTab < tabs.length - 1) setActiveTab(prev => prev + 1);
-            else alert('已填寫完畢，請檢查預覽畫面。');
-          }}
+          onClick={() => activeTab < tabs.length - 1 && setActiveTab(prev => prev + 1)} 
           className="primary-button"
-          disabled={activeTab === tabs.length - 1}
-          style={{ padding: '0.6rem 3rem', borderRadius: '8px', fontWeight: '700' }}
         >
           下一步 <ChevronRight size={20} />
         </button>
       </div>
+
+      {/* 知識庫彈窗 */}
+      <KnowledgeModal isOpen={isKMOpen} onClose={() => setIsKMOpen(false)} />
     </div>
   );
 };
