@@ -7,7 +7,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export const processFileToKnowledge = async (file: File, apiKey?: string) => {
-  const finalKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
+  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
+  const finalKey = rawKey.trim();
+  
   if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
   
   const genAI = new GoogleGenerativeAI(finalKey);
@@ -31,8 +33,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string) => {
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
-  // 調用 AI 進行歸納分類
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+  // 使用 A1 進行歸納分類 (穩定版 v1 + flash)
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
     你是一個專業的採購規範專家。請分析以下文字內容，從中提取「技術要求」並將其分類。
     分類標準如下：
