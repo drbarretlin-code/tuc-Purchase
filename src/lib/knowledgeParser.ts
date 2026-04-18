@@ -33,11 +33,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
-  // 使用 AI 進行歸納分類 (強制切換至 v1 穩定版接口以解決 v1beta 404 錯誤)
-  const model = genAI.getGenerativeModel(
-    { model: "gemini-1.5-flash" },
-    { apiVersion: 'v1' }
-  );
   const prompt = `
     你是一個專業的採購規範專家。請分析以下文字內容，從中提取「技術要求」並將其分類。
     分類標準如下：
@@ -52,14 +47,31 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     [{"category": "類別名稱", "content": "提取出的單條技術規範文字"}]
     
     待處理內容：
-    ${text.substring(0, 5000)} // 避免超過 token 限制
+    ${text.substring(0, 5000)}
   `;
 
-  const result = await model.generateContent(prompt);
-  const jsonResponse = result.response.text();
+  // 多模型回退機制 (Fallback) 以應對不同 API Key 的權限限制
+  const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"];
+  let finalJsonResponse = '';
+  
+  for (const modelId of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelId });
+      const result = await model.generateContent(prompt);
+      finalJsonResponse = result.response.text();
+      if (finalJsonResponse) break; 
+    } catch (err: any) {
+      console.warn(`嘗試模型 ${modelId} 失敗:`, err.message);
+      // 如果是最後一個模型也失敗，則拋出錯誤
+      if (modelId === modelsToTry[modelsToTry.length - 1]) {
+        throw new Error(`所有 AI 服務模型均無法連線，請檢查 API Key 或稍後再試。原因: ${err.message}`);
+      }
+      continue;
+    }
+  }
   
   // 簡單清理 JSON 字符串
-  const cleanJson = jsonResponse.replace(/```json|```/g, '').trim();
+  const cleanJson = finalJsonResponse.replace(/```json|```/g, '').trim();
   const indexData = JSON.parse(cleanJson);
 
   if (!supabase) return { added: 0, skipped: 0 };
