@@ -255,10 +255,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           .from('spec-files')
           .getPublicUrl(fileName);
 
-        // 生成顯示名稱：設備名稱_申請人員_原檔名 (介面顯示保留中文)
-        const eqName = data.equipmentName || '未命名設備';
+        // 生成顯示名稱：原檔名 + 申請人員
         const reqName = data.requester || '未知申請人';
-        const displayName = `${eqName}_${reqName}_${file.name}`;
+        const displayName = `${file.name} (${reqName})`;
 
         newUploads.push({ name: file.name, url: publicUrl, displayName });
         
