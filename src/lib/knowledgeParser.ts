@@ -33,8 +33,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
-  // 使用 A1 進行歸納分類 (穩定版 v1 + flash)
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // 使用 AI 進行歸納分類 (更新為穩定別名以避免 404 錯誤)
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   const prompt = `
     你是一個專業的採購規範專家。請分析以下文字內容，從中提取「技術要求」並將其分類。
     分類標準如下：
