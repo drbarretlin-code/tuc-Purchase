@@ -5,7 +5,7 @@ import ImageUpload from './ImageUpload';
 import SpecTable from './SpecTable';
 import { 
   Info, Settings, HardHat, Hammer, Table, 
-  ChevronRight, ChevronLeft, Send, User, Building2, Hash
+  ChevronRight, ChevronLeft, User, Building2, Hash
 } from 'lucide-react';
 
 interface Props {
@@ -238,12 +238,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             下一步 <ChevronRight size={18} />
           </button>
         ) : (
-          <button 
-            className="primary-button" 
-            style={{ padding: '0.5rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            預覽完成 <Send size={18} />
-          </button>
+          <div style={{ width: '120px' }} /> // 保持佈局平衡
         )}
       </div>
     </div>

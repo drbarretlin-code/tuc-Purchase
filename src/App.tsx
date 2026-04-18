@@ -35,8 +35,8 @@ function App() {
   };
 
   return (
-    <div className="app-container" style={{ padding: '1rem', maxWidth: '1800px' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+    <div className="app-container" style={{ padding: '1rem', maxWidth: '1800px', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: 'var(--tuc-red)', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Cpu color="white" size={20} />
@@ -56,7 +56,7 @@ function App() {
         </div>
       </header>
 
-      <main className="main-grid" style={{ gridTemplateColumns: 'minmax(450px, 1fr) 210mm' }}>
+      <main className="main-grid" style={{ gridTemplateColumns: 'minmax(450px, 1fr) 210mm', flex: 1, overflow: 'hidden', gap: '1.5rem' }}>
         <SpecForm data={data} onChange={setData} />
         <SpecPreview data={data} />
       </main>

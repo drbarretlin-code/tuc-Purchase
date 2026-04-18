@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, FileText, Download, Check, FileJson } from 'lucide-react';
+import { Copy, FileText, Download, FileJson } from 'lucide-react';
 import { exportToPDF, exportToWord } from '../logic/exporter';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';
@@ -19,14 +19,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth - 40; // 扣除 padding
+        const containerWidth = containerRef.current.offsetWidth - 40; 
         const containerHeight = containerRef.current.offsetHeight - 40;
-        const targetWidth = 210 * 3.78; // 210mm to pixels approx
+        const targetWidth = 210 * 3.78; 
         const targetHeight = 297 * 3.78;
         
         const scaleW = containerWidth / targetWidth;
         const scaleH = containerHeight / targetHeight;
-        const finalScale = Math.min(scaleW, scaleH, 1); // 不放大，僅縮小
+        const finalScale = Math.min(scaleW, scaleH, 1); 
         setScale(finalScale);
       }
     };
@@ -46,6 +46,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   }, [data]);
 
   const handleCopy = () => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -63,30 +64,39 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   };
 
   return (
-    <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 1rem' }}>
+    <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 1rem', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FileText color="#E60012" size={24} />
-          <h3 style={{ margin: 0, textAlign: 'center', flex: 1 }}>規範表預覽</h3>
+          <h3 style={{ margin: 0 }}>正式預覽</h3>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleCopy} className="icon-btn">{copied ? <Check size={18} color="#4ADE80" /> : <Copy size={18} />}</button>
-          <button onClick={() => exportToWord('', 'TUC_Spec')} className="icon-btn"><FileJson size={18} /></button>
-          <button onClick={() => exportToPDF('preview-paper', 'TUC_Spec')} className="primary-button" style={{ padding: '0.4rem 1rem' }}><Download size={16} /> 匯出 PDF</button>
+          <button onClick={handleCopy} className="icon-btn" title="複製資料 JSON">
+            <Copy size={18} />
+            <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>{copied ? '已複製' : '複製'}</span>
+          </button>
+          <button onClick={() => exportToWord(data, 'TUC_Spec')} className="icon-btn" title="匯出 Microsoft Word">
+            <FileJson size={18} />
+            <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>匯出 Word</span>
+          </button>
+          <button onClick={() => exportToPDF('preview-paper', 'TUC_Spec')} className="primary-button" style={{ padding: '0.4rem 1rem' }}>
+            <Download size={16} />
+            <span style={{ marginLeft: '4px' }}>匯出 PDF</span>
+          </button>
         </div>
       </div>
 
       <div ref={containerRef} style={{ 
         flex: 1, 
-        overflow: 'hidden', 
+        overflow: 'auto', 
         background: '#333', 
         padding: '1rem', 
         borderRadius: '8px',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center'
       }}>
-        <div className="preview-zoom-container" style={{ transform: `scale(${scale})` }}>
+        <div className="preview-zoom-container" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
           <div id="preview-paper" ref={previewRef} className="preview-content" style={{ 
             width: '210mm', minHeight: '297mm', background: 'white', padding: '15mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
           }}>
