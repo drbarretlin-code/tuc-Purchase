@@ -239,8 +239,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       let totalAdded = 0;
       let totalSkipped = 0;
 
+      const sanitizeFileName = (name: string) => {
+        // 將中文字元與特殊符號替換為安全格式，保留檔案後綴
+        const ext = name.split('.').pop();
+        const base = name.split('.').slice(0, -1).join('.');
+        const safeBase = base.replace(/[^\x00-\x7F]/g, 'word').replace(/[^a-zA-Z0-9-_\.]/g, '_');
+        return `${safeBase}.${ext}`;
+      };
+
       for (const file of Array.from(files)) {
-        const fileName = `${Date.now()}_${file.name}`;
+        const safeName = sanitizeFileName(file.name);
+        const fileName = `${Date.now()}_${safeName}`;
+        
         const { error } = await supabase.storage
           .from('spec-files')
           .upload(fileName, file);
@@ -251,7 +261,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           .from('spec-files')
           .getPublicUrl(fileName);
 
-        // 生成顯示名稱：設備名稱_申請人員_原檔名
+        // 生成顯示名稱：設備名稱_申請人員_原檔名 (介面顯示保留中文)
         const eqName = data.equipmentName || '未命名設備';
         const reqName = data.requester || '未知申請人';
         const displayName = `${eqName}_${reqName}_${file.name}`;

@@ -62,45 +62,60 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
   for (const modelId of modelsToTry) {
-    let retryCount = 0;
-    const maxRetries = 5; 
-    let skipThisModel = false;
+    // 對於每個模型，同時嘗試 v1beta 與 v1 兩種協議
+    const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
+    let protocolSuccess = false;
 
-    while (retryCount < maxRetries) {
-      try {
-        // 同時支援 v1 與 v1beta 接口
-        const currentApiVersion = (modelId === "gemini-2.0-flash") ? 'v1beta' : 'v1';
-        const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: currentApiVersion as any });
-        const result = await model.generateContent(prompt);
-        finalJsonResponse = result.response.text();
-        break; 
-      } catch (err: any) {
-        const status = err.status || 0;
-        const msg = err.message || "";
+    for (const apiVer of versionsToTry) {
+      let retryCount = 0;
+      const maxRetries = 5; 
+      let skipThisVersion = false;
 
-        // 429 頻率限制
-        if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-          retryCount++;
-          if (retryCount >= maxRetries) {
-            console.warn(`[拋棄] 模型 ${modelId} 已達 5 次重試上限，切換至下一備援模型...`);
-            skipThisModel = true;
+      while (retryCount < maxRetries) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: apiVer as any });
+          const result = await model.generateContent(prompt);
+          finalJsonResponse = result.response.text();
+          if (finalJsonResponse) {
+            protocolSuccess = true;
+            break; 
+          }
+        } catch (err: any) {
+          const status = err.status || 0;
+          const msg = err.message || "";
+
+          // 429 頻率限制 (僅在當前路徑重試)
+          if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              console.warn(`[拋棄路徑] ${modelId} (${apiVer}) 達重試上限。`);
+              skipThisVersion = true;
+              break;
+            }
+            const delay = Math.pow(2, retryCount) * 2000;
+            console.warn(`[頻控重試] ${modelId} ${apiVer} (${retryCount}/5)...`);
+            await wait(delay);
+            continue;
+          }
+
+          // 404 情形下，標記目前的版本 (v1beta/v1) 不可用，準備切換下一個版本或模型
+          if (status === 404 || msg.includes("404") || msg.includes("not found")) {
+            console.warn(`[無法識別路徑] ${modelId} (${apiVer})`);
+            skipThisVersion = true;
             break;
           }
-          const delay = Math.pow(2, retryCount) * 2000;
-          console.warn(`[頻控重試] ${modelId} (${retryCount}/5)，等待 ${delay}ms...`);
-          await wait(delay);
-          continue;
-        }
 
-        // 404 模型找不到或其他嚴重錯誤
-        console.warn(`[切換] 模型 ${modelId} 發生不可恢復錯誤 (${status})，嘗試下一個...`);
-        skipThisModel = true;
-        break;
+          // 其他嚴重錯誤
+          skipThisVersion = true;
+          break;
+        }
       }
+
+      if (protocolSuccess) break; // 成功獲取結果，停止該模型的協議切換
+      if (skipThisVersion) continue; // 嘗試下一種協議
     }
 
-    if (finalJsonResponse) break; 
-    if (skipThisModel) continue;
+    if (finalJsonResponse) break; // 成功獲取結果，停止模型切換
   }
 
   if (!finalJsonResponse) {
