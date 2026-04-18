@@ -50,8 +50,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     ${text.substring(0, 5000)}
   `;
 
-  // 多模型回退與終極頻率限制重試機制 (V4.8)
-  const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
+  // 多模型回退與終極頻率限制重試機制 (V4.9 擴張版)
+  const modelsToTry = [
+    "gemini-2.0-flash", 
+    "gemini-1.5-pro", 
+    "gemini-1.5-flash", 
+    "gemini-1.5-flash-8b", 
+    "gemini-pro"
+  ];
   let finalJsonResponse = '';
   const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
