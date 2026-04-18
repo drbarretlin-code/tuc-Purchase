@@ -60,7 +60,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   // 優先使用探測到的模型，若探測失敗則使用預設清單
   const discoveredModels = connCheck.success ? connCheck.models.filter((m: string) => m.includes('gemini')) : [];
-  const defaultModels = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
+  const defaultModels = ["gemini-2.0-pro-exp", "gemini-2.0-flash", "gemini-1.5-pro"];
   const modelsToTry = discoveredModels.length > 0 ? discoveredModels : defaultModels;
 
   console.log(`[探測完成] 準備使用 ${modelsToTry.length} 個候選機型執行解析。清單: ${modelsToTry.join(', ')}`);
