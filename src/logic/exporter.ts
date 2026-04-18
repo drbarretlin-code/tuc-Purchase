@@ -22,11 +22,28 @@ export const exportToPDF = async (elementId: string, data: FormState) => {
   
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const imgProps = pdf.getImageProperties(imgData);
   const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+  const pdfHeight = pdf.internal.pageSize.getHeight();
   
-  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+  const imgProps = pdf.getImageProperties(imgData);
+  const imgWidth = pdfWidth;
+  const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  // 第一頁
+  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pdfHeight;
+
+  // 若還有剩餘高度，則分頁
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+  }
+
   pdf.save(`${filename}.pdf`);
 };
 
@@ -59,12 +76,14 @@ export const exportToWord = async (data: FormState) => {
     new Paragraph({
       children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 }
+      spacing: { after: 300 }
     }),
     new Paragraph({
-      children: [new TextRun({ text: `申請日期：${new Date().toLocaleDateString()}`, size: 20 })],
+      children: [
+        new TextRun({ text: `申請日期：${new Date().toLocaleDateString()}`, bold: true, size: 24 })
+      ],
       alignment: AlignmentType.RIGHT,
-      spacing: { after: 200 }
+      spacing: { after: 300 }
     }),
     new Paragraph({
       children: [
@@ -142,28 +161,31 @@ export const exportToWord = async (data: FormState) => {
     );
   }
 
-  // Flattened Sign-off Table (No nesting)
+  // Flattened Sign-off Table (Fixed structure for Word compatibility)
   const signOffTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
+      // Row 1: Applicant / Dept Head
       new TableRow({
         children: [
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: data.applicantName })], width: { size: 35, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請單位主管", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })], width: { size: 35, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: data.applicantName })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })], columnSpan: 3, width: { size: 45, type: WidthType.PERCENTAGE } }),
         ]
       }),
+      // Main 3x6 Sign-off Matrix Rows
       ...data.signOffGrid.map(row => new TableRow({
         children: row.map(cell => new TableCell({
           children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
           width: { size: 16.66, type: WidthType.PERCENTAGE }
         }))
       })),
+      // Final Vendor Confirmation Row
       new TableRow({
         children: [
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
-          new TableCell({ children: [new Paragraph({ text: "" }), new Paragraph({ text: "" })], columnSpan: 5 })
+          new TableCell({ children: [new Paragraph({ text: "" }), new Paragraph({ text: "" }), new Paragraph({ text: "" })], columnSpan: 5 })
         ]
       })
     ]

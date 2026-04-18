@@ -565,6 +565,10 @@ input:focus, select:focus, textarea:focus {
 
 /* PDF / Print Optimization */
 @media print {
+  @page {
+    margin: 20mm;
+  }
+
   body, .app-container {
     height: auto !important;
     min-height: auto !important;
@@ -572,20 +576,24 @@ input:focus, select:focus, textarea:focus {
     background: white !important;
     padding: 0 !important;
     margin: 0 !important;
+    display: block !important;
   }
   
   .main-grid {
     display: block !important;
     height: auto !important;
     overflow: visible !important;
+    width: 100% !important;
   }
 
   .preview-section {
     padding: 0 !important;
+    margin: 0 !important;
     display: block !important;
     position: static !important;
     overflow: visible !important;
     height: auto !important;
+    width: 100% !important;
   }
 
   header, .bottom-nav, .form-section, .form-sidebar, .layout-resizer, .form-header-toolbar, .form-footer-nav, aside {
@@ -595,12 +603,17 @@ input:focus, select:focus, textarea:focus {
   .preview-zoom-container {
     transform: none !important;
     width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .preview-content {
     box-shadow: none !important;
     border: none !important;
-    padding: 2.5cm 2cm !important;
+    padding: 0 !important;
+    margin: 0 !important;
     width: 100% !important;
+    min-height: auto !important;
+    background: white !important;
   }
 }
