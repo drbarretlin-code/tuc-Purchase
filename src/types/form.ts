@@ -81,6 +81,11 @@ export interface FormState {
   
   // 十二. 驗收要求表格
   tableData: TableRowData[];
+
+  // 規格確認及會簽
+  applicantName: string;
+  deptHeadName: string;
+  signOffGrid: string[][]; // 4 rows x 6 columns
 }
 
 export const INITIAL_FORM_STATE: FormState = {
@@ -152,5 +157,8 @@ export const INITIAL_FORM_STATE: FormState = {
     { category: '產能', item: '出力測速', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '', item: '', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-  ]
+  ],
+  applicantName: '',
+  deptHeadName: '',
+  signOffGrid: Array(4).fill(null).map(() => Array(6).fill(''))
 };

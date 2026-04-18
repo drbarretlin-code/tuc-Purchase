@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, FileText, Download, FileJson } from 'lucide-react';
+import { FileText, Download, FileJson, ZoomIn } from 'lucide-react';
 import { exportToPDF, exportToWord } from '../logic/exporter';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';
@@ -12,6 +12,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   const [copied, setCopied] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [scale, setScale] = useState(1);
+  const [zoomMode, setZoomMode] = useState<'auto' | number>('auto');
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -19,22 +20,24 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth - 40; 
-        const containerHeight = containerRef.current.offsetHeight - 40;
-        const targetWidth = 210 * 3.78; 
-        const targetHeight = 297 * 3.78;
-        
-        const scaleW = containerWidth / targetWidth;
-        const scaleH = containerHeight / targetHeight;
-        const finalScale = Math.min(scaleW, scaleH, 1); 
-        setScale(finalScale);
+        if (zoomMode === 'auto') {
+          const containerWidth = containerRef.current.offsetWidth - 40; 
+          const containerHeight = containerRef.current.offsetHeight - 40;
+          const targetWidth = 210 * 3.78; 
+          const targetHeight = 297 * 3.78;
+          const scaleW = containerWidth / targetWidth;
+          const scaleH = containerHeight / targetHeight;
+          setScale(Math.min(scaleW, scaleH, 1));
+        } else {
+          setScale(zoomMode);
+        }
       }
     };
 
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [zoomMode, data]);
 
   // 處理頁數邏輯
   useEffect(() => {
@@ -43,7 +46,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
       const calculatedTotal = Math.max(1, Math.ceil(height / 1050)); 
       setTotalPages(calculatedTotal);
     }
-  }, [data]);
+  }, [data, scale]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
@@ -55,13 +58,15 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     const selected = hints.filter(h => h.selected);
     if (selected.length === 0) return null;
     return (
-      <div style={{ marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>
+      <div style={{ marginTop: '0.25rem', paddingLeft: '1.2rem', color: '#555', fontSize: '10pt', fontStyle: 'italic' }}>
         {selected.map((h, i) => (
-          <div key={i}>{h.content}</div>
+          <div key={i}>• {h.content}</div>
         ))}
       </div>
     );
   };
+
+  const hasImages = data.images.length > 0;
 
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -69,19 +74,29 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FileText color="#E60012" size={24} />
           <h3 style={{ margin: 0 }}>正式預覽</h3>
+          <div style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+            <ZoomIn size={14} />
+            <select 
+              value={zoomMode === 'auto' ? 'auto' : zoomMode} 
+              onChange={(e) => setZoomMode(e.target.value === 'auto' ? 'auto' : parseFloat(e.target.value))}
+              style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '0.75rem', outline: 'none' }}
+            >
+              <option value="auto">自適應</option>
+              <option value="0.5">50%</option>
+              <option value="0.75">75%</option>
+              <option value="1">100%</option>
+            </select>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={handleCopy} className="icon-btn" title="複製資料 JSON">
-            <Copy size={18} />
-            <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>{copied ? '已複製' : '複製'}</span>
+            <span style={{ fontSize: '0.7rem' }}>{copied ? '已複製' : '複製'}</span>
           </button>
-          <button onClick={() => exportToWord(data, 'TUC_Spec')} className="icon-btn" title="匯出 Microsoft Word">
-            <FileJson size={18} />
-            <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>匯出 Word</span>
+          <button onClick={() => exportToWord(data, 'TUC_Spec')} className="icon-btn">
+            <FileJson size={18} /><span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>匯出 Word</span>
           </button>
           <button onClick={() => exportToPDF('preview-paper', 'TUC_Spec')} className="primary-button" style={{ padding: '0.4rem 1rem' }}>
-            <Download size={16} />
-            <span style={{ marginLeft: '4px' }}>匯出 PDF</span>
+            <Download size={16} /><span style={{ marginLeft: '4px' }}>匯出 PDF</span>
           </button>
         </div>
       </div>
@@ -98,7 +113,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
       }}>
         <div className="preview-zoom-container" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
           <div id="preview-paper" ref={previewRef} className="preview-content" style={{ 
-            width: '210mm', minHeight: '297mm', background: 'white', padding: '15mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+            width: '210mm', minHeight: '297mm', background: 'white', padding: '20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
           }}>
             {/* Header */}
             <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
@@ -115,7 +130,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               <div>申請人員：{data.requester || 'NA'} {data.extension ? `(分機: ${data.extension})` : ''}</div>
             </div>
 
-            {/* Sections I - III */}
+            {/* Sections I - X */}
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>一、 名稱：<span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
               <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
@@ -143,57 +158,52 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               <div style={{ marginLeft: '1.2rem' }}>{data.equipmentName ? `${data.equipmentName} 所在位置周遭區域` : 'NA'}</div>
             </div>
 
-            {/* Section VI */}
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>六、 設計要求</h4>
               <div style={{ marginLeft: '1.2rem' }}>
                 <div style={{ marginBottom: '4px' }}><strong>1. 環保要求：</strong> {data.envRequirements}</div>
-                <div style={{ paddingLeft: '2rem' }}>{renderSelectedHints(data.envAIHints)}</div>
-                
+                {renderSelectedHints(data.envAIHints)}
                 <div style={{ margin: '4px 0' }}><strong>2. 法規要求：</strong> {data.regRequirements}</div>
-                <div style={{ paddingLeft: '2rem' }}>{renderSelectedHints(data.regAIHints)}</div>
-                
+                {renderSelectedHints(data.regAIHints)}
                 <div><strong>3. 維護要求：</strong> {data.maintRequirements}</div>
               </div>
             </div>
 
-            {/* Section VII */}
-            <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>七、 安全要求：</h4>
               <div style={{ marginLeft: '1.2rem' }}>
-                <div>{data.safetyRequirements}</div>
+                {data.safetyRequirements}
                 {renderSelectedHints(data.safetyAIHints)}
               </div>
             </div>
 
-            {/* Section VIII */}
-            <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>八、 特性要求</h4>
               <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>1. 電氣特性規格:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.elecSpecs}</div>
                 </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>2. 機構特性規格:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.mechSpecs}</div>
                 </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>3. 物理特性要求:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.physSpecs}</div>
                 </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>4. 信賴特性要求:</span>
                   <div style={{ wordBreak: 'break-all' }}>{data.relySpecs}</div>
                 </div>
                 {data.customSpec1Name && (
-                  <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                  <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                     <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec1Name}:</span>
                     <div style={{ wordBreak: 'break-all' }}>{data.customSpec1Value}</div>
                   </div>
                 )}
                 {data.customSpec2Name && (
-                  <div style={{ border: '1px solid #ddd', padding: '4px 8px', borderRadius: '2px' }}>
+                  <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                     <span style={{ color: '#666', fontSize: '9pt' }}>{data.customSpec2Name}:</span>
                     <div style={{ wordBreak: 'break-all' }}>{data.customSpec2Value}</div>
                   </div>
@@ -201,73 +211,94 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               </div>
             </div>
 
-            {/* Section IX */}
-            <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>九、 安裝程序要求(施工標準、交期、工期)：</h4>
+            <div className="doc-section">
+              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>九、 安裝程序要求：</h4>
               <div style={{ marginLeft: '1.2rem' }}>
-                <strong>施工標準：</strong>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', padding: '4px 0' }}>
-                  {processAutoNumbering(data.installStandard)}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', margin: '8px 0' }}>
-                  <div><strong>完工日期：</strong> {data.deliveryDate || 'NA'}</div>
-                  <div><strong>工期（天）：</strong> {data.workPeriod || 'NA'}</div>
-                </div>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(data.installStandard)}</div>
+                <div style={{ margin: '8px 0' }}><strong>完工日期：</strong> {data.deliveryDate || 'NA'} | <strong>工期（天）：</strong> {data.workPeriod || 'NA'}</div>
                 <strong>驗收：</strong>
-                <div style={{ marginTop: '2px' }}>{data.acceptanceDesc}</div>
+                <div>{data.acceptanceDesc}</div>
                 {renderSelectedHints(data.acceptanceAIHints)}
-                <div style={{ fontSize: '9pt', color: '#555', fontStyle: 'italic', marginTop: '4px' }}>{data.acceptanceExtra}</div>
               </div>
             </div>
 
-            {/* Section X */}
-            <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
+            <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十、 遵守事項：</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt', marginTop: '4px' }}>
-                {processAutoNumbering(data.complianceDesc)}
-              </div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(data.complianceDesc)}</div>
             </div>
 
-            {/* Section XI */}
-            {data.images.length > 0 && (
-              <div className="doc-section" style={{ pageBreakBefore: 'auto' }}>
-                <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十一、 圖說</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '10px' }}>
-                  {data.images.map(img => (
-                    <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px', borderRadius: '4px' }}>
-                      <img src={img.url} style={{ width: '100%', height: '180px', objectFit: 'contain', background: '#fcfcfc' }} />
-                      <div style={{ fontSize: '9pt', marginTop: '8px', fontWeight: 'bold', color: '#444' }}>{img.caption}</div>
-                    </div>
-                  ))}
+            {/* Conditional Sections XI & XII */}
+            {hasImages && (
+              <>
+                <div className="doc-section" style={{ pageBreakBefore: 'always' }}>
+                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十一、 圖說</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '10px' }}>
+                    {data.images.map(img => (
+                      <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px' }}>
+                        <img src={img.url} style={{ width: '100%', height: '180px', objectFit: 'contain' }} />
+                        <div style={{ fontSize: '9pt', marginTop: '4px' }}>{img.caption}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div className="doc-section">
+                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十二、 驗收要求表格</h4>
+                  <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '9pt' }}>
+                    <thead>
+                      <tr style={{ background: '#f5f5f5' }}>
+                        <th style={{ border: '1px solid black' }}>類別</th>
+                        <th style={{ border: '1px solid black' }}>項目</th>
+                        <th style={{ border: '1px solid black' }}>規格要求</th>
+                        <th style={{ border: '1px solid black' }}>測試方法</th>
+                        <th style={{ border: '1px solid black' }}>樣品數</th>
+                        <th style={{ border: '1px solid black' }}>確認</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.tableData.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category}</td>
+                          <td style={{ border: '1px solid black' }}>{row.item}</td>
+                          <td style={{ border: '1px solid black' }}>{row.spec}</td>
+                          <td style={{ border: '1px solid black' }}>{row.method}</td>
+                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>
+                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.confirmation}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
-            {/* Section XII */}
-            <div className="doc-section" style={{ pageBreakInside: 'avoid' }}>
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>十二、 請購驗收要求</h4>
-              <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px' }}>
-                <thead>
-                  <tr style={{ background: '#f5f5f5' }}>
-                    <th style={{ border: '1px solid black', width: '15%' }}>類別</th>
-                    <th style={{ border: '1px solid black', width: '20%' }}>項目</th>
-                    <th style={{ border: '1px solid black' }}>規格要求</th>
-                    <th style={{ border: '1px solid black', width: '15%' }}>測試方法</th>
-                    <th style={{ border: '1px solid black', width: '10%' }}>樣品數</th>
-                    <th style={{ border: '1px solid black', width: '10%' }}>確認</th>
-                  </tr>
-                </thead>
+            {/*規格確認及會簽*/}
+            <div className="doc-section" style={{ marginTop: '30px', pageBreakInside: 'avoid' }}>
+              <h4 style={{ textAlign: 'center', fontSize: '12pt', fontWeight: 'bold', marginBottom: '15px' }}>規格確認及會簽</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid black' }}>
                 <tbody>
-                  {data.tableData.map((row, i) => (
-                    <tr key={i}>
-                      <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category}</td>
-                      <td style={{ border: '1px solid black' }}>{row.item}</td>
-                      <td style={{ border: '1px solid black' }}>{row.spec}</td>
-                      <td style={{ border: '1px solid black' }}>{row.method}</td>
-                      <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>
-                      <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.confirmation}</td>
-                    </tr>
-                  ))}
+                  <tr>
+                    <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>申請人</td>
+                    <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.applicantName}</td>
+                    <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>申請單位主管</td>
+                    <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.deptHeadName}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(4, 30px)' }}>
+                        {data.signOffGrid.map((row, ri) => 
+                          row.map((cell, ci) => (
+                            <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
+                              {cell}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ border: '1px solid black', padding: '8px', verticalAlign: 'top' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '9pt', borderBottom: '1px solid #eee', paddingBottom: '4px', marginBottom: '4px' }}>廠商確認</div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

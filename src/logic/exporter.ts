@@ -1,6 +1,6 @@
 import { 
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
-  AlignmentType, WidthType, HeadingLevel 
+  AlignmentType, WidthType, HeadingLevel
 } from 'docx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -29,7 +29,8 @@ export const exportToPDF = async (elementId: string, filename: string) => {
 };
 
 export const exportToWord = async (data: FormState, filename: string) => {
-  // Header Section
+  const hasImages = data.images.length > 0;
+
   const headerContent = [
     new Paragraph({
       children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 36 })],
@@ -48,83 +49,108 @@ export const exportToWord = async (data: FormState, filename: string) => {
     })
   ];
 
-  // Body Sections
   const bodyContent = [
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `一、 名稱：${getFullSpecName(data)}`, bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: "需求說明：", bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: data.requirementDesc || 'NA' })], spacing: { after: 200 } }),
-
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "二、 品相：", bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: data.appearance || 'NA' })], spacing: { after: 200 } }),
-
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `三、 數量、單位：${data.quantityUnit || 'NA'}`, bold: true })], spacing: { after: 200 } }),
-
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "四、 工程(或設備)適用範圍(Scope)：", bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: data.equipmentName || 'NA' })], spacing: { after: 200 } }),
-
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "五、 工程(或設備)適用區間(Range)：", bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: data.equipmentName ? `${data.equipmentName} 所在位置周遭區域` : 'NA' })], spacing: { after: 200 } }),
-
-    // Section VI
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "六、 設計要求", bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: "1. 環保要求：", bold: true }), new TextRun({ text: data.envRequirements })] }),
-    ...data.envAIHints.filter(h => h.selected).map(h => new Paragraph({ children: [new TextRun({ text: `• ${h.content}`, size: 20, color: "555555" })] })),
-
     new Paragraph({ children: [new TextRun({ text: "2. 法規要求：", bold: true }), new TextRun({ text: data.regRequirements })] }),
-    ...data.regAIHints.filter(h => h.selected).map(h => new Paragraph({ children: [new TextRun({ text: `• ${h.content}`, size: 20, color: "555555" })] })),
-
     new Paragraph({ children: [new TextRun({ text: "3. 維護要求：", bold: true }), new TextRun({ text: data.maintRequirements })], spacing: { after: 200 } }),
-
-    // Section VII
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "七、 安全要求：", bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.safetyRequirements })] }),
-    ...data.safetyAIHints.filter(h => h.selected).map(h => new Paragraph({ children: [new TextRun({ text: `• ${h.content}`, size: 20, color: "555555" })] })),
-
-    // Section VIII
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "八、 特性要求", bold: true })], spacing: { before: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: data.safetyRequirements })], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "八、 特性要求", bold: true })], spacing: { after: 100 } }),
     new Paragraph({ children: [new TextRun({ text: `1. 電氣特性規格: ${data.elecSpecs}` })] }),
     new Paragraph({ children: [new TextRun({ text: `2. 機構特性規格: ${data.mechSpecs}` })] }),
     new Paragraph({ children: [new TextRun({ text: `3. 物理特性要求: ${data.physSpecs}` })] }),
     new Paragraph({ children: [new TextRun({ text: `4. 信賴特性要求: ${data.relySpecs}` })] }),
     ...(data.customSpec1Name ? [new Paragraph({ children: [new TextRun({ text: `${data.customSpec1Name}: ${data.customSpec1Value}` })] })] : []),
     ...(data.customSpec2Name ? [new Paragraph({ children: [new TextRun({ text: `${data.customSpec2Name}: ${data.customSpec2Value}` })] })] : []),
-
-    // Section IX
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "九、 安裝程序要求", bold: true })], spacing: { before: 200 } }),
-    new Paragraph({ children: [new TextRun({ text: "施工標準：", bold: true })] }),
-    ...processAutoNumbering(data.installStandard).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l, size: 20 })] })),
+    ...processAutoNumbering(data.installStandard).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
     new Paragraph({ children: [new TextRun({ text: `完工日期：${data.deliveryDate || 'NA'} | 工期（天）：${data.workPeriod || 'NA'}`, bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: `驗收：${data.acceptanceDesc}` })] }),
-
-    // Section X
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "十、 遵守事項", bold: true })], spacing: { before: 200 } }),
-    ...processAutoNumbering(data.complianceDesc).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l, size: 20 })] })),
+    ...processAutoNumbering(data.complianceDesc).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
   ];
 
-  // Section XII Table
-  const specTable = new Table({
+  const optionalSections: (Paragraph | Table)[] = [];
+  if (hasImages) {
+    optionalSections.push(
+      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "十一、 圖說", bold: true })], spacing: { before: 400 } }),
+      new Paragraph({ text: "[圖片由於格式限制，請參考預覽界面或 PDF 匯出版]" }),
+      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: "十二、 請購驗收要求", bold: true })], spacing: { before: 400, after: 200 } }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "類別", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "項目", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "規格要求", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "測試方法", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "樣品數", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "確認", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+            ]
+          }),
+          ...data.tableData.map(row => new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ text: row.category })] }),
+              new TableCell({ children: [new Paragraph({ text: row.item })] }),
+              new TableCell({ children: [new Paragraph({ text: row.spec })] }),
+              new TableCell({ children: [new Paragraph({ text: row.method })] }),
+              new TableCell({ children: [new Paragraph({ text: row.samples, alignment: AlignmentType.CENTER })] }),
+              new TableCell({ children: [new Paragraph({ text: row.confirmation, alignment: AlignmentType.CENTER })] }),
+            ]
+          }))
+        ]
+      })
+    );
+  }
+
+  // Joint Sign-off Section
+  const signOffTableContent = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: data.signOffGrid.map(row => new TableRow({
+      children: row.map(cell => new TableCell({
+        children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
+      }))
+    }))
+  });
+
+  const signOffTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "類別", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "項目", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "規格要求", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "測試方法", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "樣品數", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "確認", bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })] })], shading: { fill: "F9F9F9" } }),
+          new TableCell({ children: [new Paragraph({ text: data.applicantName })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請單位主管", bold: true })] })], shading: { fill: "F9F9F9" } }),
+          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })] }),
         ]
       }),
-      ...data.tableData.map(row => new TableRow({
+      new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ text: row.category })] }),
-          new TableCell({ children: [new Paragraph({ text: row.item })] }),
-          new TableCell({ children: [new Paragraph({ text: row.spec })] }),
-          new TableCell({ children: [new Paragraph({ text: row.method })] }),
-          new TableCell({ children: [new Paragraph({ text: row.samples, alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ text: row.confirmation, alignment: AlignmentType.CENTER })] }),
+          new TableCell({
+            columnSpan: 3,
+            children: [signOffTableContent]
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })] }),
+              new Paragraph({ text: "" }),
+              new Paragraph({ text: "" }),
+              new Paragraph({ text: "" }) 
+            ]
+          })
         ]
-      }))
+      })
     ]
   });
 
@@ -137,12 +163,12 @@ export const exportToWord = async (data: FormState, filename: string) => {
       }
     },
     sections: [{
-      properties: {},
       children: [
         ...headerContent,
         ...bodyContent,
-        new Paragraph({ children: [new TextRun({ text: "十二、 請購驗收要求", bold: true, size: 24 })], spacing: { before: 400, after: 200 } }),
-        specTable
+        ...optionalSections,
+        new Paragraph({ children: [new TextRun({ text: "規格確認及會簽", bold: true, size: 24 })], spacing: { before: 400, after: 200 }, alignment: AlignmentType.CENTER }),
+        signOffTable
       ]
     }]
   });
