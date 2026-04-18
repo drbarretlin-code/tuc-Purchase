@@ -1,6 +1,6 @@
 import { 
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
-  AlignmentType, WidthType, HeadingLevel, VerticalAlign, BorderStyle
+  AlignmentType, WidthType, HeadingLevel, VerticalAlign
 } from 'docx';
 import type { FormState } from '../types/form';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
@@ -30,37 +30,20 @@ export const exportToWord = async (data: FormState) => {
   const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
 
   const headerContent = [
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: {
-        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
-        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
-        insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 200 }
-                }),
-                new Paragraph({
-                  children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
-                  alignment: AlignmentType.CENTER
-                }),
-                new Paragraph({
-                  children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 200, after: 400 }
-                })
-              ]
-            })
-          ]
-        })
-      ]
+    new Paragraph({
+      children: [new TextRun({ text: "台燿科技股份有限公司", bold: true, size: 40 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 200, after: 100 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "Taiwan Union Technology Corporation", size: 28 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 }
     }),
     new Paragraph({
       children: [new TextRun({ text: `申請單位：${data.department || 'NA'}   申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })],
