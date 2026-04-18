@@ -15,6 +15,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   if (!finalKey.startsWith('AIza') || finalKey.length < 30) {
     throw new Error("偵測到不正確的 API Key 格式。金鑰通常以 'AIza' 開頭，請檢查您的系統設定。");
   }
+
+  console.log(`[診斷] 金鑰特徵: ${finalKey.substring(0, 4)}...${finalKey.substring(finalKey.length-2)} (長度: ${finalKey.length})`);
   
   const genAI = new GoogleGenerativeAI(finalKey);
   let text = '';
@@ -46,7 +48,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     - safety: 安全裝置、防護要求
     - installation: 施工標準、程序要求
     - technical: 特性規格、電氣機構要求
-
+  
     請回傳 JSON 格式陣列，結構如下：
     [{"category": "類別名稱", "content": "提取出的單條技術規範文字"}]
     
@@ -54,7 +56,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     ${text.substring(0, 5000)}
   `;
 
-  // 多模型回退與終極連線協議機制 (V5.0)
+  // 多模型回退與終極連線協議機制 (V5.4 深度診斷版)
   const modelsToTry = [
     "gemini-2.0-flash", 
     "gemini-1.5-pro", 
@@ -66,65 +68,61 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
   for (const modelId of modelsToTry) {
-    // 對於每個模型，同時嘗試 v1beta 與 v1 兩種協議
-    const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
-    let protocolSuccess = false;
+    // 冗餘格式嘗試：同時嘗試原始 ID 與帶 models/ 前綴的 ID
+    const pathFormats = [modelId, `models/${modelId}`];
+    let modelSuccess = false;
 
-    for (const apiVer of versionsToTry) {
-      let retryCount = 0;
-      const maxRetries = 5; 
-      let skipThisVersion = false;
+    for (const finalId of pathFormats) {
+      const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
+      for (const apiVer of versionsToTry) {
+        let retryCount = 0;
+        const maxRetries = 5; 
+        let skipThisPath = false;
 
-      while (retryCount < maxRetries) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: apiVer as any });
-          const result = await model.generateContent(prompt);
-          finalJsonResponse = result.response.text();
-          if (finalJsonResponse) {
-            protocolSuccess = true;
-            break; 
-          }
-        } catch (err: any) {
-          const status = err.status || 0;
-          const msg = err.message || "";
-
-          // 429 頻率限制 (僅在當前路徑重試)
-          if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-            retryCount++;
-            if (retryCount >= maxRetries) {
-              console.warn(`[拋棄路徑] ${modelId} (${apiVer}) 達重試上限。`);
-              skipThisVersion = true;
-              break;
+        while (retryCount < maxRetries) {
+          try {
+            console.log(`[連線中] 嘗試 ${finalId} (${apiVer})...`);
+            const model = genAI.getGenerativeModel({ model: finalId }, { apiVersion: apiVer as any });
+            const result = await model.generateContent(prompt);
+            finalJsonResponse = result.response.text();
+            if (finalJsonResponse) {
+              modelSuccess = true;
+              break; 
             }
-            const delay = Math.pow(2, retryCount) * 2000;
-            console.warn(`[頻控重試] ${modelId} ${apiVer} (${retryCount}/5)...`);
-            await wait(delay);
-            continue;
-          }
+          } catch (err: any) {
+            const status = err.status || 0;
+            const msg = err.message || "";
 
-          // 404 情形下，標記目前的版本 (v1beta/v1) 不可用，準備切換下一個版本或模型
-          if (status === 404 || msg.includes("404") || msg.includes("not found")) {
-            console.warn(`[無法識別路徑] ${modelId} (${apiVer})`);
-            skipThisVersion = true;
+            // 429 頻率限制
+            if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+              retryCount++;
+              if (retryCount >= maxRetries) {
+                skipThisPath = true;
+                break;
+              }
+              const delay = Math.pow(2, retryCount) * 2000;
+              console.warn(`[限流] ${finalId} 繁忙，重試第 ${retryCount} 次...`);
+              await wait(delay);
+              continue;
+            }
+
+            // 404 情形下，嘗試下一路徑格式或版本
+            console.warn(`[排除路徑] ${finalId} (${apiVer}) 狀態: ${status}`);
+            skipThisPath = true;
             break;
           }
-
-          // 其他嚴重錯誤
-          skipThisVersion = true;
-          break;
         }
+        if (modelSuccess) break;
+        if (skipThisPath) continue;
       }
-
-      if (protocolSuccess) break; // 成功獲取結果，停止該模型的協議切換
-      if (skipThisVersion) continue; // 嘗試下一種協議
+      if (modelSuccess) break;
     }
-
-    if (finalJsonResponse) break; // 成功獲取結果，停止模型切換
+    if (finalJsonResponse) break; 
   }
 
   if (!finalJsonResponse) {
-    console.error("[核心導航失敗] 掃描了 5 個模型與 2 套協議，所有連路均回報 404/429。這代表 API Key 可能失效、專案未開通解析權限、或區域配額暫時耗盡。");
-    throw new Error("AI 解析服務連線失敗。請確認：1. 您的 API Key 是否正確？ 2. Google AI Studio 的專案是否正常？ 3. 稍後再試。");
+    console.error("[核心導航失敗] 掃描了所有模型格局與 2 套協議均無效。這代表 API Key 可能失效或專案未開通。");
+    throw new Error("AI 解析服務連線失敗。請確認您的 API Key 是否正確？以及 Google AI Studio 的專案是否正常。");
   }
   
   // 簡單清理 JSON 字符串
