@@ -1,37 +1,69 @@
 import { useState, useEffect } from 'react';
-import SpecForm from './components/SpecForm';
-import SpecPreview from './components/SpecPreview';
 import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
-import { getAIHints } from './logic/aiEnhancer';
-import { ShieldAlert, Cpu, Settings, X, Save } from 'lucide-react';
+import SpecForm from './components/SpecForm';
+import SpecPreview from './components/SpecPreview';
+import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 function App() {
-  const [data, setData] = useState<FormState>(INITIAL_FORM_STATE);
+  const [data, setData] = useState<FormState>(() => {
+    const savedProfile = localStorage.getItem('tuc_user_profile');
+    const initialState = { ...INITIAL_FORM_STATE };
+    if (savedProfile) {
+      const profile = JSON.parse(savedProfile);
+      initialState.department = profile.department || '';
+      initialState.requester = profile.requester || '';
+      initialState.extension = profile.extension || '';
+      initialState.applicantName = profile.requester || '';
+    }
+    return initialState;
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  useEffect(() => {
+    const profile = {
+      department: data.department,
+      requester: data.requester,
+      extension: data.extension
+    };
+    localStorage.setItem('tuc_user_profile', JSON.stringify(profile));
+  }, [data.department, data.requester, data.extension]);
+
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
 
-  // 當設備名稱或類別變動時，更新 AI 建議 (初始化建議列表)
-  useEffect(() => {
-    if (data.equipmentName && data.category) {
-      const hints = getAIHints(data.equipmentName, data.category);
-      
-      // 映射到各個大綱區塊
-      setData(prev => ({
-        ...prev,
-        envAIHints: hints.filter(h => h.section === 'environmental').map(h => ({ id: Math.random().toString(), content: h.content, link: h.link, selected: false })),
-        regAIHints: hints.filter(h => h.section === 'regulations').map(h => ({ id: Math.random().toString(), content: h.content, link: h.link, selected: false })),
-        safetyAIHints: hints.filter(h => h.section === 'safety').map(h => ({ id: Math.random().toString(), content: h.content, link: h.link, selected: false })),
-        acceptanceAIHints: hints.filter(h => h.section === 'acceptance').map(h => ({ id: Math.random().toString(), content: h.content, link: h.link, selected: false })),
-      }));
-    }
-  }, [data.equipmentName, data.category]);
-
-  const handleSaveKey = () => {
-    localStorage.setItem('tuc_gemini_key', tempKey);
+  const handleSaveConfig = () => {
     setApiKey(tempKey);
+    localStorage.setItem('tuc_gemini_key', tempKey);
     setShowConfig(false);
+  };
+
+  // 雲端同步邏輯
+  const handleCloudSave = async () => {
+    if (!supabase) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('specs').insert([
+        { 
+          title: data.equipmentName || '未命名規範表',
+          requester: data.requester,
+          department: data.department,
+          form_data: data
+        }
+      ]);
+      if (error) throw error;
+      setLastSaved(new Date().toLocaleTimeString());
+      alert('已成功備份至雲端資料庫！');
+    } catch (err) {
+      console.error(err);
+      alert('雲端連線失敗，請檢查 Supabase 設定或網路。');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -42,17 +74,24 @@ function App() {
             <Cpu color="white" size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.25rem', margin: 0 }}>TUC PRAS v2.0</h1>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: 0 }}>對齊版本：專業自動化文件生成系統</p>
+            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
+            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.0 Powered by Supabase</p>
           </div>
         </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div className="glass-panel" style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-            <ShieldAlert size={14} color={apiKey ? "#4ADE80" : "#EAB308"} />
-            <span>AI 引擎：{apiKey ? '已就緒' : '待配置'}</span>
-          </div>
-          <button onClick={() => setShowConfig(true)} className="icon-btn"><Settings size={18} /></button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {lastSaved && <span style={{ fontSize: '0.75rem', color: '#4ADE80' }}>上次存檔: {lastSaved}</span>}
+          <button 
+            onClick={handleCloudSave} 
+            disabled={isSaving}
+            className="icon-btn" 
+            style={{ padding: '0.5rem 1rem', border: '1px solid #333', borderColor: isSaving ? 'rgba(255,255,255,0.1)' : '#333' }}
+          >
+            {isSaving ? '同步中...' : <><CloudUpload size={16} /> 雲端備份</>}
+          </button>
+          <button onClick={() => setShowConfig(true)} className="icon-btn">
+            <Settings size={20} />
+          </button>
         </div>
       </header>
 
@@ -63,21 +102,31 @@ function App() {
 
       {/* Config Modal */}
       {showConfig && (
-        <div className="modal-overlay" style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)'
-        }}>
-          <div className="glass-panel" style={{ width: '400px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>AI 搜尋金鑰配置</h3>
-              <X size={20} cursor="pointer" onClick={() => setShowConfig(false)} />
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '450px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShieldAlert size={24} color="var(--tuc-red)" /> 系統設定
+              </h2>
+              <button onClick={() => setShowConfig(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
             </div>
-            <div className="input-group">
-              <label>Gemini API Key</label>
-              <input type="password" value={tempKey} onChange={(e) => setTempKey(e.target.value)} placeholder="在此輸入 API Key..." />
+            
+            <div className="input-with-label">
+              <label>Gemini API Key (用於建議補充)</label>
+              <input 
+                type="password" 
+                value={tempKey} 
+                onChange={(e) => setTempKey(e.target.value)}
+                placeholder="貼入您的 API Key..."
+                style={{ width: '100%', marginBottom: '1rem' }}
+              />
             </div>
-            <button className="primary-button" onClick={handleSaveKey} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              注意：API Key 會儲存在您的瀏覽器本地端。
+            </div>
+            <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center' }}>
               <Save size={18} /> 儲存設定
             </button>
           </div>
