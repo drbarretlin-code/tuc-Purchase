@@ -152,21 +152,21 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>五、 工程(或設備)適用區間(Range)：</h4>
-              <div style={{ marginLeft: '1.2rem' }}>{data.equipmentName ? `${data.equipmentName} 所在位置周遭區域` : 'NA'}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{data.rangeRange || 'NA'}</div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>六、 設計要求</h4>
               <div style={{ marginLeft: '1.2rem' }}>
-                <div style={{ marginBottom: '4px' }}><strong>1. 環保要求：</strong> {data.envRequirements}</div>
-                <div style={{ margin: '4px 0' }}><strong>2. 法規要求：</strong> {data.regRequirements}</div>
-                <div><strong>3. 維護要求：</strong> {data.maintRequirements}</div>
+                <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>1. 環保要求：</strong> {data.envRequirements}</div>
+                <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>2. 法規要求：</strong> {data.regRequirements}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}><strong>3. 維護要求：</strong> {data.maintRequirements}</div>
               </div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>七、 安全要求：</h4>
-              <div style={{ marginLeft: '1.2rem' }}>{data.safetyRequirements}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{data.safetyRequirements}</div>
             </div>
 
             <div className="doc-section">
@@ -174,19 +174,19 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>1. 電氣特性規格:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.elecSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.elecSpecs}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>2. 機構特性規格:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.mechSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.mechSpecs}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>3. 物理特性規格:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.physSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.physSpecs}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>4. 信賴特性規格:</span>
-                  <div style={{ wordBreak: 'break-all' }}>{data.relySpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.relySpecs}</div>
                 </div>
               </div>
             </div>
