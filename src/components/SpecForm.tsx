@@ -262,6 +262,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
+
+        // 批次上傳時，每份檔案間隔 1 秒，減少觸發 API 頻率限制的機率
+        await new Promise(r => setTimeout(r, 1000));
       }
 
       // 更新列表並保留最近 5 個用於呈現
