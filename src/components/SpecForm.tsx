@@ -71,7 +71,32 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     }
   }, []);
 
-  const loadHistoryHints = async (tabIndex: number) => {
+  // V6.0: 初始化並讀取雲端檔案歷史
+  useEffect(() => {
+    const fetchFileHistory = async () => {
+      if (!supabase) return;
+      try {
+        const { data: list, error } = await supabase
+          .from('tuc_uploaded_files')
+          .select('original_name, public_url, display_name')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && list) {
+          setUploadedFiles(list.map(f => ({
+            name: f.original_name,
+            url: f.public_url,
+            displayName: f.display_name
+          })));
+        }
+      } catch (err) {
+        console.error('無法讀取檔案歷史:', err);
+      }
+    };
+    fetchFileHistory();
+  }, []);
+
+  const loadHistoryHints = async (tabIndex: number, force: boolean = false) => {
     const categoryMap: Record<number, {key: keyof FormState, category: string}[]> = {
       0: [{ key: 'appearanceHistoryHints', category: 'appearance' }],
       1: [
@@ -99,14 +124,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const newData = { ...data };
     let changed = false;
 
+    // 關鍵字抓取：設備名稱 + 需求說明
+    const keywords = `${data.equipmentName} ${data.requirementDesc}`.trim();
+
     for (const target of targets) {
       const currentHistory = data[target.key] as AIHintSelection[];
-      if (currentHistory.length === 0) {
-        const results = await getHistorySuggestions(target.category);
-        if (results.length > 0) {
-          (newData[target.key] as any) = results;
-          changed = true;
-        }
+      // 如果強制刷新或目前的列表為空，則執行抓取
+      if (force || currentHistory.length === 0) {
+        const results = await getHistorySuggestions(target.category, keywords);
+        (newData[target.key] as any) = results;
+        changed = true;
       }
     }
 
@@ -120,6 +147,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       formContainer.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [activeTab]);
+
+  // V6.1: 當關鍵字變動時，觸發當前分頁的歷史建議更新 (加入 debounce 避免頻繁請求)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadHistoryHints(activeTab, true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [data.equipmentName, data.requirementDesc]);
 
   const tabs = [
     { label: '基本資訊', icon: <Info size={18} /> },
@@ -261,6 +296,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
         newUploads.push({ name: file.name, url: publicUrl, displayName });
         
+        // V6.0: 寫入雲端檔案歷史紀錄表
+        await supabase.from('tuc_uploaded_files').insert({
+          original_name: file.name,
+          storage_path: fileName,
+          public_url: publicUrl,
+          display_name: displayName,
+          requester: reqName,
+          equipment_name: data.equipmentName || '未命名設備'
+        });
+
         const { processFileToKnowledge } = await import('../lib/knowledgeParser');
         const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);
         totalAdded += result?.added || 0;

@@ -40,12 +40,15 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [cloudSpecs, setCloudSpecs] = useState<any[]>([]);
+  
+  // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
+  const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const handleResize = () => {
@@ -89,20 +92,19 @@ function App() {
     setShowConfig(false);
   };
 
-
-  const fetchCloudSpecs = async () => {
+  const fetchCloudFiles = async () => {
     if (!supabase) return;
     setIsLoadingCloud(true);
     try {
       const { data: list, error } = await supabase
-        .from('specs')
+        .from('tuc_uploaded_files')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setCloudSpecs(list || []);
+      setCloudFiles(list || []);
     } catch (err) {
-      alert('無法取得雲端資料');
+      alert('無法取得檔案紀錄');
     } finally {
       setIsLoadingCloud(false);
     }
@@ -110,7 +112,7 @@ function App() {
 
   const handleOpenInspector = () => {
     if (isCloudAuthed) {
-      fetchCloudSpecs();
+      fetchCloudFiles();
       setShowCloudInspector(true);
     } else {
       setShowPasswordPrompt(true);
@@ -122,7 +124,7 @@ function App() {
       setIsCloudAuthed(true);
       setShowPasswordPrompt(false);
       setInputPassword('');
-      fetchCloudSpecs();
+      fetchCloudFiles();
       setShowCloudInspector(true);
     } else {
       alert('密碼錯誤，請重新輸入。');
@@ -130,17 +132,12 @@ function App() {
     }
   };
 
-  const handleDeleteSpec = async (id: string, isSystem: boolean) => {
-    if (isSystem) {
-      alert('此為系統保護檔案，不可刪除。');
-      return;
-    }
-    if (!supabase || !confirm('確定要永久刪除此筆備份嗎？')) return;
-    
+  const handleDeleteFile = async (id: string) => {
+    if (!supabase || !confirm('確定要永久刪除此上傳紀錄嗎？')) return;
     try {
-      const { error } = await supabase.from('specs').delete().eq('id', id);
+      const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
-      setCloudSpecs(prev => prev.filter(s => s.id !== id));
+      setCloudFiles(prev => prev.filter(f => f.id !== id));
       alert('刪除成功');
     } catch (err) {
       alert('刪除失敗');
@@ -148,26 +145,23 @@ function App() {
   };
 
   const handleExportAll = (format: 'json' | 'csv') => {
+    const list = cloudFiles;
     const content = format === 'json' 
-      ? JSON.stringify(cloudSpecs, null, 2)
-      : "ID,標題,單位,申請人,日期\n" + cloudSpecs.map(s => `"${s.id}","${s.title}","${s.department}","${s.requester}","${new Date(s.created_at).toLocaleString()}"`).join("\n");
+      ? JSON.stringify(list, null, 2)
+      : "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
     
     const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Cloud_Specs_Export_${new Date().toISOString().split('T')[0]}.${format}`;
+    a.download = `Cloud_Files_Export_${new Date().toISOString().split('T')[0]}.${format}`;
     a.click();
   };
 
   const handleShareAll = () => {
-    const text = `【台燿採購規範雲端備份清單】\n目前共計 ${cloudSpecs.length} 筆備份資料。\n更新日期：${new Date().toLocaleString()}`;
+    const count = cloudFiles.length;
+    const text = `【台燿採購規範雲端歷史上傳檔案清單】\n目前共計 ${count} 筆。\n更新日期：${new Date().toLocaleString()}`;
     navigator.clipboard.writeText(text).then(() => alert('已複製彙總資訊到剪貼簿'));
-  };
-
-  const handleShareSpec = (spec: any) => {
-    const text = `【台燿採購規範分享】\n設備：${spec.title}\n單位：${spec.department}\n申請人：${spec.requester}\n日期：${new Date(spec.created_at).toLocaleDateString()}`;
-    navigator.clipboard.writeText(text).then(() => alert('已複製摘要資訊到剪貼簿'));
   };
 
   const handleDeleteApiKey = () => {
@@ -178,6 +172,12 @@ function App() {
     }
   };
 
+  const filteredFiles = cloudFiles.filter(f => 
+    (f.display_name || '').includes(searchQuery) ||
+    (f.equipment_name || '').includes(searchQuery) ||
+    (f.requester || '').includes(searchQuery)
+  );
+
   return (
     <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
@@ -187,13 +187,11 @@ function App() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
-            {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v3.2</p>}
+            {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收建置系統 v6.1</p>}
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {!isMobile && lastSaved && <span style={{ fontSize: '0.75rem', color: '#4ADE80' }}>上次存檔: {lastSaved}</span>}
-          
           {!isMobile && (
             <button 
               onClick={() => setShowPreview(!showPreview)} 
@@ -223,7 +221,6 @@ function App() {
         overflow: 'hidden',
         paddingBottom: isMobile ? '70px' : '0'
       }}>
-        {/* 手機版：根據切換顯示編輯或預覽 */}
         {(!isMobile || mobileAppTab === 'edit') && (
           <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
             <SpecForm data={data} onChange={setData} />
@@ -252,7 +249,6 @@ function App() {
         )}
       </main>
 
-      {/* 手機版底部導覽 */}
       {isMobile && (
         <nav className="bottom-nav">
           <button 
@@ -272,7 +268,6 @@ function App() {
         </nav>
       )}
 
-      {/* Config Modal */}
       {showConfig && (
         <div className="modal-overlay">
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -280,13 +275,13 @@ function App() {
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldAlert size={24} color="var(--tuc-red)" /> 系統設定
               </h2>
-              <button onClick={() => setShowConfig(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
+              <button onClick={() => setShowConfig(false)} className="icon-btn">
                 <X size={24} />
               </button>
             </div>
             
             <div className="input-with-label">
-              <label>Gemini API Key (用於建議補充)</label>
+              <label>Gemini API Key (用於智慧建議)</label>
               <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
                 <input 
                   type={showApiKey ? "text" : "password"} 
@@ -325,20 +320,12 @@ function App() {
                     alert(res.message);
                   }}
                 >
-                  <Cpu size={14} style={{ marginRight: '4px' }} /> 測試連線並列出模型
+                  <Cpu size={14} style={{ marginRight: '4px' }} /> 測試連線並列出可用模型
                 </button>
-                {tempKey && !tempKey.startsWith('AIza') && (
-                  <div style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                    警告：金鑰應以 "AIza" 開頭
-                  </div>
-                )}
               </div>
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', marginTop: '4px' }}>
-              注意：API Key 會加密儲存在您的瀏覽器本地端。
-            </div>
 
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
               <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CloudUpload size={18} /> 資料庫管理
               </h3>
@@ -348,7 +335,7 @@ function App() {
                 style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
                 disabled={isLoadingCloud}
               >
-                {isLoadingCloud ? '讀取中...' : '一鍵查閱雲端備份內容現況'}
+                {isLoadingCloud ? '讀取中...' : '一鍵查閱歷史檔案紀錄'}
               </button>
             </div>
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
@@ -358,7 +345,6 @@ function App() {
         </div>
       )}
 
-      {/* Password Prompt Modal */}
       {showPasswordPrompt && (
         <div className="modal-overlay" style={{ zIndex: 1100 }}>
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '350px', textAlign: 'center' }}>
@@ -382,13 +368,12 @@ function App() {
         </div>
       )}
 
-      {/* Enhanced Cloud Inspector Modal */}
       {showCloudInspector && (
         <div className="modal-overlay" style={{ zIndex: 1200 }}>
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BookOpen size={24} color="var(--tuc-red)" /> 雲端備份管理查閱器
+                <BookOpen size={24} color="var(--tuc-red)" /> 雲端歷史檔案查閱器
               </h2>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="ghost-button" onClick={() => handleExportAll('json')} style={{ fontSize: '0.8rem' }}>
@@ -410,44 +395,39 @@ function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>設備名稱</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>單位</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>申請人員</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>備份日期</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>顯示名稱</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>歸屬設備</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>上傳人</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>日期</th>
                     <th style={{ textAlign: 'center', padding: '12px' }}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cloudSpecs.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何雲端備份紀錄</td></tr>
-                  ) : cloudSpecs.map((spec) => {
-                    const isSystem = spec.requester === 'TUC_SYSTEM' || spec.title?.includes('[SYSTEM]');
-                    return (
-                      <tr key={spec.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
-                        <td style={{ padding: '12px', color: 'white' }}>{spec.title}</td>
-                        <td style={{ padding: '12px', color: '#bbb' }}>{spec.department}</td>
-                        <td style={{ padding: '12px', color: '#bbb' }}>{spec.requester}</td>
-                        <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(spec.created_at).toLocaleString()}</td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                            <button className="icon-btn" onClick={() => handleShareSpec(spec)} title="分享摘要">
-                              <Share2 size={16} />
-                            </button>
-                            {!isSystem && (
-                              <button className="icon-btn" onClick={() => handleDeleteSpec(spec.id, isSystem)} style={{ color: '#EF4444' }} title="刪除紀錄">
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredFiles.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
+                  ) : filteredFiles.map((f) => (
+                    <tr key={f.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
+                      <td style={{ padding: '12px', color: 'white' }}>{f.display_name}</td>
+                      <td style={{ padding: '12px', color: '#bbb' }}>{f.equipment_name}</td>
+                      <td style={{ padding: '12px', color: '#bbb' }}>{f.requester}</td>
+                      <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString()}</td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                          <button className="icon-btn" onClick={() => window.open(f.public_url)} title="開新分頁檢視">
+                            <Eye size={16} />
+                          </button>
+                          <button className="icon-btn" onClick={() => handleDeleteFile(f.id)} style={{ color: '#EF4444' }} title="刪除紀錄">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
-              共計 {cloudSpecs.length} 筆備份資料
+              共計 {cloudFiles.length} 筆紀錄
             </div>
           </div>
         </div>

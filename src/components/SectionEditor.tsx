@@ -144,28 +144,46 @@ const SectionEditor: React.FC<Props> = ({
             <History size={14} />
             <span>TUC 歷史參考 (來自上傳檔案)</span>
           </div>
-          {historyHints.map((hint) => (
-            <div 
-              key={hint.id} 
-              onClick={() => onHistoryHintToggle?.(hint.id)}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'flex-start', 
-                gap: '0.75rem', 
-                padding: '0.5rem',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                transition: 'background 0.2s',
+
+          {historyHints.length >= 2 ? (
+            <select 
+              value="" 
+              onChange={(e) => {
+                if (e.target.value) onHistoryHintToggle?.(e.target.value);
               }}
-              className="hint-item"
+              style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '4px' }}
             >
-              {hint.selected ? <CheckCircle2 size={16} color="#10B981" /> : <Circle size={16} color="#4B5563" />}
-              <div style={{ fontSize: '0.875rem' }}>
-                <p style={{ margin: 0 }}>{hint.content}</p>
-                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>來源: {(hint as any).source}</span>
+              <option value="" disabled>點擊選擇歷史條文以導入...</option>
+              {historyHints.map(hint => (
+                <option key={hint.id} value={hint.id}>
+                  {hint.selected ? '✅ ' : ''}[來源:{ (hint as any).source || '未知' }] {hint.content.substring(0, 50)}...
+                </option>
+              ))}
+            </select>
+          ) : (
+            historyHints.map((hint) => (
+              <div 
+                key={hint.id} 
+                onClick={() => onHistoryHintToggle?.(hint.id)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '0.75rem', 
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  transition: 'background 0.2s',
+                }}
+                className="hint-item"
+              >
+                {hint.selected ? <CheckCircle2 size={16} color="#10B981" /> : <Circle size={16} color="#4B5563" />}
+                <div style={{ fontSize: '0.875rem' }}>
+                  <p style={{ margin: 0 }}>{hint.content}</p>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>來源: {(hint as any).source || '未知'}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 

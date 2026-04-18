@@ -192,17 +192,28 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   return { added: addedCount, skipped: skippedCount };
 };
 
-export const getHistorySuggestions = async (category: string) => {
+export const getHistorySuggestions = async (category: string, keywords: string = '') => {
   if (!supabase) return [];
-  const { data, error } = await supabase
+  
+  let query = supabase
     .from('tuc_history_knowledge')
-    .select('content, source_file_name')
-    .eq('category', category)
-    .limit(5);
+    .select('id, content, source_file_name, metadata')
+    .eq('category', category);
+
+  if (keywords) {
+    // 支援內容欄位或 metadata 內的設備名稱模糊搜尋
+    query = query.or(`content.ilike.%${keywords}%, metadata->>equipment_name.ilike.%${keywords}%`);
+  }
+
+  const { data, error } = await query.limit(10).order('created_at', { ascending: false });
     
-  if (error) return [];
-  return data.map((item, idx) => ({
-    id: `hist-${idx}`,
+  if (error) {
+    console.error('History fetch error:', error);
+    return [];
+  }
+  
+  return data.map((item) => ({
+    id: item.id.toString(),
     content: item.content,
     selected: false,
     source: item.source_file_name
