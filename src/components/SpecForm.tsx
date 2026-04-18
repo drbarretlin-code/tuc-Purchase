@@ -297,7 +297,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         newUploads.push({ name: file.name, url: publicUrl, displayName });
         
         // V6.0: 寫入雲端檔案歷史紀錄表
-        await supabase.from('tuc_uploaded_files').insert({
+        console.log('[Debug] 正在寫入檔案元數據到資料表 tuc_uploaded_files...');
+        const { error: dbError } = await supabase.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
           public_url: publicUrl,
@@ -305,6 +306,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           requester: reqName,
           equipment_name: data.equipmentName || '未命名設備'
         });
+
+        if (dbError) {
+          console.error('[Debug] 資料表寫入失敗:', dbError);
+          throw new Error(`資料庫寫入失敗: ${dbError.message}`);
+        } else {
+          console.log('[Debug] 資料室寫入成功。');
+        }
 
         const { processFileToKnowledge } = await import('../lib/knowledgeParser');
         const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);

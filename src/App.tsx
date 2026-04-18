@@ -92,7 +92,12 @@ function App() {
   };
 
   const fetchCloudFiles = async () => {
-    if (!supabase) return;
+    console.log('[Debug] 正在嘗試獲取雲端歷史檔案...', { supabaseInitialized: !!supabase });
+    if (!supabase) {
+      console.warn('[Debug] Supabase 客戶端未初始化。請檢查 VITE_SUPABASE_URL 與 VITE_SUPABASE_ANON_KEY 環境變數。');
+      return;
+    }
+    
     setIsLoadingCloud(true);
     try {
       const { data: list, error } = await supabase
@@ -100,10 +105,16 @@ function App() {
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('[Debug] Supabase 查詢報錯:', error);
+        throw error;
+      }
+      
+      console.log(`[Debug] 查詢成功，找到 ${list?.length || 0} 筆紀錄。`);
       setCloudFiles(list || []);
-    } catch (err) {
-      alert('無法取得檔案紀錄');
+    } catch (err: any) {
+      console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
+      alert('無法取得檔案紀錄，請檢查網路連線或資料庫權限。');
     } finally {
       setIsLoadingCloud(false);
     }
