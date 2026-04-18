@@ -14,18 +14,18 @@ export const checkGeminiConnectivity = async (apiKey: string) => {
   if (!finalKey) throw new Error("API Key 為空");
   
   try {
-    // 使用 REST 直接獲取模型列表，這是最權威的權限診斷方式
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${finalKey}`;
     const response = await fetch(url);
     const data = await response.json();
     
     if (response.status === 200) {
+      // 提取完整的模型名稱 (例如 models/gemini-1.5-flash)
       const modelNames = data.models?.map((m: any) => m.name.replace('models/', '')) || [];
       return {
         success: true,
         count: modelNames.length,
         models: modelNames,
-        message: `連線成功！共發現 ${modelNames.length} 個可用模型。`
+        message: `連線成功！發現 ${modelNames.length} 個模型：${modelNames.slice(0, 3).join(', ')}...`
       };
     } else {
       return {
@@ -37,7 +37,7 @@ export const checkGeminiConnectivity = async (apiKey: string) => {
   } catch (err: any) {
     return {
       success: false,
-      message: `網路請求錯誤: ${err.message}`
+      message: `網路連線異常: ${err.message}`
     };
   }
 };
@@ -54,6 +54,17 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   console.log(`[診斷] 金鑰特徵: ${finalKey.substring(0, 4)}...${finalKey.substring(finalKey.length-2)} (長度: ${finalKey.length})`);
   
+  // V5.6 智慧機型嗅探
+  console.log("[智慧探測] 正在動態獲取可用模型清單...");
+  const connCheck = await checkGeminiConnectivity(finalKey);
+  
+  // 優先使用探測到的模型，若探測失敗則使用預設清單
+  const discoveredModels = connCheck.success ? connCheck.models.filter((m: string) => m.includes('gemini')) : [];
+  const defaultModels = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
+  const modelsToTry = discoveredModels.length > 0 ? discoveredModels : defaultModels;
+
+  console.log(`[探測完成] 準備使用 ${modelsToTry.length} 個候選機型執行解析。清單: ${modelsToTry.join(', ')}`);
+
   const genAI = new GoogleGenerativeAI(finalKey);
   let text = '';
   
@@ -85,37 +96,28 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     - installation: 施工標準、程序要求
     - technical: 特性規格、電氣機構要求
   
-    請回傳 JSON 格式陣列，結構如下：
+    回傳格式：純 JSON 陣列。
     [{"category": "類別名稱", "content": "提取出的單條技術規範文字"}]
     
-    待處理內容：
+    內容：
     ${text.substring(0, 5000)}
   `;
 
-  // 多模型回退與終極連線協議機制 (V5.5 診斷修復版)
-  const modelsToTry = [
-    "gemini-2.0-flash", 
-    "gemini-1.5-pro", 
-    "gemini-1.5-flash", 
-    "gemini-1.5-flash-8b", 
-    "gemini-pro"
-  ];
   let finalJsonResponse = '';
   const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
   for (const modelId of modelsToTry) {
-    // 修正 V5.4 的冗餘 bug，恢復單一路徑格式，SDK 會自動處理前綴
     const versionsToTry: ('v1' | 'v1beta')[] = ['v1beta', 'v1'];
     let modelSuccess = false;
 
     for (const apiVer of versionsToTry) {
       let retryCount = 0;
-      const maxRetries = 5; 
+      const maxRetries = 3; // 縮短重試次數，加快切換
       let skipThisVersion = false;
 
       while (retryCount < maxRetries) {
         try {
-          console.log(`[解析中] 正在嘗試模型: ${modelId} (${apiVer})...`);
+          console.log(`[執行解析] 正與 ${modelId} (${apiVer}) 通訊...`);
           const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: apiVer as any });
           const result = await model.generateContent(prompt);
           finalJsonResponse = result.response.text();
@@ -127,21 +129,15 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
           const status = err.status || 0;
           const msg = err.message || "";
 
-          // 429 頻率限制
-          if (status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+          if (status === 429 || msg.includes("429")) {
             retryCount++;
-            if (retryCount >= maxRetries) {
-              skipThisVersion = true;
-              break;
-            }
-            const delay = Math.pow(2, retryCount) * 2000;
-            console.warn(`[頻控] ${modelId} 限流，等待 ${delay}ms...`);
+            const delay = 4000;
+            console.warn(`[頻控] ${modelId} 忙碌中，等待 ${delay}ms...`);
             await wait(delay);
             continue;
           }
 
-          // 404 或其他錯誤
-          console.warn(`[無效] ${modelId} (${apiVer}) 狀態: ${status}`);
+          console.warn(`[跳過] ${modelId} (${apiVer}) 報錯: ${status}`);
           skipThisVersion = true;
           break;
         }
@@ -153,11 +149,13 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   }
 
   if (!finalJsonResponse) {
-    console.error("[核心導航失敗] 掃描了 5 個備援模型均回報不可用。這通常與 API Key 的權限或 Google 服務配額有關。");
-    throw new Error("AI 解析服務連線失敗。請確認您的 API Key 是否正確？以及專案是否已在 Google AI Studio 開通。");
+    if (connCheck.success && connCheck.count === 0) {
+      throw new Error("連線成功但您的 API Key 下找不到任何可用模型。請檢查 Google AI Studio 專案權限。");
+    }
+    throw new Error("AI 解析服務連線失敗。請確認金鑰權限或稍後再試。");
   }
   
-  // 簡單清理 JSON 字符串
+  // 清理 JSON 文字
   const cleanJson = finalJsonResponse.replace(/```json|```/g, '').trim();
   const indexData = JSON.parse(cleanJson);
 
