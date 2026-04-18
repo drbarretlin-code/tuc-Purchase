@@ -167,3 +167,67 @@ input:focus, select:focus, textarea:focus {
 .preview-content table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
 .preview-content th, .preview-content td { border: 1px solid #374151; padding: 0.5rem; text-align: left; font-size: 0.875rem; }
 .preview-content th { background: #F3F4F6; }
+
+.doc-section {
+  margin-bottom: 0.8rem;
+  page-break-inside: avoid;
+}
+
+.doc-section h4 {
+  font-size: 11pt;
+  margin-bottom: 0.3rem;
+  color: #1a1a1a;
+  border-bottom: 1px solid #eee;
+}
+
+.doc-value {
+  font-weight: normal;
+  color: #333;
+  margin-left: 0.5rem;
+}
+
+.icon-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  color: white;
+  padding: 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.modal-overlay {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tab-pane {
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.preview-content th, .preview-content td {
+  border: 1px solid black !important;
+  padding: 4px 8px;
+  font-size: 9pt;
+}
+
+.preview-content table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
