@@ -6,9 +6,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_KEY || '');
-
-export const processFileToKnowledge = async (file: File) => {
+export const processFileToKnowledge = async (file: File, apiKey?: string) => {
+  const finalKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
+  if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
+  
+  const genAI = new GoogleGenerativeAI(finalKey);
   let text = '';
   
   if (file.name.endsWith('.docx')) {

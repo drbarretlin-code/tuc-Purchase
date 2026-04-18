@@ -22,7 +22,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isKMOpen, setIsKMOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string}[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string, displayName: string}[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -211,30 +211,50 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !supabase) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !supabase) return;
 
     setUploadingFile(true);
+    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+    
     try {
-      const fileName = `${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage
-        .from('spec-files')
-        .upload(fileName, file);
+      const newUploads: {name: string, url: string, displayName: string}[] = [];
+      let totalParsed = 0;
 
-      if (error) throw error;
+      for (const file of Array.from(files)) {
+        const fileName = `${Date.now()}_${file.name}`;
+        const { error } = await supabase.storage
+          .from('spec-files')
+          .upload(fileName, file);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('spec-files')
-        .getPublicUrl(fileName);
+        if (error) throw error;
 
-      setUploadedFiles(prev => [...prev, { name: file.name, url: publicUrl }]);
-      
-      const { processFileToKnowledge } = await import('../lib/knowledgeParser');
-      const count = await processFileToKnowledge(file);
-      alert(`檔案上傳並歸納成功！已提取 ${count} 條過往規範建議。`);
-    } catch (err) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('spec-files')
+          .getPublicUrl(fileName);
+
+        // 生成顯示名稱：設備名稱_申請人員_原檔名
+        const eqName = data.equipmentName || '未命名設備';
+        const reqName = data.requester || '未知申請人';
+        const displayName = `${eqName}_${reqName}_${file.name}`;
+
+        newUploads.push({ name: file.name, url: publicUrl, displayName });
+        
+        const { processFileToKnowledge } = await import('../lib/knowledgeParser');
+        const count = await processFileToKnowledge(file, userApiKey);
+        totalParsed += count || 0;
+      }
+
+      // 更新列表並保留最近 5 個
+      setUploadedFiles(prev => {
+        const combined = [...prev, ...newUploads];
+        return combined.slice(-5);
+      });
+
+      alert(`檔案上傳成功！共歸納 ${totalParsed} 條關鍵建議到知識庫。`);
+    } catch (err: any) {
       console.error(err);
-      alert('上傳或歸納失敗。');
+      alert(`上傳或解析失敗: ${err.message || '未知錯誤'}`);
     } finally {
       setUploadingFile(false);
     }
@@ -565,7 +585,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <div style={{ marginTop: '2.5rem' }}>
                   {uploadedFiles.map((f, i) => (
                     <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{f.name}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: '500', color: 'white' }}>{f.displayName}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>原始檔名: {f.name}</span>
+                      </div>
                       <a href={f.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#60A5FA', textDecoration: 'none', background: 'rgba(96,165,250,0.1)', padding: '0.4rem 0.8rem', borderRadius: '4px' }}>檢視檔案</a>
                     </div>
                   ))}
