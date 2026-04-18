@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, Save, CloudUpload, PenTool } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -93,7 +93,8 @@ function App() {
               color: 'white'
             }}
           >
-             {showPreview ? '隱藏正式預覽' : '顯示正式預覽'}
+             {showPreview ? <span className="header-btn-text">隱藏正式預覽</span> : <span className="header-btn-text">顯示正式預覽</span>}
+             {!showPreview && <><PenTool size={16} /> <span className="header-btn-text">顯示預覽</span></>}
           </button>
 
           <button 
@@ -102,7 +103,7 @@ function App() {
             className="icon-btn" 
             style={{ padding: '0.5rem 1rem', border: '1px solid #333', borderColor: isSaving ? 'rgba(255,255,255,0.1)' : '#333' }}
           >
-            {isSaving ? '同步中...' : <><CloudUpload size={16} /> 雲端備份</>}
+            {isSaving ? '同步中...' : <><CloudUpload size={16} /> <span className="header-btn-text">雲端備份</span></>}
           </button>
           <button onClick={() => setShowConfig(true)} className="icon-btn">
             <Settings size={20} />

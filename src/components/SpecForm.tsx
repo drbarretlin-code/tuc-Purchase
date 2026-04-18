@@ -277,7 +277,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '20px' }}>
-                <Calendar size={14} /> 日期：{currentDate}
+                <Calendar size={14} /> <span className="header-btn-text">日期：{currentDate}</span>
+                {!isSidebarCollapsed && <span style={{ display: 'none' }} className="mobile-only-date">{currentDate}</span>}
               </div>
               <div style={{ height: '20px', width: '1px', background: 'var(--border-color)' }}></div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>

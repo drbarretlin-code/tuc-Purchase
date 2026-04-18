@@ -378,52 +378,70 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0;
 }
 
-/* Responsive Overrides */
+/* Mobile Responsive Overrides - Refined */
 @media (max-width: 1024px) {
-  .form-sidebar {
-    width: 64px;
-  }
-  .sidebar-nav-item span {
-    display: none;
-  }
-  .sidebar-nav-item {
-    padding: 1rem;
-    justify-content: center;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-  }
-  .sidebar-nav-item.active {
-    border-bottom-color: var(--tuc-red);
+  .main-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
   }
 }
 
-@media (max-width: 640px) {
-  .form-sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 60px;
-    flex-direction: row;
-    border-right: none;
-    border-top: 1px solid var(--border-color);
-    padding: 0;
-    z-index: 100;
-  }
-  .sidebar-nav-item {
-    flex: 1;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.5rem;
-  }
+@media (max-width: 768px) {
   .app-container {
-    padding: 1rem;
+    padding: 0.75rem !important;
   }
-  .form-section {
-    padding: 1rem;
+
+  /* Form inner grids to single column */
+  .form-content-wrap div[style*="grid-template-columns: 1fr 1fr"],
+  .form-content-wrap div[style*="grid-template-columns: 1.5fr 1fr"],
+  .form-content-wrap div[style*="repeat(6, 1fr)"] {
+    grid-template-columns: 1fr !important;
   }
-  .form-content-wrap {
-    padding: 1rem;
-    padding-bottom: 130px; 
+
+  .form-header-toolbar {
+    height: auto !important;
+    flex-direction: column !important;
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+    align-items: flex-start !important;
+  }
+
+  .form-header-toolbar > div {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .header-btn-text {
+    display: none !important;
+  }
+  
+  /* Sidebar handling on tablet/mobile */
+  .form-sidebar {
+    width: 64px !important;
+  }
+  .form-sidebar.collapsed {
+    width: 64px !important; /* Keep it consistent as icons for space */
+  }
+}
+
+@media (max-width: 480px) {
+  header[style*="display: flex"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  header div[style*="display: flex"] {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+  
+  .form-footer-nav {
+    padding: 0 1rem !important;
+  }
+  
+  .primary-button {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.9rem !important;
   }
 }
