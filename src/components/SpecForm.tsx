@@ -150,11 +150,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       const baseContent = nextContent.trimEnd();
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + targetHint.content;
-    } else {
-      // 取消勾選：自動從主編輯區移除該段文字
-      nextContent = nextContent.replace(targetHint.content, '').trim();
-      // 清理多餘的連續換行
-      nextContent = nextContent.replace(/\n{3,}/g, '\n\n');
+      // 取消勾選：自動從主編輯區移除該段文字，並清理冗餘換行以防空行
+      nextContent = nextContent.replace(targetHint.content, '');
+      // 清理連續換行為單換行，並移除首尾空行
+      nextContent = nextContent.split('\n').filter(line => line.trim()).join('\n').trim();
     }
 
     onChange({
@@ -180,8 +179,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + targetHint.content;
     } else {
-      nextContent = nextContent.replace(targetHint.content, '').trim();
-      nextContent = nextContent.replace(/\n{3,}/g, '\n\n');
+      nextContent = nextContent.replace(targetHint.content, '');
+      nextContent = nextContent.split('\n').filter(line => line.trim()).join('\n').trim();
     }
 
     onChange({

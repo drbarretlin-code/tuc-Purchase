@@ -57,9 +57,14 @@ export const exportToWord = async (data: FormState) => {
       spacing: { after: 200 }
     }),
     new Paragraph({
-      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: {} })],
+      children: [new TextRun({ text: "請購驗收規範表", bold: true, size: 36, underline: { color: "000000" } })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 600 }
+      spacing: { after: 400 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: `申請日期：${new Date().toLocaleDateString()}`, size: 20 })],
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 200 }
     }),
     new Paragraph({
       children: [
@@ -137,41 +142,28 @@ export const exportToWord = async (data: FormState) => {
     );
   }
 
-  // Joint Sign-off Section
-  const signOffTableContent = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: data.signOffGrid.map(row => new TableRow({
-      children: row.map(cell => new TableCell({
-        children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
-      }))
-    }))
-  });
-
+  // Flattened Sign-off Table (No nesting)
   const signOffTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })] })], shading: { fill: "F9F9F9" } }),
-          new TableCell({ children: [new Paragraph({ text: data.applicantName })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請單位主管", bold: true })] })], shading: { fill: "F9F9F9" } }),
-          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: data.applicantName })], width: { size: 35, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "申請單位主管", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: data.deptHeadName })], width: { size: 35, type: WidthType.PERCENTAGE } }),
         ]
       }),
+      ...data.signOffGrid.map(row => new TableRow({
+        children: row.map(cell => new TableCell({
+          children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
+          width: { size: 16.66, type: WidthType.PERCENTAGE }
+        }))
+      })),
       new TableRow({
         children: [
-          new TableCell({
-            columnSpan: 3,
-            children: [signOffTableContent]
-          }),
-          new TableCell({
-            children: [
-              new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })] }),
-              new Paragraph({ text: "" }),
-              new Paragraph({ text: "" }),
-              new Paragraph({ text: "" }) 
-            ]
-          })
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })] })], shading: { fill: "F9F9F9" }, width: { size: 15, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "" }), new Paragraph({ text: "" })], columnSpan: 5 })
         ]
       })
     ]

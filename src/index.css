@@ -562,3 +562,45 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 1.5rem;
   font-size: 1rem;
 }
+
+/* PDF / Print Optimization */
+@media print {
+  body, .app-container {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .main-grid {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .preview-section {
+    padding: 0 !important;
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  header, .bottom-nav, .form-section, .form-sidebar, .layout-resizer, .form-header-toolbar, .form-footer-nav, aside {
+    display: none !important;
+  }
+
+  .preview-zoom-container {
+    transform: none !important;
+    width: 100% !important;
+  }
+
+  .preview-content {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 2.5cm 2cm !important;
+    width: 100% !important;
+  }
+}
