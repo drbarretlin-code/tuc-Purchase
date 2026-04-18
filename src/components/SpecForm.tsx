@@ -50,6 +50,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       { key: 'mechTUCHints', source: 'mechSpecs' },
       { key: 'physTUCHints', source: 'physSpecs' },
       { key: 'relyTUCHints', source: 'relySpecs' },
+      { key: 'rangeTUCHints', source: 'rangeRange' },
       { key: 'installTUCHints', source: 'installStandard' },
       { key: 'acceptanceTUCHints', source: 'acceptanceDesc' },
       { key: 'complianceTUCHints', source: 'complianceDesc' },
@@ -81,7 +82,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         { key: 'elecHistoryHints', category: 'technical' },
         { key: 'mechHistoryHints', category: 'technical' },
         { key: 'physHistoryHints', category: 'technical' },
-        { key: 'relyHistoryHints', category: 'technical' }
+        { key: 'relyHistoryHints', category: 'technical' },
+        { key: 'rangeHistoryHints', category: 'technical' }
       ],
       2: [
         { key: 'installHistoryHints', category: 'installation' },
@@ -144,8 +146,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      // 導入：確保以新段落開始
-      const separator = nextContent && !nextContent.endsWith('\n\n') ? (nextContent.endsWith('\n') ? '\n' : '\n\n') : '';
+      // 導入：確保以新段落開始 (單換行)
+      const separator = nextContent && !nextContent.endsWith('\n') ? '\n' : '';
       nextContent = nextContent + separator + targetHint.content;
     } else {
       // 取消勾選：自動從主編輯區移除該段文字
@@ -173,7 +175,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      const separator = nextContent && !nextContent.endsWith('\n\n') ? (nextContent.endsWith('\n') ? '\n' : '\n\n') : '';
+      const separator = nextContent && !nextContent.endsWith('\n') ? '\n' : '';
       nextContent = nextContent + separator + targetHint.content;
     } else {
       nextContent = nextContent.replace(targetHint.content, '').trim();
@@ -195,8 +197,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const isDropdownCell = (_row: number, col: number) => {
-    // 列 0,1,2 的第 5 欄 (index 4) 為單位選擇
-    return col === 4;
+    // 列 0,1,2 的第 1(0), 3(2), 5(4) 欄為單位選擇
+    return col === 0 || col === 2 || col === 4;
   };
 
   const handleExportJSON = () => {
@@ -405,6 +407,15 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   />
                   <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v) => updateField('quantityUnit', v)} isTextArea={false} />
                   <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} />
+                  <SectionEditor 
+                    label="五. 工程(或設備)適用區間 (Range)" 
+                    value={data.rangeRange} 
+                    onChange={(v) => updateField('rangeRange', v)} 
+                    tucHints={data.rangeTUCHints}
+                    historyHints={data.rangeHistoryHints}
+                    onTUCHintToggle={(id) => toggleTUCHint('rangeTUCHints', 'rangeRange', id)}
+                    onHistoryHintToggle={(id) => toggleHistoryHint('rangeHistoryHints', 'rangeRange', id)}
+                  />
                 </div>
               </div>
             )}
@@ -560,7 +571,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 </div>
                 
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣 (4 x 6)</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
                     {data.signOffGrid.map((row, ri) => row.map((cell, ci) => (
                       <div key={`${ri}-${ci}`} style={{ border: '1px solid var(--border-color)', minHeight: '45px', display: 'flex', alignItems: 'center', background: isDropdownCell(ri, ci) ? 'rgba(230,0,18,0.05)' : 'transparent' }}>

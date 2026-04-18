@@ -45,6 +45,11 @@ export interface FormState {
   // 三. 數量與單位
   quantityUnit: string;
   
+  // 五. 適用區間
+  rangeRange: string;
+  rangeTUCHints: AIHintSelection[];
+  rangeHistoryHints: AIHintSelection[];
+  
   // 六. 設計要求
   envRequirements: string;
   envAIHints: AIHintSelection[];
@@ -126,6 +131,9 @@ export const INITIAL_FORM_STATE: FormState = {
   appearanceTUCHints: [],
   appearanceHistoryHints: [],
   quantityUnit: '',
+  rangeRange: '依請購內容而定',
+  rangeTUCHints: [],
+  rangeHistoryHints: [],
   envRequirements: '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
   envAIHints: [],
   envTUCHints: [],

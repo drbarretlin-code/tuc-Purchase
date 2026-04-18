@@ -50,7 +50,26 @@ const SectionEditor: React.FC<Props> = ({
             placeholder={placeholder || `請輸入${label}...`}
           />
           {inputType === 'date' && (
-            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+            <div 
+              onClick={(e) => {
+                const input = e.currentTarget.previousSibling as HTMLInputElement;
+                if (input && typeof (input as any).showPicker === 'function') {
+                  (input as any).showPicker();
+                } else if (input) {
+                  input.focus();
+                }
+              }}
+              style={{ 
+                position: 'absolute', 
+                right: '12px', 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
               <Calendar size={16} />
             </div>
           )}
