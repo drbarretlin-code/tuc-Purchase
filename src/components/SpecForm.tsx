@@ -146,9 +146,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      // 導入：確保以新段落開始 (單換行)
-      const separator = nextContent && !nextContent.endsWith('\n') ? '\n' : '';
-      nextContent = nextContent + separator + targetHint.content;
+      // 導入：使用 trimEnd 確保精確換行且自成一段落 (不產生空行)
+      const baseContent = nextContent.trimEnd();
+      const separator = baseContent ? '\n' : '';
+      nextContent = baseContent + separator + targetHint.content;
     } else {
       // 取消勾選：自動從主編輯區移除該段文字
       nextContent = nextContent.replace(targetHint.content, '').trim();
@@ -175,8 +176,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      const separator = nextContent && !nextContent.endsWith('\n') ? '\n' : '';
-      nextContent = nextContent + separator + targetHint.content;
+      const baseContent = nextContent.trimEnd();
+      const separator = baseContent ? '\n' : '';
+      nextContent = baseContent + separator + targetHint.content;
     } else {
       nextContent = nextContent.replace(targetHint.content, '').trim();
       nextContent = nextContent.replace(/\n{3,}/g, '\n\n');
