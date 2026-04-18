@@ -239,17 +239,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       let totalAdded = 0;
       let totalSkipped = 0;
 
-      const sanitizeFileName = (name: string) => {
-        // 將中文字元與特殊符號替換為安全格式，保留檔案後綴
-        const ext = name.split('.').pop();
-        const base = name.split('.').slice(0, -1).join('.');
-        const safeBase = base.replace(/[^\x00-\x7F]/g, 'word').replace(/[^a-zA-Z0-9-_\.]/g, '_');
-        return `${safeBase}.${ext}`;
-      };
-
       for (const file of Array.from(files)) {
-        const safeName = sanitizeFileName(file.name);
-        const fileName = `${Date.now()}_${safeName}`;
+        // 使用純 ASCII 隨機路徑以確保 100% 存儲相容性，檔名保留在顯示名稱中
+        const ext = file.name.split('.').pop();
+        const randomStr = Math.random().toString(36).substring(2, 8);
+        const fileName = `${Date.now()}_${randomStr}.${ext}`;
         
         const { error } = await supabase.storage
           .from('spec-files')

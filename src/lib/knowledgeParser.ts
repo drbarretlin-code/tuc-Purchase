@@ -119,7 +119,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   }
 
   if (!finalJsonResponse) {
-    throw new Error("AI 解析服務暫時無法使用，請檢查 API Key 或稍後再試。");
+    console.error("[核心導航失敗] 掃描了 5 個模型與 2 套協議，所有連路均回報 404/429。這代表 API Key 可能失效、專案未開通解析權限、或區域配額暫時耗盡。");
+    throw new Error("AI 解析服務連線失敗。請確認：1. 您的 API Key 是否正確？ 2. Google AI Studio 的專案是否正常？ 3. 稍後再試。");
   }
   
   // 簡單清理 JSON 字符串
