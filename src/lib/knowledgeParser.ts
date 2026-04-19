@@ -224,44 +224,68 @@ export const getHistorySuggestions = async (
   reqKeywords: string = ''
 ) => {
   if (!supabase) return [];
-  
-    console.error('History fetch error:', error);
+  // V10.2: 重構雙軌檢索邏輯 (避開 Supabase 複雜 OR 語法，確保相容性)
+  try {
+    // 軌道一：抓取當前分類項目
+    const catTask = supabase
+      .from('tuc_history_knowledge')
+      .select('id, content, source_file_name, metadata, category')
+      .eq('category', category)
+      .limit(60);
+
+    // 軌道二：同步抓取權威項 (不限分類)
+    const authTask = supabase
+      .from('tuc_history_knowledge')
+      .select('id, content, source_file_name, metadata, category')
+      .in('metadata->>docType', ['Standard', 'Global'])
+      .limit(60);
+
+    const [catRes, authRes] = await Promise.all([catTask, authTask]);
+    
+    // 合併並去重
+    const candidates = [...(catRes.data || []), ...(authRes.data || [])];
+    const uniqueCandidates = Array.from(new Map(candidates.map(item => [item.id, item])).values());
+
+    console.log(`[智慧建議] 查詢類別: ${category}, 候選條目總計: ${uniqueCandidates.length}`);
+
+    if (uniqueCandidates.length === 0) return [];
+
+    const scoredData = uniqueCandidates.map(item => {
+      const docType = (item.metadata as any)?.docType || 'Specific';
+      const isAuthority = docType === 'Standard' || docType === 'Global';
+      
+      let baseScore = calculateWeightedSimilarity(
+        item.content + (item.metadata?.equipment_name || ''), 
+        eqKeywords, 
+        reqKeywords,
+        item.metadata
+      );
+
+      // V10.2: 權威提權 - 只要命中達 0.3 即加成，確保補充條文優先顯示
+      if (isAuthority && baseScore >= 0.3) {
+        baseScore += 0.2;
+      }
+
+      return { ...item, score: baseScore, isAuthority };
+    });
+
+    // 執行分層過濾與排序
+    const finalResults = scoredData
+      .filter(item => {
+        const threshold = item.isAuthority ? 0.3 : 0.75;
+        return item.score >= threshold;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
+
+    return finalResults.map((item) => ({
+      id: item.id.toString(),
+      content: item.content,
+      selected: false,
+      source: item.isAuthority ? `[權威補充] ${item.source_file_name}` : item.source_file_name
+    }));
+  } catch (err) {
+    console.error('History fetch fatal error:', err);
     return [];
   }
-
-  const scoredData = candidates.map(item => {
-    const docType = (item.metadata as any)?.docType || 'Specific';
-    const isAuthority = docType === 'Standard' || docType === 'Global';
-    
-    let baseScore = calculateWeightedSimilarity(
-      item.content + (item.metadata?.equipment_name || ''), 
-      eqKeywords, 
-      reqKeywords,
-      item.metadata
-    );
-
-    // V10.0: 權威提權邏輯 - 只要達到 0.3 門檻，直接加成 0.2 分確保排名靠前
-    if (isAuthority && baseScore >= 0.3) {
-      baseScore += 0.2;
-    }
-
-    return { ...item, score: baseScore, isAuthority };
-  });
-
-  // V9.9 & V10.0: 分層動態門檻機制
-  const finalResults = scoredData
-    .filter(item => {
-      // 權威標籤給予極大寬容度 (0.3)，專屬標籤維持精確度 (0.75)
-      const threshold = item.isAuthority ? 0.3 : 0.75;
-      return item.score >= threshold;
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15);
-
-  return finalResults.map((item) => ({
-    id: item.id.toString(),
-    content: item.content,
-    selected: false,
-    source: item.isAuthority ? `[權威補充] ${item.source_file_name}` : item.source_file_name
-  }));
 };
