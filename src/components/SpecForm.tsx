@@ -12,7 +12,7 @@ import {
   BookOpen, Download, Upload, FolderOpen, Loader2,
   Package, ShieldCheck, Zap, FileUp, Calendar
 } from 'lucide-react';
-import { calculateWeightedSimilarity, getHistorySuggestions } from '../lib/knowledgeParser';
+import * as KP from '../lib/knowledgeParser';
 
 interface Props {
   data: FormState;
@@ -83,7 +83,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         // 分別計算每個候選條目的加權分數
         const scoredHints = sourceHints.map(h => ({
           ...h,
-          score: calculateWeightedSimilarity(h.content, data.equipmentName, data.requirementDesc)
+          score: KP.calculateWeightedSimilarity(h.content, data.equipmentName, data.requirementDesc)
         }));
 
         // 應用 80% 門檻 + 保底 2 筆機制
@@ -158,14 +158,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const targets = categoryMap[tabIndex];
     if (!targets) return;
 
-    const { getHistorySuggestions } = await import('../lib/knowledgeParser');
     const newData = { ...data };
     let changed = false;
 
     for (const target of targets) {
       const currentHistory = data[target.key] as AIHintSelection[];
       // 每次分頁切換或強制更新時，根據最新權重抓取歷史
-      const results = await getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
+      const results = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
       
       if (JSON.stringify(currentHistory) !== JSON.stringify(results)) {
         (newData[target.key] as any) = results;
@@ -358,7 +357,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
       // 第二階段：智慧順序解析 (保護 API 額度)
       console.log('[智慧排隊] 啟動 AI 解析隊列...');
-      const { processFileToKnowledge } = await import('../lib/knowledgeParser');
       
       const completedNames: string[] = [];
       for (let i = 0; i < uploadResults.length; i++) {
@@ -367,7 +365,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         setFilesInQueue(uploadResults.length - i);
 
         // 執行 AI 萃取
-        const result = await processFileToKnowledge(file, userApiKey, data.equipmentName);
+        const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName);
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
 
