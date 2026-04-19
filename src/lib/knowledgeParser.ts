@@ -3,8 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// 設定 PDF.js Worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// 設定 PDF.js Worker (V9.3: 切換至 unpkg 並修正 v5+ 要求的 .mjs 擴展)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string) => {
