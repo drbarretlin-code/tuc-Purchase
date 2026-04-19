@@ -278,10 +278,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
     const client = supabase;
     if (!files || files.length === 0 || !client) return;
 
-    const fileList = Array.from(files);
+    const fileList = Array.from(files) as File[];
     setUploadingFile(true);
     setUploadProgress(0);
     setFilesInQueue(fileList.length);
