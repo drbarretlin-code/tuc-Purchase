@@ -341,6 +341,7 @@ function App() {
       setReparseCurrentFile('');
     }
   };
+  const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
     
@@ -350,6 +351,7 @@ function App() {
     a.href = url;
     a.download = `Cloud_Files_Export_${new Date().toISOString().split('T')[0]}.${format}`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleShareAll = () => {
