@@ -247,9 +247,14 @@ export const getHistorySuggestions = async (
     )
   }));
 
-  // V7.0: 嚴格門檻模式，不達 80% 不顯示
+  // V9.9: 分層動態門檻機制 (權威標籤 0.3 / 專屬標籤 0.75)
   const finalResults = scoredData
-    .filter(item => item.score >= 0.8)
+    .filter(item => {
+      const docType = (item.metadata as any)?.docType || 'Specific';
+      // 對於標準與法規，採取寬容門檻，只要命中核心字詞即顯示
+      const threshold = (docType === 'Standard' || docType === 'Global') ? 0.3 : 0.75;
+      return item.score >= threshold;
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, 15);
 
