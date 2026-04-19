@@ -844,7 +844,7 @@ function App() {
                         </div>
                       </td>
                       <td style={{ padding: '12px' }}>
-                        {(f as any).knowledgeCount > 0 ? (
+                        {(f.is_parsed || (f as any).knowledgeCount > 0) ? (
                           <span style={{ 
                             padding: '2px 8px', 
                             background: 'rgba(16,185,129,0.1)', 
@@ -856,7 +856,7 @@ function App() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            <Zap size={10} /> 已解析 ({(f as any).knowledgeCount} 條)
+                            <Zap size={10} /> 已解析 {(f as any).knowledgeCount > 0 ? `(${(f as any).knowledgeCount} 條)` : ''}
                           </span>
                         ) : (
                           <span style={{ 
@@ -870,7 +870,7 @@ function App() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            未偵測到條目
+                            <Loader2 size={10} className="spin" /> 未偵測到條目
                           </span>
                         )}
                       </td>

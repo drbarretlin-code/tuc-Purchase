@@ -170,7 +170,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
  
-        // V9.0: 更新標籤陣列 (優先使用 AI 偵測結果)
+        // V9.2: 更新標籤陣列 (優先使用 AI 偵測結果)
         const newDisplayName = `${file.name} (${finalDetectedEq})`;
         await client.from('tuc_uploaded_files')
           .update({ 
@@ -180,6 +180,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
             parsed_at: new Date().toISOString()
           })
           .eq('id', id);
+
+        console.log(`[同步] 檔案 ${file.name} 解析狀態與標籤 (${finalDetectedEq}) 已寫入雲端。`);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
