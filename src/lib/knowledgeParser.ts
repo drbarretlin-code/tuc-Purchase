@@ -228,10 +228,12 @@ export const getHistorySuggestions = async (
   const { data: candidates, error } = await supabase
     .from('tuc_history_knowledge')
     .select('id, content, source_file_name, metadata')
-    // V10.0: 解除分類鎖定，允許 Global/Standard 跨域推薦
-    .or(`category.eq.${category},metadata->>docType.in.(Standard,Global)`)
+    // V10.1: 修正與優化 OR 查詢語法 (JSONB 欄位使用多重 eq 確保相容性)
+    .or(`category.eq."${category}",metadata->>docType.eq.Standard,metadata->>docType.eq.Global`)
     .limit(100)
     .order('created_at', { ascending: false });
+    
+  console.log(`[智慧建議] 分類: ${category}, 候選條目數: ${candidates?.length || 0}`);
     
   if (error || !candidates) {
     console.error('History fetch error:', error);
