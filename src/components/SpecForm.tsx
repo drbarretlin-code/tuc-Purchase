@@ -5,7 +5,6 @@ import ImageUpload from './ImageUpload';
 import SpecTable from './SpecTable';
 import tucKnowledge from '../data/tuc_knowledge.json';
 import KnowledgeModal from './KnowledgeModal';
-import { supabase } from '../lib/supabase';
 import { 
   Info, Settings, Hammer, Table, 
   ChevronRight, ChevronLeft, User, Building2, Hash, PenTool,
