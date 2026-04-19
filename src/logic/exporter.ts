@@ -94,66 +94,12 @@ export const exportToWord = async (data: FormState) => {
     );
   }
 
-  // Flattened Sign-off Table (Fixed structure with Twips for maximum stability)
+  // V9.9: 規格確認及會簽表格重構已移至下方 infoTable 之後，此處僅保留邏輯佔位符以進行結構替換
 
-  // Flattened Sign-off Table (Highly Stable with Table-level ColumnWidths)
-  const twipsPerCol = 1511; // 9066 total
-  const signOffTable = new Table({
-    width: { size: twipsPerCol * 6, type: WidthType.DXA },
-    columnWidths: [twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol, twipsPerCol],
-    rows: [
-      // Row 1: Applicant / Dept Head (Mapped to 6-col grid [1, 1, 1, 3])
-      new TableRow({
-        children: [
-          new TableCell({ 
-            children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], 
-            shading: { fill: "F9F9F9" }, 
-            verticalAlign: VerticalAlign.CENTER 
-          }),
-          new TableCell({ 
-            children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], 
-            verticalAlign: VerticalAlign.CENTER 
-          }),
-          new TableCell({ 
-            children: [new Paragraph({ children: [new TextRun({ text: "單位主管", bold: true })], alignment: AlignmentType.CENTER })], 
-            shading: { fill: "F9F9F9" }, 
-            verticalAlign: VerticalAlign.CENTER 
-          }),
-          new TableCell({ 
-            children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], 
-            columnSpan: 3, 
-            verticalAlign: VerticalAlign.CENTER 
-          }),
-        ]
-      }),
-      // Main 3x6 Sign-off Matrix Rows
-      ...data.signOffGrid.map(row => new TableRow({
-        children: row.map(cell => new TableCell({
-          children: [new Paragraph({ text: cell, alignment: AlignmentType.CENTER })],
-          verticalAlign: VerticalAlign.CENTER
-        }))
-      })),
-      // Final Vendor Confirmation Row
-      new TableRow({
-        children: [
-          new TableCell({ 
-            children: [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })], 
-            shading: { fill: "F9F9F9" }, 
-            verticalAlign: VerticalAlign.CENTER 
-          }),
-          new TableCell({ 
-            children: [new Paragraph({ text: " " }), new Paragraph({ text: " " })], 
-            columnSpan: 5, 
-            verticalAlign: VerticalAlign.CENTER 
-          })
-        ]
-      })
-    ]
-  });
-
-  // Header Info Table (To ensure Unit, Requester, Date are on one row)
+  // V9.9: 修復頂部資訊列表擠壓 (DXA 為單位，總長約 9066)
   const infoTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 9066, type: WidthType.DXA },
+    columnWidths: [3022, 3022, 3022],
     borders: {
       top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
       left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
@@ -166,6 +112,58 @@ export const exportToWord = async (data: FormState) => {
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `申請人員：${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.CENTER })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `申請日期：${dateStr}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
         ]
+      })
+    ]
+  });
+
+  // V9.9: 重構規格確認及會簽表格 (符合打勾圖示格式)
+  // Grid: 6 columns
+  const colSize = Math.floor(9066 / 6);
+  const signOffTable = new Table({
+    width: { size: 9066, type: WidthType.DXA },
+    columnWidths: [colSize, colSize, colSize, colSize, colSize, colSize],
+    rows: [
+      // Row 1: 申請人(1) | 姓名(2) | 申請單位主管(1) | 姓名(2)
+      new TableRow({
+        children: [
+          new TableCell({ 
+            children: [new Paragraph({ children: [new TextRun({ text: "申請人", bold: true })], alignment: AlignmentType.CENTER })], 
+            shading: { fill: "F5F5F5" }, verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ text: data.applicantName, alignment: AlignmentType.CENTER })], 
+            columnSpan: 2, verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ children: [new TextRun({ text: "申請單位主管", bold: true })], alignment: AlignmentType.CENTER })], 
+            shading: { fill: "F5F5F5" }, verticalAlign: VerticalAlign.CENTER 
+          }),
+          new TableCell({ 
+            children: [new Paragraph({ text: data.deptHeadName, alignment: AlignmentType.CENTER })], 
+            columnSpan: 2, verticalAlign: VerticalAlign.CENTER 
+          }),
+        ]
+      }),
+      // Rows 2-4: 左側 4 欄為 Grid，右側 2 欄垂直合併為「廠商確認」
+      ...[0, 1, 2].map(rowIndex => {
+        const rowData = data.signOffGrid[rowIndex] || ["", "", "", "", "", ""];
+        const cells = [
+          // 左側 4 欄
+          ...[0, 1, 2, 3].map(colIndex => new TableCell({
+            children: [new Paragraph({ text: rowData[colIndex] || "", alignment: AlignmentType.CENTER })],
+            verticalAlign: VerticalAlign.CENTER,
+            width: { size: colSize, type: WidthType.DXA }
+          })),
+          // 右側 2 欄 (垂直合併)
+          new TableCell({
+            children: rowIndex === 0 ? [new Paragraph({ children: [new TextRun({ text: "廠商確認", bold: true })], alignment: AlignmentType.CENTER })] : [new Paragraph({ text: "" })],
+            columnSpan: 2,
+            verticalMerge: rowIndex === 0 ? "restart" : "continue" as any,
+            shading: rowIndex === 0 ? { fill: "F5F5F5" } : undefined,
+            verticalAlign: VerticalAlign.CENTER
+          })
+        ];
+        return new TableRow({ children: cells });
       })
     ]
   });
