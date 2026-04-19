@@ -121,7 +121,7 @@ const SectionEditor: React.FC<Props> = ({
                   </div>
                 </div>
                 {hint.link && (
-                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', opacity: 0.6, hover: { opacity: 1 } }}>
+                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', opacity: 0.8 }}>
                     <ExternalLink size={14} />
                   </a>
                 )}
