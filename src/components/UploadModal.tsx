@@ -165,12 +165,14 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
 
-        // V8.0: 更新檔案主紀錄的設備標籤為 AI 偵測到的結果
+        // V8.5: 更新檔案主紀錄的設備標籤為 AI 偵測到的結果，並標記已完成解析
         const newDisplayName = `${file.name} (${finalDetectedEq})`;
         await client.from('tuc_uploaded_files')
           .update({ 
             equipment_name: finalDetectedEq, 
-            display_name: newDisplayName 
+            display_name: newDisplayName,
+            is_parsed: true,
+            parsed_at: new Date().toISOString()
           })
           .eq('original_name', file.name)
           .eq('storage_path', storagePath);

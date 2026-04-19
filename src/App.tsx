@@ -102,13 +102,10 @@ function App() {
 
   const fetchCloudFiles = async () => {
     console.log('[Debug] 正在嘗試獲取雲端歷史檔案...', { supabaseInitialized: !!supabase });
-    if (!supabase) {
-      console.warn('[Debug] Supabase 客戶端未初始化。請檢查 VITE_SUPABASE_URL 與 VITE_SUPABASE_ANON_KEY 環境變數。');
-      return;
-    }
+    if (!supabase) return;
     
     try {
-      // 1. 獲取檔案清單
+      // 1. 獲取檔案清單 (優先使用 is_parsed 標籤)
       const { data: list, error: fileError } = await supabase
         .from('tuc_uploaded_files')
         .select('*')
@@ -116,10 +113,12 @@ function App() {
       
       if (fileError) throw fileError;
 
-      // 2. 獲取解析條目統計 (以檔名分群)
+      // 2. 優化統計：分次或分頁獲取條目數 (預防 1000 筆限制)
+      // 若資料量極大，此處僅作為視覺參考，核心邏輯應依賴 is_parsed
       const { data: knowledgeStats, error: countError } = await supabase
         .from('tuc_history_knowledge')
-        .select('source_file_name');
+        .select('source_file_name')
+        .limit(5000); // 擴大抓取上限至 5000 條做簡易統計
       
       if (countError) console.error('無法統計解析條目:', countError);
 
@@ -132,14 +131,16 @@ function App() {
       // 3. 合併資料
       const enrichedList = (list || []).map(f => ({
         ...f,
-        knowledgeCount: countMap[f.original_name] || 0
+        // 如果資料庫顯式標記為 true，或統計大於 0
+        knowledgeCount: countMap[f.original_name] || 0,
+        is_parsed: f.is_parsed || (countMap[f.original_name] > 0)
       }));
 
       console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
       setCloudFiles(enrichedList);
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
-      alert('無法取得檔案紀錄，請檢查網路連線或資料庫權限。');
+      alert('無法取得檔案紀錄: ' + err.message);
     }
   };
 
@@ -313,7 +314,8 @@ function App() {
   };
 
   const handleReparseAll = async () => {
-    const targets = cloudFiles.filter(f => (f as any).knowledgeCount === 0);
+    // V8.5: 過擬目標改為 is_parsed 為 false 的檔案，支援可靠的斷點續傳
+    const targets = cloudFiles.filter(f => !f.is_parsed);
     
     if (targets.length === 0) {
       alert('所有檔案都已經解析完成，無須補解析。');
@@ -346,10 +348,15 @@ function App() {
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           const newAdded = parseResult?.added || 0;
           
-          // V8.3: 即時刷新列表狀態 (純本地)
+          // V8.5: 解析成功後，立即寫入 is_parsed 狀態至檔案主表
+          await supabase.from('tuc_uploaded_files')
+            .update({ is_parsed: true, parsed_at: new Date().toISOString() })
+            .eq('original_name', fileRecord.original_name);
+
+          // 即時刷新列表狀態 (本地優先 + 背景同步)
           setCloudFiles(prev => prev.map(f => {
             if (f.original_name === fileRecord.original_name) {
-              return { ...f, knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded };
+              return { ...f, knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, is_parsed: true };
             }
             return f;
           }));
