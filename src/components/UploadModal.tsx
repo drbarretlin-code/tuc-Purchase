@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap } from 'lucide-react';
+import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Cpu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as KP from '../lib/knowledgeParser';
 import type { FormState } from '../types/form';
