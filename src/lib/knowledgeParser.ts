@@ -228,7 +228,8 @@ export const getHistorySuggestions = async (
   const { data: candidates, error } = await supabase
     .from('tuc_history_knowledge')
     .select('id, content, source_file_name, metadata')
-    .eq('category', category)
+    // V10.0: 解除分類鎖定，允許 Global/Standard 跨域推薦
+    .or(`category.eq.${category},metadata->>docType.in.(Standard,Global)`)
     .limit(100)
     .order('created_at', { ascending: false });
     
@@ -237,22 +238,30 @@ export const getHistorySuggestions = async (
     return [];
   }
 
-  const scoredData = candidates.map(item => ({
-    ...item,
-    score: calculateWeightedSimilarity(
+  const scoredData = candidates.map(item => {
+    const docType = (item.metadata as any)?.docType || 'Specific';
+    const isAuthority = docType === 'Standard' || docType === 'Global';
+    
+    let baseScore = calculateWeightedSimilarity(
       item.content + (item.metadata?.equipment_name || ''), 
       eqKeywords, 
       reqKeywords,
       item.metadata
-    )
-  }));
+    );
 
-  // V9.9: 分層動態門檻機制 (權威標籤 0.3 / 專屬標籤 0.75)
+    // V10.0: 權威提權邏輯 - 只要達到 0.3 門檻，直接加成 0.2 分確保排名靠前
+    if (isAuthority && baseScore >= 0.3) {
+      baseScore += 0.2;
+    }
+
+    return { ...item, score: baseScore, isAuthority };
+  });
+
+  // V9.9 & V10.0: 分層動態門檻機制
   const finalResults = scoredData
     .filter(item => {
-      const docType = (item.metadata as any)?.docType || 'Specific';
-      // 對於標準與法規，採取寬容門檻，只要命中核心字詞即顯示
-      const threshold = (docType === 'Standard' || docType === 'Global') ? 0.3 : 0.75;
+      // 權威標籤給予極大寬容度 (0.3)，專屬標籤維持精確度 (0.75)
+      const threshold = item.isAuthority ? 0.3 : 0.75;
       return item.score >= threshold;
     })
     .sort((a, b) => b.score - a.score)
@@ -262,6 +271,6 @@ export const getHistorySuggestions = async (
     id: item.id.toString(),
     content: item.content,
     selected: false,
-    source: (item.metadata as any)?.equipment_name || item.source_file_name
+    source: item.isAuthority ? `[權威補充] ${item.source_file_name}` : item.source_file_name
   }));
 };
