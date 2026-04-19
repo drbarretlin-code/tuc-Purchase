@@ -248,6 +248,7 @@ function App() {
       for (let i = 0; i < totalCount; i++) {
         const fileRecord = allFiles[i];
         setReparseIndex(i + 1);
+        setReparseProgress(Math.round(((i + 1) / totalCount) * 100)); // 前置計算百分比
         setReparseCurrentFile(fileRecord.original_name);
 
         let currentDetectedLabel = fileRecord.equipment_name;
@@ -284,7 +285,7 @@ function App() {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
         }
 
-        // V8.2: 本地優先更新 (Local-first) - 直接修改前端狀態避開網路延遲
+        // V8.3: 僅本地更新 UI，絕對不調用 fetchCloudFiles（防止回滾）
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
             return { ...f, equipment_name: currentDetectedLabel }; 
@@ -292,14 +293,13 @@ function App() {
           return f;
         }));
 
-        // 強制等待並加入 200ms 渲染緩衝確保 UI 絕對平滑
-        await fetchCloudFiles();
-        await new Promise(r => setTimeout(r, 200));
+        // 加入微秒緩衝讓 UI 有時間渲染變色
+        await new Promise(r => setTimeout(r, 100));
 
-        setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
+      await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步
       alert('AI 標籤校準完成！所有歷史檔案已根據內容重新歸類。');
     } catch (err: any) {
       alert('校準過程出錯: ' + err.message);
@@ -333,6 +333,7 @@ function App() {
       for (let i = 0; i < totalCount; i++) {
         const fileRecord = targets[i];
         setReparseIndex(i + 1);
+        setReparseProgress(Math.round(((i + 1) / totalCount) * 100)); // 前置計算百分比
         setReparseCurrentFile(fileRecord.original_name);
         
         try {
@@ -345,19 +346,16 @@ function App() {
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           const newAdded = parseResult?.added || 0;
           
-          // 即時刷新列表狀態 (本地優先 + 背景同步)
+          // V8.3: 即時刷新列表狀態 (純本地)
           setCloudFiles(prev => prev.map(f => {
             if (f.original_name === fileRecord.original_name) {
-              return { ...f, knowledgeCount: (f as any).knowledgeCount + newAdded };
+              return { ...f, knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded };
             }
             return f;
           }));
 
-          await fetchCloudFiles();
-          await new Promise(r => setTimeout(r, 200));
-
-          // 3. 更新進度
-          setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
+          // 渲染緩衝
+          await new Promise(r => setTimeout(r, 100));
         } catch (fileErr) {
           console.error(`檔案 ${fileRecord.original_name} 解析失敗:`, fileErr);
         }
@@ -366,6 +364,7 @@ function App() {
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
+      await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步
       alert('批次補解析任務已完成！');
     } catch (err: any) {
       alert('批次處理出錯: ' + err.message);
