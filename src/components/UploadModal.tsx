@@ -149,13 +149,13 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
           requirement_desc: data.requirementDesc || '無需求說明'
         });
 
-        return { file, url: publicUrl, displayName };
+        return { file, url: publicUrl, displayName, storagePath: fileName };
       }));
 
       // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
       for (let i = 0; i < uploadResults.length; i++) {
-        const { file, url, displayName } = uploadResults[i];
+        const { file, url, displayName, storagePath } = uploadResults[i];
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
@@ -166,18 +166,18 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         totalSkipped += result?.skipped || 0;
 
         // V8.0: 更新檔案主紀錄的設備標籤為 AI 偵測到的結果
-        const displayName = `${file.name} (${finalDetectedEq})`;
+        const newDisplayName = `${file.name} (${finalDetectedEq})`;
         await client.from('tuc_uploaded_files')
           .update({ 
             equipment_name: finalDetectedEq, 
-            display_name: displayName 
+            display_name: newDisplayName 
           })
           .eq('original_name', file.name)
-          .eq('storage_path', uploadResults[i].storage_path);
+          .eq('storage_path', storagePath);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
-        newUploads.push({ name: file.name, url, displayName });
+        newUploads.push({ name: file.name, url, displayName: newDisplayName });
         setUploadProgress(Math.round(((i + 1) / uploadResults.length) * 100));
 
         if (i < uploadResults.length - 1) await new Promise(r => setTimeout(r, 2000));
