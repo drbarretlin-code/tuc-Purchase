@@ -337,11 +337,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
       // --- 第一階段：佇列排隊 (協作式調度) ---
       console.log('[佇列管理] 正在加入全系統任務隊列...');
-      const { data: queueData, error: queueError } = await client.from('tuc_system_queue').insert({
+      const { error: queueError } = await client.from('tuc_system_queue').insert({
         job_tag: `Upload_${fileList.length}_files`,
         owner_session: sessionId,
         status: 'queued'
-      }).select().single();
+      });
       
       if (queueError) throw new Error("佇列系統連線失敗: " + queueError.message);
 

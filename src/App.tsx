@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, CloudUpload, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -42,7 +42,6 @@ function App() {
   
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
-  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
@@ -98,7 +97,6 @@ function App() {
       return;
     }
     
-    setIsLoadingCloud(true);
     try {
       const { data: list, error } = await supabase
         .from('tuc_uploaded_files')
@@ -115,8 +113,6 @@ function App() {
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
       alert('無法取得檔案紀錄，請檢查網路連線或資料庫權限。');
-    } finally {
-      setIsLoadingCloud(false);
     }
   };
 
