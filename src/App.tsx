@@ -100,18 +100,35 @@ function App() {
     }
     
     try {
-      const { data: list, error } = await supabase
+      // 1. 獲取檔案清單
+      const { data: list, error: fileError } = await supabase
         .from('tuc_uploaded_files')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('[Debug] Supabase 查詢報錯:', error);
-        throw error;
-      }
+      if (fileError) throw fileError;
+
+      // 2. 獲取解析條目統計 (以檔名分群)
+      const { data: knowledgeStats, error: countError } = await supabase
+        .from('tuc_history_knowledge')
+        .select('source_file_name');
       
-      console.log(`[Debug] 查詢成功，找到 ${list?.length || 0} 筆紀錄。`);
-      setCloudFiles(list || []);
+      if (countError) console.error('無法統計解析條目:', countError);
+
+      const countMap: Record<string, number> = {};
+      knowledgeStats?.forEach(item => {
+        const name = item.source_file_name;
+        countMap[name] = (countMap[name] || 0) + 1;
+      });
+
+      // 3. 合併資料
+      const enrichedList = (list || []).map(f => ({
+        ...f,
+        knowledgeCount: countMap[f.original_name] || 0
+      }));
+
+      console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
+      setCloudFiles(enrichedList);
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
       alert('無法取得檔案紀錄，請檢查網路連線或資料庫權限。');
@@ -459,6 +476,7 @@ function App() {
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
                     <th style={{ textAlign: 'left', padding: '12px', width: '60px' }}>項次</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>顯示名稱</th>
+                    <th style={{ textAlign: 'left', padding: '12px', width: '120px' }}>解析狀態</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>上傳人</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>日期</th>
                     <th style={{ textAlign: 'center', padding: '12px' }}>操作</th>
@@ -466,11 +484,45 @@ function App() {
                 </thead>
                 <tbody>
                   {filteredFiles.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
                   ) : filteredFiles.map((f, idx) => (
                     <tr key={f.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
                       <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
-                      <td style={{ padding: '12px', color: 'white' }}>{f.display_name}</td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ color: 'white' }}>{f.display_name}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#555' }}>{f.equipment_name}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {(f as any).knowledgeCount > 0 ? (
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(16,185,129,0.1)', 
+                            color: '#10B981', 
+                            borderRadius: '12px', 
+                            fontSize: '0.75rem',
+                            border: '1px solid rgba(16,185,129,0.2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <Zap size={10} /> 已解析 ({(f as any).knowledgeCount} 條)
+                          </span>
+                        ) : (
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(245,158,11,0.1)', 
+                            color: '#F59E0B', 
+                            borderRadius: '12px', 
+                            fontSize: '0.75rem',
+                            border: '1px solid rgba(245,158,11,0.2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            未偵測到條目
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: '12px', color: '#bbb' }}>{f.requester}</td>
                       <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString()}</td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
