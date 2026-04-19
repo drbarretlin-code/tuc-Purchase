@@ -303,7 +303,7 @@ function App() {
         // 加入微秒緩衝讓 UI 有時間渲染變色
         await new Promise(r => setTimeout(r, 100));
 
-        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
+        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
       await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步
@@ -383,8 +383,8 @@ function App() {
           break; // 若資料庫出錯，停止後續檔案，避免重複無效請求
         }
 
-        // 為了避免頻控，間隔 2 秒
-        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
+        // 為了避免頻控，間隔 6 秒
+        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
       await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步

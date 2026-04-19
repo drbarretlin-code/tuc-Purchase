@@ -21,9 +21,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   // V7.1: 優化模型列表與版本對應，解決 404 與 429 頻發問題
   const modelsToTry = [
-    { id: "gemini-2.0-flash", ver: "v1beta" }, // 2.0 目前主要在 v1beta
-    { id: "gemini-1.5-flash", ver: "v1" },      // 1.5 已進入 v1 穩定版
-    { id: "gemini-1.5-pro", ver: "v1" }
+    { id: "gemini-2.0-flash", ver: "v1beta" }, 
+    { id: "gemini-1.5-flash", ver: "v1beta" }, // 統一使用 v1beta 以最大化相容性
+    { id: "gemini-1.5-pro", ver: "v1beta" }
   ];
 
   console.log(`[解析啟動] 準備執行。優先順序: ${modelsToTry.map(m => m.id).join(' > ')}`);
@@ -97,8 +97,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
         if (status === 429 || msg.includes("429")) {
           retryCount++;
-          const delay = 5000 + (retryCount * 2000);
-          console.warn(`[頻控] ${modelConfig.id} 配額滿載，等待 ${delay}ms 後重試...`);
+          // V8.6: 指數型退避等待 (10s, 20s, 40s)
+          const delay = Math.pow(2, retryCount) * 5000; 
+          console.warn(`[配額限制] ${modelConfig.id} 達到頻率上限(429)，將在 ${delay/1000} 秒後進行第 ${retryCount} 次重試...`);
           await wait(delay);
           continue;
         }
