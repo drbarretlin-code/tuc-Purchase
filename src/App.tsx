@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2 } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
@@ -57,6 +57,10 @@ function App() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
+  
+  // V9.0: 行內標籤編輯狀態
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [tempTags, setTempTags] = useState<string>('');
 
   useEffect(() => {
     const handleResize = () => {
@@ -234,6 +238,35 @@ function App() {
     } catch (err: any) {
       console.error('清理失敗:', err);
       alert('清理過程發生錯誤: ' + err.message);
+    }
+  };
+
+  const handleUpdateTags = async (fileId: string, tagsString: string) => {
+    if (!supabase) return;
+    try {
+      // 處理輸入：逗號分隔、去重、去頭尾空白
+      const tagArray = tagsString
+        .split(/[，,]/)
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      const uniqueTags = Array.from(new Set(tagArray));
+
+      const { error } = await supabase
+        .from('tuc_uploaded_files')
+        .update({ equipment_tags: uniqueTags })
+        .eq('id', fileId);
+
+      if (error) throw error;
+
+      // 本地同步優化
+      setCloudFiles(prev => prev.map(f => {
+        if (f.id === fileId) return { ...f, equipment_tags: uniqueTags };
+        return f;
+      }));
+      setEditingFileId(null);
+    } catch (err: any) {
+      alert('標籤更新失敗: ' + err.message);
     }
   };
 
@@ -738,8 +771,77 @@ function App() {
                     <tr key={f.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
                       <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
                       <td style={{ padding: '12px' }}>
-                        <div style={{ color: 'white' }}>{f.display_name}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#555' }}>{f.equipment_name}</div>
+                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name}</div>
+                        <div 
+                          style={{ 
+                            marginTop: '6px',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '6px',
+                            background: editingFileId === f.id ? 'rgba(255,255,255,0.05)' : 'transparent',
+                            border: editingFileId === f.id ? '1px solid rgba(230,0,18,0.3)' : '1px solid transparent',
+                            minHeight: '24px',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            if (editingFileId !== f.id) {
+                              setEditingFileId(f.id);
+                              setTempTags((f.equipment_tags && f.equipment_tags.length > 0) ? f.equipment_tags.join(', ') : (f.equipment_name || ''));
+                            }
+                          }}
+                          title="點擊編輯設備標籤 (可輸入多個，以逗號分隔)"
+                        >
+                          {editingFileId === f.id ? (
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <input 
+                                autoFocus
+                                className="glass-input"
+                                style={{ padding: '2px 8px', fontSize: '0.75rem', flex: 1, minWidth: '150px', background: '#000' }}
+                                value={tempTags}
+                                onChange={(e) => setTempTags(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleUpdateTags(f.id, tempTags);
+                                  if (e.key === 'Escape') setEditingFileId(null);
+                                }}
+                                onClick={(e) => e.stopPropagation()} 
+                              />
+                              <button className="icon-btn" style={{ color: '#10B981', padding: '2px' }} onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateTags(f.id, tempTags);
+                              }}>
+                                <Check size={14} />
+                              </button>
+                              <button className="icon-btn" style={{ color: '#EF4444', padding: '2px' }} onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingFileId(null);
+                              }}>
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {(f.equipment_tags && f.equipment_tags.length > 0) ? (
+                                f.equipment_tags.map((tag: string, i: number) => (
+                                  <span key={i} style={{ 
+                                    fontSize: '0.65rem', 
+                                    padding: '1px 8px', 
+                                    background: 'rgba(230,0,18,0.1)', 
+                                    color: 'var(--tuc-red)', 
+                                    borderRadius: '4px',
+                                    border: '1px solid rgba(230,0,18,0.2)',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {tag}
+                                  </span>
+                                ))
+                              ) : (
+                                <span style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>
+                                  {f.equipment_name || '點擊新增標籤...'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '12px' }}>
                         {(f as any).knowledgeCount > 0 ? (
