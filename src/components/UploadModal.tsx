@@ -16,32 +16,35 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
   const [filesInQueue, setFilesInQueue] = useState(0);
   const [currentUploadingName, setCurrentUploadingName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string, displayName: string}[]>([]);
+  const [manualEquipmentName, setManualEquipmentName] = useState(data.equipmentName || '');
 
   // V6.0: 初始化並讀取雲端檔案歷史
   useEffect(() => {
-    if (!isOpen) return;
-    const fetchFileHistory = async () => {
-      if (!supabase) return;
-      try {
-        const { data: list, error } = await supabase
-          .from('tuc_uploaded_files')
-          .select('original_name, public_url, display_name')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        if (!error && list) {
-          setUploadedFiles(list.map(f => ({
-            name: f.original_name,
-            url: f.public_url,
-            displayName: f.display_name
-          })));
+    if (isOpen) {
+      setManualEquipmentName(data.equipmentName || '');
+      const fetchFileHistory = async () => {
+        if (!supabase) return;
+        try {
+          const { data: list, error } = await supabase
+            .from('tuc_uploaded_files')
+            .select('original_name, public_url, display_name')
+            .order('created_at', { ascending: false })
+            .limit(10);
+          
+          if (!error && list) {
+            setUploadedFiles(list.map(f => ({
+              name: f.original_name,
+              url: f.public_url,
+              displayName: f.display_name
+            })));
+          }
+        } catch (err) {
+          console.error('無法讀取檔案歷史:', err);
         }
-      } catch (err) {
-        console.error('無法讀取檔案歷史:', err);
-      }
-    };
-    fetchFileHistory();
-  }, [isOpen]);
+      };
+      fetchFileHistory();
+    }
+  }, [isOpen, data.equipmentName]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -112,7 +115,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
           .from('tuc_uploaded_files')
           .select('id, storage_path')
           .eq('original_name', file.name)
-          .eq('equipment_name', data.equipmentName || '未命名設備');
+          .eq('equipment_name', manualEquipmentName || '未命名設備');
 
         if (dups && dups.length > 0) {
           const idsToRemove = dups.map(d => d.id);
@@ -145,8 +148,9 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
           public_url: publicUrl,
           display_name: displayName,
           requester: data.requester || '未知',
-          equipment_name: data.equipmentName || '未命名設備',
-          requirement_desc: data.requirementDesc || '無需求說明'
+          equipment_name: manualEquipmentName || '未命名設備',
+          requirement_desc: data.requirementDesc || '無需求說明',
+          is_parsed: false
         });
 
         return { file, url: publicUrl, displayName, storagePath: fileName };
@@ -159,8 +163,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
-        const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName);
-        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || '未命名設備';
+        const result = await KP.processFileToKnowledge(file, userApiKey, manualEquipmentName);
+        const finalDetectedEq = result?.detectedEquipment || manualEquipmentName || '未命名設備';
         
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
@@ -228,21 +232,47 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-          {/* 左側：上傳區 */}
-          <div style={{ 
-            background: 'rgba(255,255,255,0.03)', 
-            border: '2px dashed var(--border-color)', 
-            borderRadius: '16px',
-            padding: '2.5rem',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '1rem',
-            position: 'relative',
-            minHeight: '300px'
-          }}>
+          {/* 左側：上傳與參數設定 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* V8.9: 新增手動修正欄位 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', color: '#888', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Cpu size={14} color="var(--tuc-red)" /> 標記設備名稱 (上傳前可修正)
+              </label>
+              <input 
+                type="text"
+                value={manualEquipmentName}
+                onChange={(e) => setManualEquipmentName(e.target.value)}
+                placeholder="輸入目標設備名稱..."
+                className="glass-input"
+                style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  color: 'white',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.25s'
+                }}
+              />
+            </div>
+
+            <div style={{ 
+              background: 'rgba(255,255,255,0.03)', 
+              border: '2px dashed var(--border-color)', 
+              borderRadius: '16px',
+              padding: '2rem',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '1rem',
+              position: 'relative',
+              flex: 1,
+              minHeight: '220px'
+            }}>
             {!uploadingFile ? (
               <>
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(230,0,18,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
