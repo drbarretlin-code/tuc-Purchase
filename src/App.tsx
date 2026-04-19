@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, History, Minimize2, Maximize2, Repeat } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
