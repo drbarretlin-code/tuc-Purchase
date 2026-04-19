@@ -234,7 +234,7 @@ function App() {
       await supabase.from('tuc_uploaded_files').delete().in('id', idsToRemove);
 
       alert(`清理完成！已移除 ${toDelete.length} 筆重複紀錄。`);
-      fetchCloudFiles(); // 重新整理列表
+      fetchCloudFiles();
     } catch (err: any) {
       console.error('清理失敗:', err);
       alert('清理過程發生錯誤: ' + err.message);
@@ -277,6 +277,7 @@ function App() {
       return;
     }
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+    setIsReparsing(true);
 
     try {
       const { data: allFiles } = await supabase.from('tuc_uploaded_files').select('*');
@@ -303,14 +304,18 @@ function App() {
 
           if (currentDetectedLabel && currentDetectedLabel !== fileRecord.equipment_name) {
             const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-            // 1. 更新檔案紀錄
+            // 1. 更新檔案紀錄 (V9.4: 同步至 equipment_tags 陣列)
             const { error: updateError } = await supabase.from('tuc_uploaded_files')
-              .update({ equipment_name: currentDetectedLabel, display_name: newDisplayName })
+              .update({ 
+                equipment_name: currentDetectedLabel, 
+                equipment_tags: [currentDetectedLabel], // 強制更新標籤陣列
+                display_name: newDisplayName 
+              })
               .eq('id', fileRecord.id);
 
             if (updateError) {
               console.error('更新標籤失敗:', updateError);
-              throw new Error(`更新資料庫失敗。請確認是否已執行 SQL 腳本新增欄位。(${updateError.message})`);
+              throw new Error(`更新資料庫失敗: ${updateError.message}`);
             }
 
             // 2. 更新知識條目 (Metadata 中的標籤)
@@ -325,6 +330,7 @@ function App() {
                 await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
               }
             }
+            console.log(`[校準成功] ${fileRecord.original_name} -> ${currentDetectedLabel}`);
           }
         } catch (e: any) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
@@ -332,10 +338,14 @@ function App() {
           break; // 若發生資料庫結構錯誤，停止後續處理
         }
 
-        // V8.6: 精準本地更新 UI (使用 ID)
+        // V9.4: 精準本地更新 UI (同步更新陣列)
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
-            return { ...f, equipment_name: currentDetectedLabel }; 
+            return { 
+              ...f, 
+              equipment_name: currentDetectedLabel,
+              equipment_tags: [currentDetectedLabel] 
+            }; 
           }
           return f;
         }));
@@ -351,6 +361,7 @@ function App() {
       await fetchCloudFiles();
       alert('AI 標籤校準任務已完成！所有歷史檔案已根據內容重新歸類。');
     } catch (err: any) {
+      console.error('校準出錯:', err);
       alert('校準過程出錯: ' + err.message);
     } finally {
       setIsReparsing(false);
@@ -713,7 +724,8 @@ function App() {
                   }}
                   title="由 AI 重新掃描文件內容並校準設備標籤"
                 >
-                  <ShieldAlert size={16} /> <span className="header-btn-text">AI 標籤校準</span>
+                  {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />} 
+                  <span className="header-btn-text">AI 標籤校準</span>
                 </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
