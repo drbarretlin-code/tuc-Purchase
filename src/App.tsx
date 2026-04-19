@@ -277,9 +277,18 @@ function App() {
       return;
     }
 
-    // V9.6: 實作跳過機制 - 僅選取尚未校準的檔案 (比照一鍵補解析)
-    const targets = cloudFiles.filter(f => !f.is_calibrated);
+    // V9.7: 診斷診斷日誌 - 檢查欄位狀態
+    console.log('[校準診斷] 目前 CloudFiles 前三筆狀態:', cloudFiles.slice(0, 3).map(f => ({
+      name: f.original_name,
+      is_calibrated: f.is_calibrated,
+      type: typeof f.is_calibrated
+    })));
+
+    // V9.7: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
+    const targets = cloudFiles.filter(f => f.is_calibrated !== true);
     
+    console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
+
     if (targets.length === 0) {
       alert('所有檔案皆已完成 AI 標籤校準，無須重複執行。');
       return;
@@ -308,7 +317,6 @@ function App() {
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
 
-          // V9.6: 無論標籤是否變更，皆標註為 is_calibrated 以避免重複掃描
           const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
           const updateData: any = { 
             is_calibrated: true,
@@ -326,7 +334,6 @@ function App() {
             throw new Error(`更新資料庫失敗: ${updateError.message}`);
           }
 
-          // 2. 更新知識條目 (Metadata 中的標籤)
           if (currentDetectedLabel !== fileRecord.equipment_name) {
             const { data: entries } = await supabase
               .from('tuc_history_knowledge')
@@ -339,7 +346,6 @@ function App() {
                 await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
               }
             }
-            console.log(`[校準成功] ${fileRecord.original_name} -> ${currentDetectedLabel}`);
           }
         } catch (e: any) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
@@ -347,7 +353,6 @@ function App() {
           break;
         }
 
-        // V9.6: 精準本地更新 UI (同步 is_calibrated 狀態)
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
             return { 
@@ -364,7 +369,9 @@ function App() {
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
-      await new Promise(r => setTimeout(r, 1000));
+      // V9.7: 增加寫入緩衝時間
+      console.log('[校準完成] 正在等待資料庫同步...');
+      await new Promise(r => setTimeout(r, 2000));
       await fetchCloudFiles();
       alert('AI 標籤校準任務已完成！');
     } catch (err: any) {
