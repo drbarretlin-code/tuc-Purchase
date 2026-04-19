@@ -160,7 +160,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
       // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
       for (let i = 0; i < uploadResults.length; i++) {
-        const { file, id } = uploadResults[i];
+        const { file, url, id } = uploadResults[i];
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
