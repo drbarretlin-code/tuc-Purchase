@@ -19,10 +19,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   console.log(`[診斷] 金鑰特徵: ${finalKey.substring(0, 4)}...${finalKey.substring(finalKey.length-2)} (長度: ${finalKey.length})`);
   
-  // V7.1: 優化模型列表與版本對應，解決 404 與 429 頻發問題
+  // V8.8: 升級至 Gemini 3 Flash 世代，修復 404 報錯
   const modelsToTry = [
+    { id: "gemini-3-flash-preview", ver: "v1beta" }, // 最新 Gemini 3 預覽版
     { id: "gemini-2.0-flash", ver: "v1beta" }, 
-    { id: "gemini-1.5-flash", ver: "v1beta" }, // 統一使用 v1beta 以最大化相容性
+    { id: "gemini-1.5-flash", ver: "v1beta" }, 
     { id: "gemini-1.5-pro", ver: "v1beta" }
   ];
 
