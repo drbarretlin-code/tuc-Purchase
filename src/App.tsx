@@ -38,6 +38,11 @@ function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  // V7.1: 補解析與進度條狀態
+  const [isReparsing, setIsReparsing] = useState(false);
+  const [reparseProgress, setReparseProgress] = useState(0);
+  const [reparseCurrentFile, setReparseCurrentFile] = useState('');
+
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
   const [showApiKey, setShowApiKey] = useState(false);
   
@@ -222,6 +227,57 @@ function App() {
   };
 
   const handleExportAll = (format: 'csv') => {
+    // ... (existing export logic)
+  };
+
+  const handleReparseAll = async () => {
+    const targets = cloudFiles.filter(f => (f as any).knowledgeCount === 0);
+    
+    if (targets.length === 0) {
+      alert('所有檔案都已經解析完成，無須補解析。');
+      return;
+    }
+
+    if (!confirm(`偵測到 ${targets.length} 筆檔案尚未解析或無條目紀錄，確定要一鍵自動補解析嗎？\n(解析過程將消耗 AI 配額，請勿關閉視窗)`)) return;
+
+    setIsReparsing(true);
+    setReparseProgress(0);
+    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const fileRecord = targets[i];
+        setReparseCurrentFile(fileRecord.original_name);
+        
+        try {
+          // 1. 下載雲端檔案
+          const response = await fetch(fileRecord.public_url);
+          const blob = await response.blob();
+          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
+
+          // 2. 驅動 AI 解析引擎
+          await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          
+          // 3. 更新進度
+          setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
+        } catch (fileErr) {
+          console.error(`檔案 ${fileRecord.original_name} 解析失敗:`, fileErr);
+        }
+
+        // 為了避免頻控，間隔 2 秒
+        if (i < targets.length - 1) await new Promise(r => setTimeout(r, 2000));
+      }
+
+      alert('批次補解析任務已完成！');
+      fetchCloudFiles(); // 重新整理列表，更新計數
+    } catch (err: any) {
+      alert('批次處理出錯: ' + err.message);
+    } finally {
+      setIsReparsing(false);
+      setReparseProgress(0);
+      setReparseCurrentFile('');
+    }
+  };
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
     
@@ -464,11 +520,48 @@ function App() {
                 >
                   <Sparkles size={16} /> <span className="header-btn-text">清理重複</span>
                 </button>
+                <button 
+                  className="ghost-button" 
+                  onClick={handleReparseAll} 
+                  disabled={isReparsing}
+                  style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#60A5FA', 
+                    borderColor: 'rgba(96,165,250,0.3)',
+                    opacity: isReparsing ? 0.5 : 1
+                  }}
+                  title="補齊未解析檔案的條目"
+                >
+                  <Zap size={16} /> <span className="header-btn-text">一鍵補解析</span>
+                </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
                 </button>
               </div>
             </div>
+
+            {isReparsing && (
+              <div style={{ 
+                background: 'rgba(96,165,250,0.05)', 
+                border: '1px solid rgba(96,165,250,0.2)', 
+                borderRadius: '8px', 
+                padding: '1rem', 
+                marginBottom: '1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Loader2 size={14} className="spin" /> 正在重新解析: <b>{reparseCurrentFile}</b>
+                  </span>
+                  <span style={{ color: '#888' }}>整體進度 {reparseProgress}%</span>
+                </div>
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${reparseProgress}%`, height: '100%', background: '#60A5FA', transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+                </div>
+              </div>
+            )}
 
             <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
