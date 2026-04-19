@@ -278,8 +278,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !supabase) return;
+    const client = supabase;
+    if (!files || files.length === 0 || !client) return;
 
     const fileList = Array.from(files);
     setUploadingFile(true);
@@ -313,15 +313,15 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         const fileName = `${Date.now()}_${randomStr}.${ext}`;
         
         // 上傳至 Storage
-        const { error: storageError } = await supabase.storage.from('spec-files').upload(fileName, file);
+        const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
         if (storageError) throw storageError;
 
-        const { data: { publicUrl } } = supabase.storage.from('spec-files').getPublicUrl(fileName);
+        const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
         const reqName = data.requester || '未知申請人';
         const displayName = `${file.name} (${reqName})`;
 
         // 寫入元數據
-        const { error: dbError } = await supabase.from('tuc_uploaded_files').insert({
+        const { error: dbError } = await client.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
           public_url: publicUrl,
