@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, History, Minimize2, Maximize2, Repeat } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
@@ -52,6 +52,7 @@ function App() {
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [showCloudInspector, setShowCloudInspector] = useState(false);
+  const [isReparseMinimized, setIsReparseMinimized] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
@@ -691,7 +692,7 @@ function App() {
       )}
 
       {showCloudInspector && (
-        <div className="modal-overlay" style={{ zIndex: 1200 }}>
+        <div className="modal-overlay" style={{ zIndex: 1200, display: isReparseMinimized ? 'none' : 'flex' }}>
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -740,6 +741,9 @@ function App() {
                 >
                   {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />} 
                   <span className="header-btn-text">AI 標籤校準</span>
+                </button>
+                <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title="縮小至背景執行">
+                  <Minimize2 size={20} />
                 </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
@@ -927,8 +931,49 @@ function App() {
       <UploadWizardModal 
         isOpen={showUploadWizard} 
         onClose={() => setShowUploadWizard(false)} 
+        onMinimize={() => setIsReparseMinimized(true)}
+        isMinimized={isReparseMinimized}
         data={data} 
       />
+
+      {/* V9.9: 全域任務監測膠囊 (Floating Task Capsule) */}
+      {isReparsing && isReparseMinimized && (
+        <div 
+          onClick={() => setIsReparseMinimized(false)}
+          style={{ 
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 2000,
+            background: 'rgba(20,20,20,0.9)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--tuc-red)',
+            borderRadius: '50px',
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(230,0,18,0.3)',
+            animation: 'pulse 2s infinite ease-in-out'
+          }}
+        >
+          <div className="spin" style={{ color: 'var(--tuc-red)', display: 'flex' }}>
+            <Repeat size={16} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>
+              背景處理中 {reparseProgress}%
+            </div>
+            <div style={{ fontSize: '0.6rem', color: '#888', whiteSpace: 'nowrap', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {reparseCurrentFile}
+            </div>
+          </div>
+          <div style={{ marginLeft: '8px', color: '#60A5FA' }}>
+            <Maximize2 size={16} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

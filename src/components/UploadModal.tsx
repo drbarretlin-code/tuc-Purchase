@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap } from 'lucide-react';
+import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as KP from '../lib/knowledgeParser';
 import type { FormState } from '../types/form';
@@ -7,10 +7,12 @@ import type { FormState } from '../types/form';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onMinimize?: () => void;
+  isMinimized?: boolean;
   data: FormState;
 }
 
-const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
+const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesInQueue, setFilesInQueue] = useState(0);
@@ -218,7 +220,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1300 }}>
+    <div className="modal-overlay" style={{ zIndex: 1300, display: isMinimized ? 'none' : 'flex' }}>
       <div className="glass-panel" style={{ width: '90vw', maxWidth: '800px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -228,9 +230,14 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>上傳歷史 PDF/圖片 規範，AI 將自動萃取技術要點存入知識庫</p>
             </div>
           </div>
-          <button onClick={onClose} className="icon-btn">
-            <X size={24} />
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={onMinimize} className="icon-btn" title="縮小至背景執行">
+              <Minus size={20} />
+            </button>
+            <button onClick={onClose} className="icon-btn">
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>

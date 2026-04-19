@@ -171,12 +171,13 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
 /**
  * 計算加權相似度 (設備名稱 30% / 需求說明 70%)
- * V9.8: 對齊三層標籤架構 - 全面支持 Standard/Global 層級的權威加成
+ * V9.9: 對齊三層標籤架構 - 全面支持 Standard/Global 層級的權威加成 (整合 metadata)
  */
 export const calculateWeightedSimilarity = (
   content: string, 
   eqKeywords: string = '', 
-  reqKeywords: string = ''
+  reqKeywords: string = '',
+  metadata?: any
 ) => {
   const tokenize = (str: string) => {
     if (!str) return [];
@@ -201,13 +202,15 @@ export const calculateWeightedSimilarity = (
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  // V9.8: 方案一權威層級保底機制 (整合 Standard 與 Global)
+  // V9.9: 增加 metadata.docType 標籤優先級
   const isGlobalOrStandard = 
     content.includes('共通性法規') || 
     content.includes('技術標準') || 
     content.includes('通用') ||
     content.includes('Global') ||
-    content.includes('Standard');
+    content.includes('Standard') ||
+    metadata?.docType === 'Standard' ||
+    metadata?.docType === 'Global';
 
   const scoreEq = isGlobalOrStandard ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1);
   const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
@@ -239,11 +242,12 @@ export const getHistorySuggestions = async (
     score: calculateWeightedSimilarity(
       item.content + (item.metadata?.equipment_name || ''), 
       eqKeywords, 
-      reqKeywords
+      reqKeywords,
+      item.metadata
     )
   }));
 
-  // V7.0: 嚴格門檻模式，不達 80% 不顯示 (移除保底機制)
+  // V7.0: 嚴格門檻模式，不達 80% 不顯示
   const finalResults = scoredData
     .filter(item => item.score >= 0.8)
     .sort((a, b) => b.score - a.score)
@@ -253,6 +257,6 @@ export const getHistorySuggestions = async (
     id: item.id.toString(),
     content: item.content,
     selected: false,
-    source: item.source_file_name
+    source: (item.metadata as any)?.equipment_name || item.source_file_name
   }));
 };
