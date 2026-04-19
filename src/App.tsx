@@ -271,25 +271,31 @@ function App() {
   };
 
   const handleAutofixLabels = async () => {
-    if (!supabase || !confirm('系統將分析全課檔案內容，自動辨識並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？')) return;
+    if (!supabase || !confirm('系統將分析全課檔案內容，自動辨別並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？')) return;
     if (!supabase) {
       alert('資料庫尚未就緒，請檢查連線。');
       return;
     }
+
+    // V9.6: 實作跳過機制 - 僅選取尚未校準的檔案 (比照一鍵補解析)
+    const targets = cloudFiles.filter(f => !f.is_calibrated);
+    
+    if (targets.length === 0) {
+      alert('所有檔案皆已完成 AI 標籤校準，無須重複執行。');
+      return;
+    }
+
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     setIsReparsing(true);
 
     try {
-      const { data: allFiles } = await supabase.from('tuc_uploaded_files').select('*');
-      if (!allFiles) return;
-      
-      const totalCount = allFiles.length;
+      const totalCount = targets.length;
       setReparseTotal(totalCount);
 
       for (let i = 0; i < totalCount; i++) {
-        const fileRecord = allFiles[i];
+        const fileRecord = targets[i];
         setReparseIndex(i + 1);
-        setReparseProgress(Math.round(((i + 1) / totalCount) * 100)); // 前置計算百分比
+        setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         setReparseCurrentFile(fileRecord.original_name);
 
         let currentDetectedLabel = fileRecord.equipment_name;
@@ -302,23 +308,26 @@ function App() {
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
 
-          if (currentDetectedLabel && currentDetectedLabel !== fileRecord.equipment_name) {
-            const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-            // 1. 更新檔案紀錄 (V9.4: 同步至 equipment_tags 陣列)
-            const { error: updateError } = await supabase.from('tuc_uploaded_files')
-              .update({ 
-                equipment_name: currentDetectedLabel, 
-                equipment_tags: [currentDetectedLabel], // 強制更新標籤陣列
-                display_name: newDisplayName 
-              })
-              .eq('id', fileRecord.id);
+          // V9.6: 無論標籤是否變更，皆標註為 is_calibrated 以避免重複掃描
+          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
+          const updateData: any = { 
+            is_calibrated: true,
+            equipment_name: currentDetectedLabel, 
+            equipment_tags: [currentDetectedLabel],
+            display_name: newDisplayName 
+          };
 
-            if (updateError) {
-              console.error('更新標籤失敗:', updateError);
-              throw new Error(`更新資料庫失敗: ${updateError.message}`);
-            }
+          const { error: updateError } = await supabase.from('tuc_uploaded_files')
+            .update(updateData)
+            .eq('id', fileRecord.id);
 
-            // 2. 更新知識條目 (Metadata 中的標籤)
+          if (updateError) {
+            console.error('更新標籤失敗:', updateError);
+            throw new Error(`更新資料庫失敗: ${updateError.message}`);
+          }
+
+          // 2. 更新知識條目 (Metadata 中的標籤)
+          if (currentDetectedLabel !== fileRecord.equipment_name) {
             const { data: entries } = await supabase
               .from('tuc_history_knowledge')
               .select('id, metadata')
@@ -335,14 +344,15 @@ function App() {
         } catch (e: any) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
           alert(`處理檔案 ${fileRecord.original_name} 時出錯: ${e.message}`);
-          break; // 若發生資料庫結構錯誤，停止後續處理
+          break;
         }
 
-        // V9.4: 精準本地更新 UI (同步更新陣列)
+        // V9.6: 精準本地更新 UI (同步 is_calibrated 狀態)
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
             return { 
               ...f, 
+              is_calibrated: true,
               equipment_name: currentDetectedLabel,
               equipment_tags: [currentDetectedLabel] 
             }; 
@@ -350,16 +360,13 @@ function App() {
           return f;
         }));
 
-        // 加入微秒緩衝讓 UI 有時間渲染變色
         await new Promise(r => setTimeout(r, 100));
-
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
-      // V8.10: 增加後置同步緩衝
       await new Promise(r => setTimeout(r, 1000));
       await fetchCloudFiles();
-      alert('AI 標籤校準任務已完成！所有歷史檔案已根據內容重新歸類。');
+      alert('AI 標籤校準任務已完成！');
     } catch (err: any) {
       console.error('校準出錯:', err);
       alert('校準過程出錯: ' + err.message);
