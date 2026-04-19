@@ -12,6 +12,7 @@ import {
   BookOpen, Download, Upload, FolderOpen, Loader2,
   Package, ShieldCheck, Zap, FileUp, Calendar
 } from 'lucide-react';
+import { calculateWeightedSimilarity, getHistorySuggestions } from '../lib/knowledgeParser';
 
 interface Props {
   data: FormState;
@@ -71,8 +72,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       { key: 'complianceTUCHints', source: 'complianceDesc' },
     ];
 
-    const { calculateWeightedSimilarity } = await import('../lib/knowledgeParser');
-    
     fieldsToHint.forEach(({ key, source }) => {
       const fieldKey = key as keyof FormState;
       const hints = (data[fieldKey] as AIHintSelection[]) || [];
@@ -135,7 +134,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     fetchFileHistory();
   }, []);
 
-  const loadHistoryHints = async (tabIndex: number, force: boolean = false) => {
+  const loadHistoryHints = async (tabIndex: number, _force: boolean = false) => {
     const categoryMap: Record<number, {key: keyof FormState, category: string}[]> = {
       0: [{ key: 'appearanceHistoryHints', category: 'appearance' }],
       1: [
