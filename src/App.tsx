@@ -128,13 +128,19 @@ function App() {
         countMap[name] = (countMap[name] || 0) + 1;
       });
 
-      // 3. 合併資料
-      const enrichedList = (list || []).map(f => ({
-        ...f,
-        // 如果資料庫顯式標記為 true，或統計大於 0
-        knowledgeCount: countMap[f.original_name] || 0,
-        is_parsed: f.is_parsed || (countMap[f.original_name] > 0)
-      }));
+      // 3. 合併資料 (V8.10: 權威化 is_parsed 標籤，解決狀態回滾問題)
+      const enrichedList = (list || []).map(f => {
+        // 優先讀取資料庫顯式標記，再看背景統計
+        const dbIsParsed = f.is_parsed === true;
+        const countFromStats = countMap[f.original_name] || 0;
+        
+        return {
+          ...f,
+          knowledgeCount: countFromStats,
+          // 只要資料庫標記為 true，或統計大於 0，且不允許被舊資料覆寫為 false (若本地目前已是 true)
+          is_parsed: dbIsParsed || (countFromStats > 0)
+        };
+      });
 
       console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
       setCloudFiles(enrichedList);
@@ -307,8 +313,10 @@ function App() {
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
-      await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步
-      alert('AI 標籤校準完成！所有歷史檔案已根據內容重新歸類。');
+      // V8.10: 增加後置同步緩衝
+      await new Promise(r => setTimeout(r, 1000));
+      await fetchCloudFiles();
+      alert('AI 標籤校準任務已完成！所有歷史檔案已根據內容重新歸類。');
     } catch (err: any) {
       alert('校準過程出錯: ' + err.message);
     } finally {
@@ -388,7 +396,9 @@ function App() {
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
-      await fetchCloudFiles(); // 任務結束後進行最終資料一致性同步
+      // V8.10: 增加後置同步緩衝，確保 DB 索引已落地
+      await new Promise(r => setTimeout(r, 1000));
+      await fetchCloudFiles(); 
       alert('批次補解析任務已完成！');
     } catch (err: any) {
       alert('批次處理出錯: ' + err.message);
