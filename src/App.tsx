@@ -264,9 +264,14 @@ function App() {
           if (currentDetectedLabel && currentDetectedLabel !== fileRecord.equipment_name) {
             const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
             // 1. 更新檔案紀錄
-            await supabase.from('tuc_uploaded_files')
+            const { error: updateError } = await supabase.from('tuc_uploaded_files')
               .update({ equipment_name: currentDetectedLabel, display_name: newDisplayName })
               .eq('id', fileRecord.id);
+
+            if (updateError) {
+              console.error('更新標籤失敗:', updateError);
+              throw new Error(`更新資料庫失敗。請確認是否已執行 SQL 腳本新增欄位。(${updateError.message})`);
+            }
 
             // 2. 更新知識條目 (Metadata 中的標籤)
             const { data: entries } = await supabase
@@ -281,11 +286,13 @@ function App() {
               }
             }
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
+          alert(`處理檔案 ${fileRecord.original_name} 時出錯: ${e.message}`);
+          break; // 若發生資料庫結構錯誤，停止後續處理
         }
 
-        // V8.3: 僅本地更新 UI，絕對不調用 fetchCloudFiles（防止回滾）
+        // V8.6: 精準本地更新 UI (使用 ID)
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
             return { ...f, equipment_name: currentDetectedLabel }; 
@@ -350,14 +357,19 @@ function App() {
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           const newAdded = parseResult?.added || 0;
           
-          // V8.5: 解析成功後，立即寫入 is_parsed 狀態至檔案主表
-          await supabase.from('tuc_uploaded_files')
+          // V8.6: 解析成功後，立即使用 ID 寫入 is_parsed 狀態，並校驗結果
+          const { error: updateError } = await supabase.from('tuc_uploaded_files')
             .update({ is_parsed: true, parsed_at: new Date().toISOString() })
-            .eq('original_name', fileRecord.original_name);
+            .eq('id', fileRecord.id);
 
-          // 即時刷新列表狀態 (本地優先 + 背景同步)
+          if (updateError) {
+            console.error('更新解析狀態失敗:', updateError);
+            throw new Error(`無法將檔案標記為已解析。請確保您已執行 SQL 腳本新增 is_parsed 欄位。(${updateError.message})`);
+          }
+
+          // V8.6: 精準刷新列表狀態 (純本地使用 ID)
           setCloudFiles(prev => prev.map(f => {
-            if (f.original_name === fileRecord.original_name) {
+            if (f.id === fileRecord.id) {
               return { ...f, knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, is_parsed: true };
             }
             return f;
@@ -365,8 +377,10 @@ function App() {
 
           // 渲染緩衝
           await new Promise(r => setTimeout(r, 100));
-        } catch (fileErr) {
+        } catch (fileErr: any) {
           console.error(`檔案 ${fileRecord.original_name} 解析失敗:`, fileErr);
+          alert(`處理 ${fileRecord.original_name} 時中斷: ${fileErr.message}`);
+          break; // 若資料庫出錯，停止後續檔案，避免重複無效請求
         }
 
         // 為了避免頻控，間隔 2 秒
