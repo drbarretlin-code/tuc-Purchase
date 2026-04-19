@@ -333,7 +333,8 @@ function App() {
                   <Trash2 size={16} />
                 </button>
               </div>
-              
+            </div>
+
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <Save size={18} /> 儲存設定
             </button>
