@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Cpu } from 'lucide-react';
+import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as KP from '../lib/knowledgeParser';
 import type { FormState } from '../types/form';
@@ -14,6 +14,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesInQueue, setFilesInQueue] = useState(0);
+  const [currentUploadingName, setCurrentUploadingName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string, displayName: string}[]>([]);
 
   // V6.0: 初始化並讀取雲端檔案歷史
@@ -51,6 +52,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
     const fileList = Array.from(files) as File[];
     setUploadingFile(true);
     setUploadProgress(0);
+    setCurrentUploadingName('');
     setFilesInQueue(fileList.length);
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     
@@ -158,7 +160,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
       // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
       for (let i = 0; i < uploadResults.length; i++) {
-        const { file, url, storagePath } = uploadResults[i];
+        const { file, id } = uploadResults[i];
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
