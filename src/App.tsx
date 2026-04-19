@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import UploadWizardModal from './components/UploadModal';
 
@@ -149,6 +149,58 @@ function App() {
       alert('刪除成功');
     } catch (err) {
       alert('刪除失敗');
+    }
+  };
+
+  const handleCleanupDuplicates = async () => {
+    if (!supabase || !confirm('系統將自動掃描資料庫中「檔名與設備相同」的重複項，僅保留最新的一筆紀錄。\n此操作將同步清理實體檔案與解析紀錄，確定執行嗎？')) return;
+    
+    try {
+      // 1. 獲取所有紀錄
+      const { data: allFiles, error: fetchError } = await supabase
+        .from('tuc_uploaded_files')
+        .select('id, original_name, equipment_name, created_at, storage_path')
+        .order('created_at', { ascending: false });
+
+      if (fetchError || !allFiles) throw fetchError;
+
+      // 2. 演算法辨識重複項 (保留每組的第一筆，即最新的)
+      const seen = new Set<string>();
+      const toDelete: { id: string, path: string, name: string }[] = [];
+
+      allFiles.forEach(bit => {
+        const key = `${bit.original_name}_${bit.equipment_name}`;
+        if (seen.has(key)) {
+          toDelete.push({ id: bit.id, path: bit.storage_path, name: bit.original_name });
+        } else {
+          seen.add(key);
+        }
+      });
+
+      if (toDelete.length === 0) {
+        alert('目前資料庫非常整潔，未偵測到任何重複檔案。');
+        return;
+      }
+
+      // 3. 執行批次清理
+      const idsToRemove = toDelete.map(d => d.id);
+      const pathsToRemove = toDelete.map(d => d.path);
+      const namesToRemove = Array.from(new Set(toDelete.map(d => d.name)));
+
+      // 清理關聯知識庫 (以檔名為準)
+      for (const name of namesToRemove) {
+        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', name);
+      }
+      // 清理 Storage 實體
+      await supabase.storage.from('spec-files').remove(pathsToRemove);
+      // 清理資料庫紀錄
+      await supabase.from('tuc_uploaded_files').delete().in('id', idsToRemove);
+
+      alert(`清理完成！已移除 ${toDelete.length} 筆重複紀錄。`);
+      fetchCloudFiles(); // 重新整理列表
+    } catch (err: any) {
+      console.error('清理失敗:', err);
+      alert('清理過程發生錯誤: ' + err.message);
     }
   };
 
@@ -386,6 +438,14 @@ function App() {
                 </button>
                 <button className="ghost-button" onClick={handleShareAll} style={{ fontSize: '0.8rem' }}>
                   <Share2 size={16} /> 分享清單
+                </button>
+                <button 
+                  className="ghost-button" 
+                  onClick={handleCleanupDuplicates} 
+                  style={{ fontSize: '0.8rem', color: '#FBBF24', borderColor: 'rgba(251,191,36,0.3)' }}
+                  title="一鍵清理重複檔案"
+                >
+                  <Sparkles size={16} /> <span className="header-btn-text">清理重複</span>
                 </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
