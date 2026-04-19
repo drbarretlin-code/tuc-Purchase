@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar, ExternalLink, Loader2 } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -16,10 +16,12 @@ interface Props {
   required?: boolean;
   placeholder?: string;
   inputType?: string;
+  isLoading?: boolean;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
-  label, value, onChange, hints, tucHints, historyHints, onHintToggle, onTUCHintToggle, onHistoryHintToggle, isTextArea = true, required = false, placeholder, inputType = "text"
+  label, value, onChange, hints, tucHints, historyHints, onHintToggle, onTUCHintToggle, onHistoryHintToggle, 
+  isTextArea = true, required = false, placeholder, inputType = "text", isLoading = false
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
@@ -109,25 +111,24 @@ const SectionEditor: React.FC<Props> = ({
             tucHints.map((hint) => (
               <div 
                 key={hint.id} 
-                onClick={() => onTUCHintToggle?.(hint.id)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  gap: '0.75rem', 
-                  padding: '0.5rem',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  transition: 'background 0.2s',
-                }}
+                style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.5rem', borderRadius: '4px', transition: 'background 0.2s' }}
                 className="hint-item"
               >
-                {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
-                <div style={{ fontSize: '0.875rem' }}>
-                  <p style={{ margin: 0 }}>{hint.content}</p>
+                <div onClick={() => onTUCHintToggle?.(hint.id)} style={{ cursor: 'pointer', display: 'flex', gap: '0.75rem', flex: 1 }}>
+                  {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
+                  <div style={{ fontSize: '0.875rem' }}>
+                    <p style={{ margin: 0 }}>{hint.content}</p>
+                  </div>
                 </div>
+                {hint.link && (
+                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', opacity: 0.6, hover: { opacity: 1 } }}>
+                    <ExternalLink size={14} />
+                  </a>
+                )}
               </div>
             ))
           )}
+          {isLoading && <div style={{ textAlign: 'center', marginTop: '4px' }}><Loader2 size={12} className="animate-spin" color="#60A5FA" /></div>}
         </div>
       )}
 

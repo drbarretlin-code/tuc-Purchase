@@ -194,6 +194,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
 /**
  * 計算加權相似度 (設備名稱 30% / 需求說明 70%)
+ * V7.0: 加入「內容聚焦度」係數，讓短且精確的匹配獲得更高分數
  */
 export const calculateWeightedSimilarity = (
   content: string, 
@@ -202,7 +203,6 @@ export const calculateWeightedSimilarity = (
 ) => {
   const tokenize = (str: string) => {
     if (!str) return [];
-    // 支援中英文分詞：提取中文字元 或 連續的英文數字
     return str.match(/[\u4e00-\u9fa5]|[a-zA-Z0-9]+/g) || [];
   };
 
@@ -210,16 +210,23 @@ export const calculateWeightedSimilarity = (
     if (tokens.length === 0) return 0;
     const uniqueTokens = Array.from(new Set(tokens));
     const matches = uniqueTokens.filter(t => target.toLowerCase().includes(t.toLowerCase())).length;
-    return matches / uniqueTokens.length;
+    
+    // 基礎重合率
+    const baseScore = matches / uniqueTokens.length;
+    
+    // 聚焦度係數：如果目標內容非常長但匹配極少，分數應適度衰減
+    const targetTokens = tokenize(target);
+    const focusPenalty = targetTokens.length > 0 ? Math.min(1, (matches * 5) / targetTokens.length) : 1;
+    
+    return baseScore * (0.8 + 0.2 * focusPenalty); // 賦予聚焦度 20% 的影響力
   };
 
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1; // 若沒輸入則視為滿分
+  const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1;
   const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
 
-  // 按使用者比例分配權重
   return (scoreEq * 0.3) + (scoreReq * 0.7);
 };
 
@@ -230,12 +237,11 @@ export const getHistorySuggestions = async (
 ) => {
   if (!supabase) return [];
   
-  // 為了精確加權，先抓取較多（50 筆）候選條目在前端進行計算
   const { data: candidates, error } = await supabase
     .from('tuc_history_knowledge')
     .select('id, content, source_file_name, metadata')
     .eq('category', category)
-    .limit(50)
+    .limit(100)
     .order('created_at', { ascending: false });
     
   if (error || !candidates) {
@@ -243,7 +249,6 @@ export const getHistorySuggestions = async (
     return [];
   }
 
-  // 1. 計算所有候選者的分數
   const scoredData = candidates.map(item => ({
     ...item,
     score: calculateWeightedSimilarity(
@@ -253,24 +258,16 @@ export const getHistorySuggestions = async (
     )
   }));
 
-  // 2. 應用 80% 門檻過濾
-  let finalResults = scoredData.filter(item => item.score >= 0.8);
-
-  // 3. 保底機制：若無吻合者，取前 2 筆最接近的
-  if (finalResults.length === 0) {
-    finalResults = scoredData
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 2);
-  }
-
-  // 4. 排序並限制 15 筆上限
-  return finalResults
+  // V7.0: 嚴格門檻模式，不達 80% 不顯示 (移除保底機制)
+  const finalResults = scoredData
+    .filter(item => item.score >= 0.8)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 15)
-    .map((item) => ({
-      id: item.id.toString(),
-      content: item.content,
-      selected: false,
-      source: item.source_file_name
-    }));
+    .slice(0, 15);
+
+  return finalResults.map((item) => ({
+    id: item.id.toString(),
+    content: item.content,
+    selected: false,
+    source: item.source_file_name
+  }));
 };

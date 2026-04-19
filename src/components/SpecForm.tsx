@@ -51,62 +51,68 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     }
   }, []);
 
-  // 初始化 TUC 建議內容
+  // 初始化 TUC 建議內容 (整合智慧庫與法規)
   useEffect(() => {
-    const newData = { ...data };
-    let changed = false;
+    const timer = setTimeout(() => {
+      const newData = { ...data };
+      let changed = false;
 
-    const fieldsToHint = [
-      { key: 'appearanceTUCHints', source: 'appearance' },
-      { key: 'envTUCHints', source: 'envRequirements' },
-      { key: 'regTUCHints', source: 'regRequirements' },
-      { key: 'maintTUCHints', source: 'maintRequirements' },
-      { key: 'safetyTUCHints', source: 'safetyRequirements' },
-      { key: 'elecTUCHints', source: 'elecSpecs' },
-      { key: 'mechTUCHints', source: 'mechSpecs' },
-      { key: 'physTUCHints', source: 'physSpecs' },
-      { key: 'relyTUCHints', source: 'relySpecs' },
-      { key: 'rangeTUCHints', source: 'rangeRange' },
-      { key: 'installTUCHints', source: 'installStandard' },
-      { key: 'acceptanceTUCHints', source: 'acceptanceDesc' },
-      { key: 'complianceTUCHints', source: 'complianceDesc' },
-    ];
+      const fieldsToHint = [
+        { key: 'appearanceTUCHints', source: 'appearance', regCat: '' },
+        { key: 'envTUCHints', source: 'envRequirements', regCat: '環境保護' },
+        { key: 'regTUCHints', source: 'regRequirements', regCat: '' },
+        { key: 'maintTUCHints', source: 'maintRequirements', regCat: '' },
+        { key: 'safetyTUCHints', source: 'safetyRequirements', regCat: '職業安全' },
+        { key: 'elecTUCHints', source: 'elecSpecs', regCat: '機電/空調' },
+        { key: 'mechTUCHints', source: 'mechSpecs', regCat: '機電/空調' },
+        { key: 'physTUCHints', source: 'physSpecs', regCat: '' },
+        { key: 'relyTUCHints', source: 'relySpecs', regCat: '' },
+        { key: 'rangeTUCHints', source: 'rangeRange', regCat: '' },
+        { key: 'installTUCHints', source: 'installStandard', regCat: '建築營造' },
+        { key: 'acceptanceTUCHints', source: 'acceptanceDesc', regCat: '' },
+        { key: 'complianceTUCHints', source: 'complianceDesc', regCat: '職業安全' },
+      ];
 
-    fieldsToHint.forEach(({ key, source }) => {
-      const fieldKey = key as keyof FormState;
-      const hints = (data[fieldKey] as AIHintSelection[]) || [];
-      
-      // V6.7: 即使已有資料，也在此處根據關鍵字重新篩選以保持相關度 (或僅冷啟動時)
-      if (tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints]) {
-        const sourceHints = tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints];
+      fieldsToHint.forEach(({ key, source, regCat }) => {
+        const fieldKey = key as keyof FormState;
+        const currentHints = (data[fieldKey] as AIHintSelection[]) || [];
         
-        // 分別計算每個候選條目的加權分數
-        const scoredHints = sourceHints.map(h => ({
-          ...h,
-          score: KP.calculateWeightedSimilarity(h.content, data.equipmentName, data.requirementDesc)
+        // 1. 抓取基礎技術條文
+        const sourceHints = tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints] || [];
+        
+        // 2. 抓取相關法規條文
+        const relevantRegs = tucKnowledge.regulations
+          .filter(r => !regCat || r.category === regCat)
+          .map(r => ({ id: `reg-${r.title}`, content: `【${r.category}】${r.title}: ${r.summary}`, link: r.url }));
+
+        // 3. 合併搜尋池
+        const pool = [...sourceHints, ...relevantRegs];
+        
+        // 4. 計算加權分數
+        const scored = pool.map(item => ({
+          ...item,
+          score: KP.calculateWeightedSimilarity(item.content, data.equipmentName, data.requirementDesc)
         }));
 
-        // 應用 80% 門檻 + 保底 2 筆機制
-        let filteredHints = scoredHints.filter(h => h.score >= 0.8);
-        if (filteredHints.length === 0) {
-          filteredHints = scoredHints.sort((a, b) => b.score - a.score).slice(0, 2);
-        }
-
-        const finalHints = filteredHints
+        // 5. 門檻過濾 (嚴格模式：移除保底)
+        const finalHints = scored
+          .filter(h => h.score >= 0.8)
           .sort((a, b) => b.score - a.score)
           .slice(0, 15)
-          .map(h => ({ id: h.id, content: h.content, selected: false }));
+          .map(h => ({ id: h.id, content: h.content, selected: false, link: (h as any).link }));
 
-        if (JSON.stringify(hints) !== JSON.stringify(finalHints)) {
+        if (JSON.stringify(currentHints) !== JSON.stringify(finalHints)) {
           (newData[fieldKey] as any) = finalHints;
           changed = true;
         }
-      }
-    });
+      });
 
-    if (changed) {
-      onChange(newData);
-    }
+      if (changed) {
+        onChange(newData);
+      }
+    }, 800); // 800ms 防抖
+
+    return () => clearTimeout(timer);
   }, [data.equipmentName, data.requirementDesc]);
 
   // V6.0: 初始化並讀取雲端檔案歷史
@@ -183,11 +189,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     }
   }, [activeTab]);
 
-  // V6.1: 當關鍵字變動時，觸發當前分頁的歷史建議更新 (加入 debounce 避免頻繁請求)
+  // V6.1: 當關鍵字變動時，觸發當前分頁的歷史建議更新 (縮短延遲)
   useEffect(() => {
     const timer = setTimeout(() => {
       loadHistoryHints(activeTab, true);
-    }, 1200);
+    }, 800);
     return () => clearTimeout(timer);
   }, [data.equipmentName, data.requirementDesc]);
 
