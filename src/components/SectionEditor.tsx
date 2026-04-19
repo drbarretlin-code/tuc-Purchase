@@ -93,20 +93,29 @@ const SectionEditor: React.FC<Props> = ({
           </div>
           
           {tucHints.length >= 2 ? (
-            <select 
-              value="" 
-              onChange={(e) => {
-                if (e.target.value) onTUCHintToggle?.(e.target.value);
-              }}
-              style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
-            >
-              <option value="" disabled>點擊選擇建議以導入...</option>
-              {tucHints.map(hint => (
-                <option key={hint.id} value={hint.id}>
-                  {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
-                </option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select 
+                value="" 
+                onChange={(e) => {
+                  if (e.target.value) onTUCHintToggle?.(e.target.value);
+                }}
+                style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
+              >
+                <option value="" disabled>點擊選擇建議以導入...</option>
+                {tucHints.map(hint => (
+                  <option key={hint.id} value={hint.id}>
+                    {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
+                  </option>
+                ))}
+              </select>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {tucHints.filter(h => h.link).map(h => (
+                  <a key={h.id} href={h.link} target="_blank" rel="noreferrer" title={`查看原文: ${h.content.substring(0, 20)}...`} style={{ display: 'flex', alignItems: 'center', color: '#60A5FA', opacity: 0.6 }}>
+                    <ExternalLink size={14} />
+                  </a>
+                )).slice(0, 3)}
+              </div>
+            </div>
           ) : (
             tucHints.map((hint) => (
               <div 
@@ -121,7 +130,7 @@ const SectionEditor: React.FC<Props> = ({
                   </div>
                 </div>
                 {hint.link && (
-                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', opacity: 0.8 }}>
+                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', padding: '0 4px' }}>
                     <ExternalLink size={14} />
                   </a>
                 )}

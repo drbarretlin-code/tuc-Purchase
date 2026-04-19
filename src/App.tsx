@@ -3,8 +3,9 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import UploadWizardModal from './components/UploadModal';
 
 function App() {
   const [data, setData] = useState<FormState>(() => {
@@ -46,6 +47,7 @@ function App() {
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
 
   useEffect(() => {
@@ -255,14 +257,24 @@ function App() {
                 <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Eye size={16} /> 正式預覽區
                 </span>
-                <button 
-                  onClick={handleOpenInspector} 
-                  className="icon-btn" 
-                  title="資料庫與歷史檔案管理"
-                  style={{ color: 'var(--tuc-red)', border: '1px solid rgba(230,0,18,0.3)', padding: '4px 8px' }}
-                >
-                  <Database size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>資料管理</span>
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => setShowUploadWizard(true)} 
+                    className="icon-btn" 
+                    title="智慧解析與規範歸納"
+                    style={{ color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)', padding: '4px 8px' }}
+                  >
+                    <CloudUpload size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>歸納工具</span>
+                  </button>
+                  <button 
+                    onClick={handleOpenInspector} 
+                    className="icon-btn" 
+                    title="資料庫與歷史檔案管理"
+                    style={{ color: 'var(--tuc-red)', border: '1px solid rgba(230,0,18,0.3)', padding: '4px 8px' }}
+                  >
+                    <Database size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>資料管理</span>
+                  </button>
+                </div>
               </div>
             )}
             <SpecPreview data={data} />
@@ -422,6 +434,12 @@ function App() {
           </div>
         </div>
       )}
+
+      <UploadWizardModal 
+        isOpen={showUploadWizard} 
+        onClose={() => setShowUploadWizard(false)} 
+        data={data} 
+      />
     </div>
   );
 }

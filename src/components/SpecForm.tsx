@@ -22,11 +22,6 @@ interface Props {
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isKMOpen, setIsKMOpen] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [filesInQueue, setFilesInQueue] = useState(0);
-  const [currentUploadingName, setCurrentUploadingName] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<{name: string, url: string, displayName: string}[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -39,17 +34,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
   const currentDate = new Date().toLocaleDateString('zh-TW');
 
-  // V6.5 中斷復原檢查
-  useEffect(() => {
-    const interruptedJob = localStorage.getItem('tuc_active_upload_job');
-    if (interruptedJob) {
-      const { completed, total } = JSON.parse(interruptedJob);
-      if (completed.length < total) {
-        alert(`【系統提示】偵測到前次上傳程序中斷。\n已成功上傳的檔案如下：\n- ${completed.join('\n- ')}\n\n請重新上傳剩餘檔案以完成歸納作業。`);
-      }
-      localStorage.removeItem('tuc_active_upload_job');
-    }
-  }, []);
 
   // 初始化 TUC 建議內容 (整合智慧庫與法規)
   useEffect(() => {
@@ -115,30 +99,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     return () => clearTimeout(timer);
   }, [data.equipmentName, data.requirementDesc]);
 
-  // V6.0: 初始化並讀取雲端檔案歷史
-  useEffect(() => {
-    const fetchFileHistory = async () => {
-      if (!supabase) return;
-      try {
-        const { data: list, error } = await supabase
-          .from('tuc_uploaded_files')
-          .select('original_name, public_url, display_name')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        if (!error && list) {
-          setUploadedFiles(list.map(f => ({
-            name: f.original_name,
-            url: f.public_url,
-            displayName: f.display_name
-          })));
-        }
-      } catch (err) {
-        console.error('無法讀取檔案歷史:', err);
-      }
-    };
-    fetchFileHistory();
-  }, []);
 
   const loadHistoryHints = async (tabIndex: number, _force: boolean = false) => {
     const categoryMap: Record<number, {key: keyof FormState, category: string}[]> = {
@@ -203,7 +163,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     { label: '施工作業', icon: <Hammer size={18} /> },
     { label: '圖說表格', icon: <Table size={18} /> },
     { label: '會簽確認', icon: <PenTool size={18} /> },
-    { label: '歷史檔案上傳與歸納', icon: <FolderOpen size={18} /> },
   ];
 
   const updateField = (field: keyof FormState, value: any) => {
@@ -771,55 +730,29 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               </div>
             )}
 
-            {activeTab === 5 && (
+            {activeTab === 4 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FolderOpen size={20} /> 歷史檔案內容歸納
-                </h3>
-                <div style={{ border: '2px dashed var(--border-color)', borderRadius: '16px', padding: '3rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-                  {uploadingFile ? (
-                    <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-                      <Loader2 className="animate-spin" size={32} color="var(--tuc-red)" style={{ margin: '0 auto 1.5rem' }} />
-                      <div style={{ height: '10px', width: '100%', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div 
-                          style={{ 
-                            width: `${uploadProgress}%`, 
-                            height: '100%', 
-                            background: 'linear-gradient(90deg, var(--tuc-red), #ff4d4d)', 
-                            transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 0 10px rgba(230,0,18,0.3)'
-                          }} 
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <p style={{ color: 'white', fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>正在解析系統資源...</p>
-                        <p style={{ color: 'var(--tuc-red)', fontSize: '0.9rem', fontWeight: '600', margin: '4px 0' }}>{currentUploadingName}</p>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>
-                          佇列剩餘：<span style={{ color: 'white' }}>{filesInQueue}</span> 份 | 總進度：<span style={{ color: 'white' }}>{uploadProgress}%</span>
-                        </p>
-                      </div>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>規格確認及會簽</h3>
+                <div className="doc-section-box">
+                  <h4 className="section-title"><PenTool size={16} /> 會簽格位</h4>
+                  <div style={{ padding: '1rem', overflowX: 'auto' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, border: '1px solid var(--border-color)' }}>
+                      {data.signOffGrid.map((row, ri) => (
+                        row.map((val, ci) => (
+                          <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', height: '100px', background: 'rgba(255,255,255,0.02)' }}>
+                            <div style={{ height: '30px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+                              {isDropdownCell(ri, ci) ? '單位代號' : '核決簽署'}
+                            </div>
+                            <textarea 
+                              value={val} 
+                              onChange={(e) => updateSignOff(ri, ci, e.target.value)}
+                              style={{ width: '100%', height: '70px', background: 'transparent', border: 'none', color: 'white', padding: '8px', resize: 'none', fontSize: '0.85rem', textAlign: 'center' }}
+                            />
+                          </div>
+                        ))
+                      ))}
                     </div>
-                  ) : (
-                    <>
-                      <FileUp size={48} color="#555" style={{ marginBottom: '1rem' }} />
-                      <label className="primary-button" style={{ display: 'inline-flex', cursor: 'pointer', padding: '0.75rem 2rem' }}>
-                        選取檔案上傳 <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
-                      </label>
-                      <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>支援 PDF 或 Docx 格式</p>
-                    </>
-                  )}
-                </div>
-                
-                <div style={{ marginTop: '2.5rem' }}>
-                  {uploadedFiles.map((f, i) => (
-                    <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.5rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '0.95rem', fontWeight: '500', color: 'white' }}>{f.displayName}</span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>原始檔名: {f.name}</span>
-                      </div>
-                      <a href={f.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#60A5FA', textDecoration: 'none', background: 'rgba(96,165,250,0.1)', padding: '0.4rem 0.8rem', borderRadius: '4px' }}>檢視檔案</a>
-                    </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             )}

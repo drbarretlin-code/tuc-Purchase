@@ -1,38 +1,188 @@
 {
   "regulations": [
     {
-      "category": "職業安全",
-      "title": "職業安全衛生法",
-      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=N0060001",
-      "keywords": ["安全", "衛生", "職安", "OSHA", "防護", "危害"],
-      "summary": "規範勞動場所安全衛生，防止職業災害發生。"
+      "category": "機電/電氣",
+      "title": "IEC (International Electrotechnical Commission)",
+      "url": "https://www.iec.ch/homepage",
+      "keywords": ["電氣", "電子", "標準", "IEC", "電機"],
+      "summary": "全球通用的電氣技術標準，涵蓋發電、傳輸及配電設備之設計與互認。"
     },
     {
-      "category": "環境保護",
-      "title": "水污染防治法",
+      "category": "機電/電氣",
+      "title": "IEEE (電機電子工程師學會標準)",
+      "url": "https://standards.ieee.org/",
+      "keywords": ["電訊", "電力", "軟體工程", "IEEE", "通訊"],
+      "summary": "涵蓋電訊、電力設備及軟體工程的全球性技術標準。"
+    },
+    {
+      "category": "機電/電氣",
+      "title": "NFPA 70 (National Electrical Code, NEC)",
+      "url": "https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70",
+      "keywords": ["電線", "安全", "守則", "NEC", "NFPA", "安裝"],
+      "summary": "美國最權威的電線、設備安裝安全守則，全球電機設計之重要參考。"
+    },
+    {
+      "category": "機電/電氣",
+      "title": "用戶用電設備裝置規則 (台灣)",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=J0030018",
+      "keywords": ["屋內線路", "裝置規則", "電氣工程", "強制標準"],
+      "summary": "國內所有建築物電氣工程的法定強制性基準（原屋內線路裝置規則）。"
+    },
+    {
+      "category": "機電/電氣",
+      "title": "台電 (TPC) 供電技術準則",
+      "url": "https://www.taipower.com.tw/tc/page.aspx?mid=230",
+      "keywords": ["台電", "併網", "受電端", "TPC", "供電"],
+      "summary": "針對與台電併網、受電端設備及其保護協調之技術要求。"
+    },
+    {
+      "category": "機械/製造",
+      "title": "ISO (國際標準組織)",
+      "url": "https://www.iso.org/standards.html",
+      "keywords": ["ISO", "公差", "製造", "品質", "機械設計"],
+      "summary": "涵蓋一般機械設計、公差、製造品質管理及國際標準化流程。"
+    },
+    {
+      "category": "機械/製造",
+      "title": "ASME BPVC (Boiler and Pressure Vessel Code)",
+      "url": "https://www.asme.org/codes-standards/find-codes-standards/bpvc-boiler-pressure-vessel-code",
+      "keywords": ["鍋爐", "壓力容器", "ASME", "BPVC", "黃金標準"],
+      "summary": "全球壓力容器、鍋爐設計製造之黃金標準，具備法律地位之技術代碼。"
+    },
+    {
+      "category": "機械/製造",
+      "title": "JIS (Japanese Industrial Standards)",
+      "url": "https://www.jisc.go.jp/eng/",
+      "keywords": ["JIS", "工具機", "精密機械", "日本標準", "材料測試"],
+      "summary": "日本工業標準，涵蓋工具機、精密機械與相關材料測試參考。"
+    },
+    {
+      "category": "機械/製造",
+      "title": "CNS 機械類 (台灣國家標準)",
+      "url": "https://www.cnsonline.com.tw/",
+      "keywords": ["CNS", "驗收", "規格", "材料", "國內標準"],
+      "summary": "台灣國家標準，包含國內設備製造、驗收與材料規格標準。"
+    },
+    {
+      "category": "機械/製造",
+      "title": "壓力容器安全檢查構造標準 (台灣)",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=N0060005",
+      "keywords": ["勞動部", "危險性機械", "壓力容器", "安全檢查"],
+      "summary": "勞動部針對危險性機械設備（如第一種壓力容器）之法定構造與安全標準。"
+    },
+    {
+      "category": "空調/通風",
+      "title": "ASHRAE Handbook (HVAC)",
+      "url": "https://www.ashrae.org/technical-resources/ashrae-handbook",
+      "keywords": ["ASHRAE", "空調", "冷凍", "HVAC", "設計手冊"],
+      "summary": "全球空調與冷凍設計最完整之參考手冊，涵蓋基礎理論、系統與設備。"
+    },
+    {
+      "category": "空調/通風",
+      "title": "SMACNA Standards",
+      "url": "https://www.smacna.org/resources/technical-standards",
+      "keywords": ["風管", "板金", "安裝", "SMACNA", "製造"],
+      "summary": "美國板金與空調承包商協會標準，規範風管工程之製造與安裝。"
+    },
+    {
+      "category": "空調/通風",
+      "title": "AMCA (空氣流動與控制協會)",
+      "url": "https://www.amca.org/",
+      "keywords": ["風機", "阻火器", "AMCA", "百葉窗", "性能檢測"],
+      "summary": "針對風機、阻火器及百葉窗性能檢測之國際認證與標準。"
+    },
+    {
+      "category": "空調/通風",
+      "title": "建築技術規則設備編 - 空調系統",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?PCode=D0070125",
+      "keywords": ["建築技術規則", "節能", "空調分區", "設計基準"],
+      "summary": "台灣法定建築物空調設計基準與節能規範之核心標準。"
+    },
+    {
+      "category": "空調/通風",
+      "title": "ABRI 建築空調系統節能手冊",
+      "url": "https://www.abri.gov.tw/",
+      "keywords": ["建研所", "綠建築", "節能", "手冊", "ABRI"],
+      "summary": "內政部建築研究所發布，針對高效能空調與綠建築環境之指導方針。"
+    },
+    {
+      "category": "土建/結構",
+      "title": "ASTM International",
+      "url": "https://www.astm.org/",
+      "keywords": ["材料測試", "營建", "鋼鐵", "混凝土", "ASTM"],
+      "summary": "全球最大的標準制定組織之一，涵蓋營建材料（混凝土、鋼鐵、土壤）之測試。"
+    },
+    {
+      "category": "土建/結構",
+      "title": "ACI (American Concrete Institute) Codes",
+      "url": "https://www.concrete.org/store.aspx",
+      "keywords": ["混凝土", "ACI", "施工規範", "結構設計"],
+      "summary": "美國混凝土學會代碼，為全球混凝土結構設計與施工規範之領先標準。"
+    },
+    {
+      "category": "土建/結構",
+      "title": "Eurocodes (EN 1990 - 1999)",
+      "url": "https://eurocodes.jrc.ec.europa.eu/",
+      "keywords": ["歐洲標準", "結構設計", "EN標準", "Eurocodes"],
+      "summary": "歐洲統一結構設計標準，為全球土木工程設計的重要參考。"
+    },
+    {
+      "category": "土建/結構",
+      "title": "公共工程施工綱要規範 (PCC)",
+      "url": "https://pcces.pcc.gov.tw/",
+      "keywords": ["工程會", "施工綱要", "標單", "PCC", "施工標準"],
+      "summary": "行政院工程會制定，為國內公共工程投標、施工與驗收之核心參考。"
+    },
+    {
+      "category": "土建/結構",
+      "title": "建築技術規則建築構造編",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=D0070115",
+      "keywords": ["強制規範", "耐震設計", "結構強度", "基礎工程"],
+      "summary": "國內建築物設計、結構強度與耐震能力之最上位法定強制規範。"
+    },
+    {
+      "category": "水處理/環保",
+      "title": "WEF (Water Environment Federation) MOP",
+      "url": "https://www.wef.org/resources/publications/manuals-of-practice/",
+      "keywords": ["廢水處理", "維護手冊", "WEF", "MOP", "操作實務"],
+      "summary": "廢水處理操作與維護的全球權威實務手冊 (Manual of Practice)。"
+    },
+    {
+      "category": "水處理/環保",
+      "title": "AWWA Standards",
+      "url": "https://www.awwa.org/codes-standards",
+      "keywords": ["飲用水", "污水處理", "管線", "AWWA", "配水"],
+      "summary": "美國自來水協會標準，涵蓋給水與污水處理之設計與設備規格。"
+    },
+    {
+      "category": "水處理/環保",
+      "title": "U.S. EPA Wastewater Guidelines",
+      "url": "https://www.epa.gov/npdes",
+      "keywords": ["EPA", "廢水排放", "工業法規", "排放指南"],
+      "summary": "美國環境保護署發布，為工業與市政廢水排放法規之重要全球參考。"
+    },
+    {
+      "category": "水處理/環保",
+      "title": "下水道工程設施標準",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?Pcode=D0060027",
+      "keywords": ["下水道", "設施標準", "抽水站", "管渠設計"],
+      "summary": "國內各級下水道（雨水、污水）規劃、設計與施工之法定基準。"
+    },
+    {
+      "category": "水處理/環保",
+      "title": "水污染防治法 (台灣)",
       "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=O0040001",
-      "keywords": ["水污", "廢水", "排放", "環保", "造水"],
-      "summary": "規範事業廢水排放標準，保護水體品質。"
-    },
-    {
-      "category": "建築營造",
-      "title": "公共工程施工綱要規範 (PCCES)",
-      "url": "https://pcces.pcc.gov.tw/CSINew/",
-      "keywords": ["施工", "鋼要", "規範", "PCCES", "Division", "基礎"],
-      "summary": "行政院公共工程委員會制定的標準施工規範，含 Division 01-48。"
-    },
-    {
-      "category": "機電/空調",
-      "title": "ASHRAE Standards",
-      "url": "https://www.ashrae.org/technical-resources/standards-and-guidelines",
-      "keywords": ["空調", "HVAC", "清淨室", "無塵室", "通風", "ASHRAE"],
-      "summary": "美國冷凍空調學會標準，全球空調設計權威。"
+      "keywords": ["環境部", "排放標準", "監測", "管制", "水污法"],
+      "summary": "國內水污染防治之母法，規範排放標準、許可申請及監測相關準則。"
     }
   ],
   "fieldHints": {
     "appearance": [
       { "id": "t1", "content": "機殼顏色：台燿標準白 (RAL 9010) 粉體烤漆，漆膜厚度需達 60μm 以上。" },
-      { "id": "t2", "content": "表面處理：全機邊緣需做 R角或倒角處理，不得有利邊或毛刺；不鏽鋼部分採髮絲紋處理。" }
+      { "id": "t2", "content": "表面處理：全機邊緣需做 R角或倒角處理，不得有利邊或毛刺；不鏽鋼部分採髮絲紋處理。" },
+      { "id": "t2.1", "content": "不鏽鋼材質：外殼需採用 SUS 304 或更高等級，焊接處需進行鈍化處理以防鏽蝕。" },
+      { "id": "t2.2", "content": "指示燈標籤：所有指示燈、按鈕需具備繁體中文標籤，標籤採雷射刻字或耐磨膠貼。" },
+      { "id": "t2.3", "content": "防震接頭：軟管與機台連接處需加裝防震墊片，螺栓露出長度不得超過 3 個牙。" }
     ],
     "envRequirements": [
       { "id": "t3", "content": "符合 RoHS 2.0 綠色採購規範，所有組件需提供不含六大有害物質之證明。" },
