@@ -36,6 +36,8 @@ export interface FormState {
   
   // 一. 名稱與需求
   requirementDesc: string; // 必填
+  requirementDescTUCHints: AIHintSelection[];
+  requirementDescHistoryHints: AIHintSelection[];
   
   // 二. 品相
   appearance: string;
@@ -127,6 +129,8 @@ export const INITIAL_FORM_STATE: FormState = {
   model: '',
   category: '新增',
   requirementDesc: '',
+  requirementDescTUCHints: [],
+  requirementDescHistoryHints: [],
   appearance: '',
   appearanceTUCHints: [],
   appearanceHistoryHints: [],

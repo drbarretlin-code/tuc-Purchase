@@ -101,7 +101,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const loadHistoryHints = async (tabIndex: number, _force: boolean = false) => {
     const categoryMap: Record<number, {key: keyof FormState, category: string}[]> = {
-      0: [{ key: 'appearanceHistoryHints', category: 'appearance' }],
+      0: [
+        { key: 'appearanceHistoryHints', category: 'appearance' },
+        { key: 'requirementDescHistoryHints', category: 'technical' },
+        { key: 'requirementDescHistoryHints', category: 'safety' }
+      ],
       1: [
         { key: 'envHistoryHints', category: 'environmental' },
         { key: 'regHistoryHints', category: 'technical' },
@@ -170,24 +174,24 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const toggleTUCHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
     const currentHints = data[field] as AIHintSelection[];
-    const targetHint = currentHints.find(h => h.id === hintId);
+    // V10.3: 鍵值比較強健化 - 確保字串與數值 ID 均能正確尋找
+    const targetHint = currentHints.find(h => String(h.id) === String(hintId));
     if (!targetHint) return;
 
     const newSelected = !targetHint.selected;
     const nextHints = currentHints.map(h => 
-      h.id === hintId ? { ...h, selected: newSelected } : h
+      String(h.id) === String(hintId) ? { ...h, selected: newSelected } : h
     );
 
     let nextContent = data[contentField] as string;
     if (newSelected) {
-      // 導入：使用 trimEnd 確保精確換行且自成一段落 (不產生空行)
+      // 導入：使用 trimEnd 確保精確換行且自成一段落
       const baseContent = nextContent.trimEnd();
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + targetHint.content;
     } else {
-      // 取消勾選：自動從主編輯區移除該段文字，並清理冗餘換行以防空行
+      // 取消勾選：自動從主編輯區移除該段文字
       nextContent = nextContent.replace(targetHint.content, '');
-      // 清理連續換行為單換行，並移除首尾空行
       nextContent = nextContent.split('\n').filter(line => line.trim()).join('\n').trim();
     }
 
@@ -200,12 +204,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const toggleHistoryHint = (field: keyof FormState, contentField: keyof FormState, hintId: string) => {
     const currentHints = data[field] as AIHintSelection[];
-    const targetHint = currentHints.find(h => h.id === hintId);
+    // V10.3: 鍵值比較強健化 - 確保字串與數值 ID 均能正確尋找
+    const targetHint = currentHints.find(h => String(h.id) === String(hintId));
     if (!targetHint) return;
 
     const newSelected = !targetHint.selected;
     const nextHints = currentHints.map(h => 
-      h.id === hintId ? { ...h, selected: newSelected } : h
+      String(h.id) === String(hintId) ? { ...h, selected: newSelected } : h
     );
 
     let nextContent = data[contentField] as string;
@@ -383,6 +388,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v) => updateField('requirementDesc', v)} 
                     required 
                     placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
+                    historyHints={data.requirementDescHistoryHints}
+                    onTUCHintToggle={(id) => toggleTUCHint('requirementDescTUCHints', 'requirementDesc', id)}
+                    onHistoryHintToggle={(id) => toggleHistoryHint('requirementDescHistoryHints', 'requirementDesc', id)}
                   />
                 </div>
 
