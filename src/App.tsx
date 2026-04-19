@@ -279,11 +279,13 @@ function App() {
               }
             }
           }
-          // 即時刷新列表狀態，讓使用者看到標籤變綠
-          fetchCloudFiles();
         } catch (e) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
         }
+
+        // V8.1: 強制等待刷新列表狀態，並加入微秒延遲確保 UI 渲染
+        await fetchCloudFiles();
+        await new Promise(r => setTimeout(r, 100));
 
         setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
@@ -334,7 +336,8 @@ function App() {
           await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           
           // 即時刷新列表狀態，讓使用者看到標籤變綠
-          fetchCloudFiles();
+          await fetchCloudFiles();
+          await new Promise(r => setTimeout(r, 100));
 
           // 3. 更新進度
           setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
