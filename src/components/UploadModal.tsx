@@ -253,10 +253,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
                   <CloudUpload size={32} color="var(--tuc-red)" />
                 </div>
                 <h3 style={{ margin: 0 }}>選取檔案</h3>
-                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '200px' }}>支持多檔案同時解析，僅限 PDF 與圖片格式</p>
+                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '300px' }}>支援多檔案併行解析：PDF, Word (.doc/.docx), 圖片格式</p>
                 <input 
                   type="file" 
                   multiple 
+                  accept=".pdf,.doc,.docx,image/*"
                   onChange={handleFileUpload}
                   style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                 />

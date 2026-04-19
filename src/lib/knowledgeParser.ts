@@ -36,6 +36,20 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer });
     text = result.value;
+  } else if (file.name.endsWith('.doc')) {
+    // V9.1: 針對舊版 .doc 的二進位文字勘探 (Binary Scavenging)
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    
+    // 試圖從二進位數據中提取可讀字串 (包含 CJK 字元與 ASCII)
+    // 雖然會包含雜訊，但 Gemini 的抗噪能力足以處理這些數據
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const rawContent = decoder.decode(uint8);
+    
+    // 僅保留可列印字元與常見中文區間
+    // 正則表達式：保留中標、英數、標點，過濾大量控制字碼
+    text = rawContent.replace(/[^\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF]/g, ' ');
+    console.log(`[解析輔助] .doc 二進位提取完成，長度: ${text.length}`);
   } else if (file.name.endsWith('.pdf')) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
