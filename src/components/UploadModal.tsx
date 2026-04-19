@@ -105,20 +105,27 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
       await waitForTurn();
 
       // --- 第二階段：重複檢查與清空 (去重機制) ---
+      console.log('[去重運算] 偵測並清理歷史重複檔案...');
       for (const file of fileList) {
-        const reqDesc = data.requirementDesc || '無需求說明';
-        const { data: dup } = await client
+        // 1. 執行批次查詢，找出所有「同檔名 + 同設備」的舊資料 (不論需求說明是否嚴格匹配)
+        const { data: dups } = await client
           .from('tuc_uploaded_files')
           .select('id, storage_path')
           .eq('original_name', file.name)
-          .eq('equipment_name', data.equipmentName || '未命名設備')
-          .eq('requirement_desc', reqDesc)
-          .maybeSingle();
+          .eq('equipment_name', data.equipmentName || '未命名設備');
 
-        if (dup) {
+        if (dups && dups.length > 0) {
+          const idsToRemove = dups.map(d => d.id);
+          const pathsToRemove = dups.map(d => d.storage_path);
+          
+          console.log(`[去重] 發現 ${dups.length} 筆重複檔案，正在進行取代作業...`);
+          
+          // 批次刪除知識條目
           await client.from('tuc_history_knowledge').delete().eq('source_file_name', file.name);
-          await client.storage.from('spec-files').remove([dup.storage_path]);
-          await client.from('tuc_uploaded_files').delete().eq('id', dup.id);
+          // 批次刪除實體檔案
+          await client.storage.from('spec-files').remove(pathsToRemove);
+          // 批次刪除上傳紀錄
+          await client.from('tuc_uploaded_files').delete().in('id', idsToRemove);
         }
       }
 
@@ -166,7 +173,13 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
 
       // --- 第五階段：完成佇列解除 ---
       await client.from('tuc_system_queue').update({ status: 'completed' }).eq('owner_session', sessionId);
-      setUploadedFiles(prev => [...prev, ...newUploads].slice(-10));
+      
+      // UI 同步優化：先過濾掉舊列表中「同名」的檔案，再加入新上傳的
+      setUploadedFiles(prev => {
+        const filteredPrev = prev.filter(p => !newUploads.some(n => n.name === p.name));
+        return [...filteredPrev, ...newUploads].slice(-10);
+      });
+      
       localStorage.removeItem('tuc_active_upload_job');
       alert(`檔案上傳解析完成！\n成功：${totalAdded} | 跳過：${totalSkipped}`);
 
