@@ -250,23 +250,24 @@ function App() {
         setReparseIndex(i + 1);
         setReparseCurrentFile(fileRecord.original_name);
 
+        let currentDetectedLabel = fileRecord.equipment_name;
+
         try {
           const resp = await fetch(fileRecord.public_url);
           const blob = await resp.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
-          const newLabel = result?.detectedEquipment || fileRecord.equipment_name;
+          currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
 
-          if (newLabel && newLabel !== fileRecord.equipment_name) {
-            const newDisplayName = `${fileRecord.original_name} (${newLabel})`;
+          if (currentDetectedLabel && currentDetectedLabel !== fileRecord.equipment_name) {
+            const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
             // 1. 更新檔案紀錄
             await supabase.from('tuc_uploaded_files')
-              .update({ equipment_name: newLabel, display_name: newDisplayName })
+              .update({ equipment_name: currentDetectedLabel, display_name: newDisplayName })
               .eq('id', fileRecord.id);
 
             // 2. 更新知識條目 (Metadata 中的標籤)
-            // 先獲取舊條目，手動更新 JSONB
             const { data: entries } = await supabase
               .from('tuc_history_knowledge')
               .select('id, metadata')
@@ -274,7 +275,7 @@ function App() {
             
             if (entries) {
               for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: newLabel };
+                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
                 await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
               }
             }
@@ -283,9 +284,17 @@ function App() {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
         }
 
-        // V8.1: 強制等待刷新列表狀態，並加入微秒延遲確保 UI 渲染
+        // V8.2: 本地優先更新 (Local-first) - 直接修改前端狀態避開網路延遲
+        setCloudFiles(prev => prev.map(f => {
+          if (f.id === fileRecord.id) {
+            return { ...f, equipment_name: currentDetectedLabel }; 
+          }
+          return f;
+        }));
+
+        // 強制等待並加入 200ms 渲染緩衝確保 UI 絕對平滑
         await fetchCloudFiles();
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 200));
 
         setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
@@ -333,11 +342,19 @@ function App() {
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           // 2. 驅動 AI 解析引擎
-          await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          const newAdded = parseResult?.added || 0;
           
-          // 即時刷新列表狀態，讓使用者看到標籤變綠
+          // 即時刷新列表狀態 (本地優先 + 背景同步)
+          setCloudFiles(prev => prev.map(f => {
+            if (f.original_name === fileRecord.original_name) {
+              return { ...f, knowledgeCount: (f as any).knowledgeCount + newAdded };
+            }
+            return f;
+          }));
+
           await fetchCloudFiles();
-          await new Promise(r => setTimeout(r, 100));
+          await new Promise(r => setTimeout(r, 200));
 
           // 3. 更新進度
           setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
