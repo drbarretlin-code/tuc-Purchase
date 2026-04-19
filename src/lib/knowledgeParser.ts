@@ -64,26 +64,22 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
-  // V9.5: 提示詞升級，新增文件屬性辨識 (docType)
+  // V9.8: 方案一實作：三層式標籤定義規則 (Specific, Standard, Global)
   const prompt = `
     你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
-    1. 辨別這份文件的性質 (docType)：是特定設備的「採購規範(Spec)」，還是「共通性法規(Regulation)」或「技術標準(Standard)」。
+    1. 辨別這份文件的知識層級 (docType)：
+       - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
+       - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
+       - Global: 政府法規、勞安或環境保護「共通法規」(如職安法、環保規章)。
     2. 辨別設備主體名稱 (detectedEquipment)：
-       - 若為採購規範，請辨識設備名 (如：RTO、剪床)。
-       - 若為法規或標準，請統一回傳「共通性法規」或「技術標準」。
+       - 若為 Specific，請辨識設備名 (如：大明剪床、RTO)。
+       - 若為 Standard，請統一回傳「技術標準」。
+       - 若為 Global，請統一回傳「共通性法規」。
     3. 從內容中提取「技術要求」條目並分類。
 
-    分類標準如下：
-    - appearance: 外觀、顏色、材質
-    - environmental: 環保、節能、廢棄物
-    - compliance: 遵守事項、工地規定
-    - safety: 安全裝置、防護要求
-    - installation: 施工標準、程序要求
-    - technical: 特性規格、電氣機構要求
-  
     回傳格式：嚴格純 JSON 物件。
     {
-      "docType": "Spec | Regulation | Standard",
+      "docType": "Specific | Standard | Global",
       "detectedEquipment": "辨識出的設備名稱或權威關鍵字",
       "specEntries": [{"category": "類別", "content": "規範文字"}]
     }
@@ -164,7 +160,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       category: item.category,
       content: item.content,
       source_file_name: file.name,
-      metadata: { equipment_name: detectedEq }
+      metadata: { equipment_name: detectedEq, docType: parsed.docType }
     });
 
     if (!error) addedCount++;
@@ -175,7 +171,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
 /**
  * 計算加權相似度 (設備名稱 30% / 需求說明 70%)
- * V9.5: 加入「通用標籤權威權重」機制，確保法規與標準在任何情境均能獲得高分
+ * V9.8: 對齊三層標籤架構 - 全面支持 Standard/Global 層級的權威加成
  */
 export const calculateWeightedSimilarity = (
   content: string, 
@@ -205,9 +201,15 @@ export const calculateWeightedSimilarity = (
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  // V9.5: 權威標籤保底機制
-  const isGlobalItem = content.includes('共通性法規') || content.includes('技術標準') || content.includes('通用');
-  const scoreEq = isGlobalItem ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1);
+  // V9.8: 方案一權威層級保底機制 (整合 Standard 與 Global)
+  const isGlobalOrStandard = 
+    content.includes('共通性法規') || 
+    content.includes('技術標準') || 
+    content.includes('通用') ||
+    content.includes('Global') ||
+    content.includes('Standard');
+
+  const scoreEq = isGlobalOrStandard ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1);
   const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
 
   return (scoreEq * 0.3) + (scoreReq * 0.7);

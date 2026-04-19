@@ -377,7 +377,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                       {['新增', '修繕', '整改', '優化', '購置'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <SectionEditor label="需求說明" value={data.requirementDesc} onChange={(v) => updateField('requirementDesc', v)} required />
+                  <SectionEditor 
+                    label="需求說明" 
+                    value={data.requirementDesc} 
+                    onChange={(v) => updateField('requirementDesc', v)} 
+                    required 
+                    placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
+                  />
                 </div>
 
                 <div style={{ marginTop: '1.5rem' }}>
