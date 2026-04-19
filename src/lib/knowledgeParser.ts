@@ -202,7 +202,7 @@ export const calculateWeightedSimilarity = (
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  // V9.9: 增加 metadata.docType 標籤優先級
+  // V10.6: 權限錨點升級 - 針對權威項增加保底機制，防止被輸入關鍵字稀釋
   const isGlobalOrStandard = 
     content.includes('共通性法規') || 
     content.includes('技術標準') || 
@@ -212,9 +212,16 @@ export const calculateWeightedSimilarity = (
     metadata?.docType === 'Standard' ||
     metadata?.docType === 'Global';
 
-  const scoreEq = isGlobalOrStandard ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1);
-  const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
+  // 權威項給予極高保底 (0.6)，其餘計算重合
+  const scoreEq = isGlobalOrStandard ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 0.8);
+  const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1.0;
 
+  // 如果是權威項，大幅降低輸入文字的稀釋權重 (改為 7:3 分配)
+  if (isGlobalOrStandard) {
+    return (scoreEq * 0.7) + (scoreReq * 0.3);
+  }
+
+  // 一般項維持現有加權 (3:7 分配)，確保精準度
   return (scoreEq * 0.3) + (scoreReq * 0.7);
 };
 
