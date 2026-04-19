@@ -71,20 +71,44 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       { key: 'complianceTUCHints', source: 'complianceDesc' },
     ];
 
+    const { calculateWeightedSimilarity } = await import('../lib/knowledgeParser');
+    
     fieldsToHint.forEach(({ key, source }) => {
       const fieldKey = key as keyof FormState;
       const hints = (data[fieldKey] as AIHintSelection[]) || [];
-      if (hints.length === 0 && tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints]) {
+      
+      // V6.7: 即使已有資料，也在此處根據關鍵字重新篩選以保持相關度 (或僅冷啟動時)
+      if (tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints]) {
         const sourceHints = tucKnowledge.fieldHints[source as keyof typeof tucKnowledge.fieldHints];
-        (newData[fieldKey] as any) = sourceHints.map(h => ({ ...h, selected: false }));
-        changed = true;
+        
+        // 分別計算每個候選條目的加權分數
+        const scoredHints = sourceHints.map(h => ({
+          ...h,
+          score: calculateWeightedSimilarity(h.content, data.equipmentName, data.requirementDesc)
+        }));
+
+        // 應用 80% 門檻 + 保底 2 筆機制
+        let filteredHints = scoredHints.filter(h => h.score >= 0.8);
+        if (filteredHints.length === 0) {
+          filteredHints = scoredHints.sort((a, b) => b.score - a.score).slice(0, 2);
+        }
+
+        const finalHints = filteredHints
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 15)
+          .map(h => ({ id: h.id, content: h.content, selected: false }));
+
+        if (JSON.stringify(hints) !== JSON.stringify(finalHints)) {
+          (newData[fieldKey] as any) = finalHints;
+          changed = true;
+        }
       }
     });
 
     if (changed) {
       onChange(newData);
     }
-  }, []);
+  }, [data.equipmentName, data.requirementDesc]);
 
   // V6.0: 初始化並讀取雲端檔案歷史
   useEffect(() => {
@@ -139,14 +163,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const newData = { ...data };
     let changed = false;
 
-    // 關鍵字抓取：設備名稱 + 需求說明
-    const keywords = `${data.equipmentName} ${data.requirementDesc}`.trim();
-
     for (const target of targets) {
       const currentHistory = data[target.key] as AIHintSelection[];
-      // 如果強制刷新或目前的列表為空，則執行抓取
-      if (force || currentHistory.length === 0) {
-        const results = await getHistorySuggestions(target.category, keywords);
+      // 每次分頁切換或強制更新時，根據最新權重抓取歷史
+      const results = await getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
+      
+      if (JSON.stringify(currentHistory) !== JSON.stringify(results)) {
         (newData[target.key] as any) = results;
         changed = true;
       }

@@ -192,30 +192,85 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   return { added: addedCount, skipped: skippedCount };
 };
 
-export const getHistorySuggestions = async (category: string, keywords: string = '') => {
+/**
+ * 計算加權相似度 (設備名稱 30% / 需求說明 70%)
+ */
+export const calculateWeightedSimilarity = (
+  content: string, 
+  eqKeywords: string = '', 
+  reqKeywords: string = ''
+) => {
+  const tokenize = (str: string) => {
+    if (!str) return [];
+    // 支援中英文分詞：提取中文字元 或 連續的英文數字
+    return str.match(/[\u4e00-\u9fa5]|[a-zA-Z0-9]+/g) || [];
+  };
+
+  const calculateOverlap = (tokens: string[], target: string) => {
+    if (tokens.length === 0) return 0;
+    const uniqueTokens = Array.from(new Set(tokens));
+    const matches = uniqueTokens.filter(t => target.toLowerCase().includes(t.toLowerCase())).length;
+    return matches / uniqueTokens.length;
+  };
+
+  const eqTokens = tokenize(eqKeywords);
+  const reqTokens = tokenize(reqKeywords);
+
+  const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1; // 若沒輸入則視為滿分
+  const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
+
+  // 按使用者比例分配權重
+  return (scoreEq * 0.3) + (scoreReq * 0.7);
+};
+
+export const getHistorySuggestions = async (
+  category: string, 
+  eqKeywords: string = '', 
+  reqKeywords: string = ''
+) => {
   if (!supabase) return [];
   
-  let query = supabase
+  // 為了精確加權，先抓取較多（50 筆）候選條目在前端進行計算
+  const { data: candidates, error } = await supabase
     .from('tuc_history_knowledge')
     .select('id, content, source_file_name, metadata')
-    .eq('category', category);
-
-  if (keywords) {
-    // 支援內容欄位或 metadata 內的設備名稱模糊搜尋
-    query = query.or(`content.ilike.%${keywords}%, metadata->>equipment_name.ilike.%${keywords}%`);
-  }
-
-  const { data, error } = await query.limit(10).order('created_at', { ascending: false });
+    .eq('category', category)
+    .limit(50)
+    .order('created_at', { ascending: false });
     
-  if (error) {
+  if (error || !candidates) {
     console.error('History fetch error:', error);
     return [];
   }
-  
-  return data.map((item) => ({
-    id: item.id.toString(),
-    content: item.content,
-    selected: false,
-    source: item.source_file_name
+
+  // 1. 計算所有候選者的分數
+  const scoredData = candidates.map(item => ({
+    ...item,
+    score: calculateWeightedSimilarity(
+      item.content + (item.metadata?.equipment_name || ''), 
+      eqKeywords, 
+      reqKeywords
+    )
   }));
+
+  // 2. 應用 80% 門檻過濾
+  let finalResults = scoredData.filter(item => item.score >= 0.8);
+
+  // 3. 保底機制：若無吻合者，取前 2 筆最接近的
+  if (finalResults.length === 0) {
+    finalResults = scoredData
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+  }
+
+  // 4. 排序並限制 15 筆上限
+  return finalResults
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15)
+    .map((item) => ({
+      id: item.id.toString(),
+      content: item.content,
+      selected: false,
+      source: item.source_file_name
+    }));
 };
