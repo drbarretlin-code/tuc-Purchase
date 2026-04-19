@@ -64,11 +64,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
-  // V8.0: 提示詞升級，強制要求辨識設備名稱
+  // V9.5: 提示詞升級，新增文件屬性辨識 (docType)
   const prompt = `
-    你是一個專業的採購規範專家。請分析以下文字內容，完成兩件事：
-    1. 辨別出這份技術規範所描述的「設備主體名稱」(比如：RTO蓄熱式焚化爐、冷卻水塔、高壓變壓器等)。
-    2. 從內容中提取「技術要求」並分類。
+    你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
+    1. 辨別這份文件的性質 (docType)：是特定設備的「採購規範(Spec)」，還是「共通性法規(Regulation)」或「技術標準(Standard)」。
+    2. 辨別設備主體名稱 (detectedEquipment)：
+       - 若為採購規範，請辨識設備名 (如：RTO、剪床)。
+       - 若為法規或標準，請統一回傳「共通性法規」或「技術標準」。
+    3. 從內容中提取「技術要求」條目並分類。
 
     分類標準如下：
     - appearance: 外觀、顏色、材質
@@ -80,7 +83,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
     回傳格式：嚴格純 JSON 物件。
     {
-      "detectedEquipment": "辨識出的設備名稱",
+      "docType": "Spec | Regulation | Standard",
+      "detectedEquipment": "辨識出的設備名稱或權威關鍵字",
       "specEntries": [{"category": "類別", "content": "規範文字"}]
     }
     
@@ -171,7 +175,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
 /**
  * 計算加權相似度 (設備名稱 30% / 需求說明 70%)
- * V7.0: 加入「內容聚焦度」係數，讓短且精確的匹配獲得更高分數
+ * V9.5: 加入「通用標籤權威權重」機制，確保法規與標準在任何情境均能獲得高分
  */
 export const calculateWeightedSimilarity = (
   content: string, 
@@ -201,7 +205,9 @@ export const calculateWeightedSimilarity = (
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1;
+  // V9.5: 權威標籤保底機制
+  const isGlobalItem = content.includes('共通性法規') || content.includes('技術標準') || content.includes('通用');
+  const scoreEq = isGlobalItem ? 1.0 : (eqTokens.length > 0 ? calculateOverlap(eqTokens, content) : 1);
   const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 1;
 
   return (scoreEq * 0.3) + (scoreReq * 0.7);
