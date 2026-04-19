@@ -6,41 +6,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-/**
- * 測試 API 連通性並檢查可用模型
- */
-export const checkGeminiConnectivity = async (apiKey: string) => {
-  const finalKey = apiKey.trim();
-  if (!finalKey) throw new Error("API Key 為空");
-  
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${finalKey}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (response.status === 200) {
-      // 提取完整的模型名稱 (例如 models/gemini-1.5-flash)
-      const modelNames = data.models?.map((m: any) => m.name.replace('models/', '')) || [];
-      return {
-        success: true,
-        count: modelNames.length,
-        models: modelNames,
-        message: `連線成功！發現 ${modelNames.length} 個模型：${modelNames.slice(0, 3).join(', ')}...`
-      };
-    } else {
-      return {
-        success: false,
-        status: response.status,
-        message: `連線失敗 (${response.status}): ${data.error?.message || '未知錯誤'}`
-      };
-    }
-  } catch (err: any) {
-    return {
-      success: false,
-      message: `網路連線異常: ${err.message}`
-    };
-  }
-};
 
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || '';
@@ -54,16 +19,10 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   console.log(`[診斷] 金鑰特徵: ${finalKey.substring(0, 4)}...${finalKey.substring(finalKey.length-2)} (長度: ${finalKey.length})`);
   
-  // V5.6 智慧機型嗅探
-  console.log("[智慧探測] 正在動態獲取可用模型清單...");
-  const connCheck = await checkGeminiConnectivity(finalKey);
-  
-  // 優先使用探測到的模型，若探測失敗則使用預設清單
-  const discoveredModels = connCheck.success ? connCheck.models.filter((m: string) => m.includes('gemini')) : [];
-  const defaultModels = ["gemini-2.0-pro-exp", "gemini-2.0-flash", "gemini-1.5-pro"];
-  const modelsToTry = discoveredModels.length > 0 ? discoveredModels : defaultModels;
+  const defaultModels = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
+  const modelsToTry = defaultModels;
 
-  console.log(`[探測完成] 準備使用 ${modelsToTry.length} 個候選機型執行解析。清單: ${modelsToTry.join(', ')}`);
+  console.log(`[解析啟動] 準備使用 ${modelsToTry.length} 個候選機型執行解析。清單: ${modelsToTry.join(', ')}`);
 
   const genAI = new GoogleGenerativeAI(finalKey);
   let text = '';
@@ -149,9 +108,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   }
 
   if (!finalJsonResponse) {
-    if (connCheck.success && connCheck.count === 0) {
-      throw new Error("連線成功但您的 API Key 下找不到任何可用模型。請檢查 Google AI Studio 專案權限。");
-    }
     throw new Error("AI 解析服務連線失敗。請確認金鑰權限或稍後再試。");
   }
   

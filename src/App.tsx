@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, CloudUpload, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, CloudUpload, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -250,8 +250,25 @@ function App() {
             pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
             transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'auto',
-            background: isMobile ? 'white' : 'transparent'
+            background: isMobile ? 'white' : 'transparent',
+            position: 'relative'
           }}>
+            {/* V7.0: 資料庫管理入口遷移至此 */}
+            {!isMobile && showPreview && (
+              <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, padding: '0.75rem 1.5rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Eye size={16} /> 正式預覽區
+                </span>
+                <button 
+                  onClick={handleOpenInspector} 
+                  className="icon-btn" 
+                  title="資料庫與歷史檔案管理"
+                  style={{ color: 'var(--tuc-red)', border: '1px solid rgba(230,0,18,0.3)', padding: '4px 8px' }}
+                >
+                  <Database size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>資料管理</span>
+                </button>
+              </div>
+            )}
             <SpecPreview data={data} />
           </div>
         )}
@@ -317,35 +334,6 @@ function App() {
                 </button>
               </div>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                <button 
-                  className="ghost-button" 
-                  style={{ fontSize: '0.75rem', padding: '4px 12px' }}
-                  onClick={async () => {
-                    if (!tempKey) return alert('請先輸入金鑰');
-                    const { checkGeminiConnectivity } = await import('./lib/knowledgeParser');
-                    const res = await checkGeminiConnectivity(tempKey);
-                    alert(res.message);
-                  }}
-                >
-                  <Cpu size={14} style={{ marginRight: '4px' }} /> 測試連線並列出可用模型
-                </button>
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CloudUpload size={18} /> 資料庫管理
-              </h3>
-              <button 
-                className="ghost-button" 
-                onClick={handleOpenInspector} 
-                style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)' }}
-                disabled={isLoadingCloud}
-              >
-                {isLoadingCloud ? '讀取中...' : '一鍵查閱歷史檔案紀錄'}
-              </button>
-            </div>
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <Save size={18} /> 儲存設定
             </button>

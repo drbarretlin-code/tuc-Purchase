@@ -314,6 +314,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     setFilesInQueue(fileList.length);
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     
+    // V7.0: 產生單次工作唯一的 Session ID 用於佇列識別
+    const sessionId = Math.random().toString(36).substring(2, 10);
+    
     // 初始化中斷追蹤
     localStorage.setItem('tuc_active_upload_job', JSON.stringify({
       total: fileList.length,
@@ -332,71 +335,112 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       let totalAdded = 0;
       let totalSkipped = 0;
 
-      // 第一階段：極速併行上傳至 Storage 與資料表紀錄
-      console.log('[效能優化] 啟動併行上傳流程...');
+      // --- 第一階段：佇列排隊 (協作式調度) ---
+      console.log('[佇列管理] 正在加入全系統任務隊列...');
+      const { data: queueData, error: queueError } = await client.from('tuc_system_queue').insert({
+        job_tag: `Upload_${fileList.length}_files`,
+        owner_session: sessionId,
+        status: 'queued'
+      }).select().single();
+      
+      if (queueError) throw new Error("佇列系統連線失敗: " + queueError.message);
+
+      const waitForTurn = async () => {
+        let isMyTurn = false;
+        while (!isMyTurn) {
+          const { data: activeJobs } = await client
+            .from('tuc_system_queue')
+            .select('*')
+            .in('status', ['queued', 'processing'])
+            .order('created_at', { ascending: true });
+          
+          if (activeJobs && activeJobs[0]?.owner_session === sessionId) {
+            isMyTurn = true;
+            await client.from('tuc_system_queue').update({ status: 'processing' }).eq('owner_session', sessionId);
+          } else {
+            console.log('[佇列等待] 前方尚有任務，5秒後重試...');
+            await new Promise(r => setTimeout(r, 5000));
+          }
+        }
+      };
+      await waitForTurn();
+
+      // --- 第二階段：重複檢查與清空 (去重機制) ---
+      console.log('[去重運算] 偵測歷史重複檔案...');
+      for (const file of fileList) {
+        const reqDesc = data.requirementDesc || '無需求說明';
+        const { data: dup } = await client
+          .from('tuc_uploaded_files')
+          .select('id, storage_path')
+          .eq('original_name', file.name)
+          .eq('equipment_name', data.equipmentName || '未命名設備')
+          .eq('requirement_desc', reqDesc) // 配合 SQL 新增欄位
+          .maybeSingle();
+
+        if (dup) {
+          console.log(`[去重] 發現重複檔案 ${file.name}，正在進行取代作業...`);
+          // 1. 刪除相關知識條文
+          await client.from('tuc_history_knowledge').delete().eq('source_file_name', file.name);
+          // 2. 刪除原有 Storage 檔案
+          await client.storage.from('spec-files').remove([dup.storage_path]);
+          // 3. 刪除舊紀錄
+          await client.from('tuc_uploaded_files').delete().eq('id', dup.id);
+        }
+      }
+
+      // --- 第三階段：極速併行上傳 ---
+      console.log('[上傳啟動] 併行上傳至雲端儲存...');
       const uploadResults = await Promise.all(fileList.map(async (file) => {
         const ext = file.name.split('.').pop();
-        const randomStr = Math.random().toString(36).substring(2, 8);
-        const fileName = `${Date.now()}_${randomStr}.${ext}`;
-        
-        // 上傳至 Storage
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
         const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
         if (storageError) throw storageError;
 
         const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
-        const reqName = data.requester || '未知申請人';
-        const displayName = `${file.name} (${reqName})`;
+        const displayName = `${file.name} (${data.requester || '未知'})`;
 
-        // 寫入元數據
-        const { error: dbError } = await client.from('tuc_uploaded_files').insert({
+        await client.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
           public_url: publicUrl,
           display_name: displayName,
-          requester: reqName,
-          equipment_name: data.equipmentName || '未命名設備'
+          requester: data.requester || '未知',
+          equipment_name: data.equipmentName || '未命名設備',
+          requirement_desc: data.requirementDesc || '無需求說明'
         });
-        if (dbError) throw dbError;
 
         return { file, url: publicUrl, displayName };
       }));
 
-      // 第二階段：智慧順序解析 (保護 API 額度)
-      console.log('[智慧排隊] 啟動 AI 解析隊列...');
-      
+      // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
       for (let i = 0; i < uploadResults.length; i++) {
         const { file, url, displayName } = uploadResults[i];
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
-        // 執行 AI 萃取
         const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName);
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
 
-        // 更新持久化狀態
         completedNames.push(file.name);
-        localStorage.setItem('tuc_active_upload_job', JSON.stringify({
-          total: fileList.length,
-          completed: completedNames
-        }));
-
+        localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
         newUploads.push({ name: file.name, url, displayName });
         setUploadProgress(Math.round(((i + 1) / uploadResults.length) * 100));
 
-        // 智慧延遲：若非最後一個檔案，則等待一下以防 API 報錯 (根據免費版 RPM 優化為 2秒)
-        if (i < uploadResults.length - 1) {
-          await new Promise(r => setTimeout(r, 2000));
-        }
+        if (i < uploadResults.length - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
+      // --- 第五階段：完成佇列解除 ---
+      await client.from('tuc_system_queue').update({ status: 'completed' }).eq('owner_session', sessionId);
       setUploadedFiles(prev => [...prev, ...newUploads].slice(-10));
       localStorage.removeItem('tuc_active_upload_job');
-      alert(`檔案上傳並解析完成！\n成功歸納：${totalAdded} 條關鍵建議\n過濾重複：${totalSkipped} 條項目 (已跳過)`);
+      alert(`檔案上傳解析完成！\n成功：${totalAdded} | 跳過：${totalSkipped}`);
+
     } catch (err: any) {
-      console.error('[Debug] 上傳或解析異常:', err);
-      alert(`上傳或解析程序中斷: ${err.message || '未知錯誤'}\n已成功完成的部分將保留。`);
+      console.error('[佇列錯誤]', err);
+      if (client && sessionId) await client.from('tuc_system_queue').update({ status: 'error' }).eq('owner_session', sessionId);
+      alert(`程序中斷: ${err.message}`);
     } finally {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       setUploadingFile(false);
