@@ -42,6 +42,8 @@ function App() {
   // V7.1: 補解析與進度條狀態
   const [isReparsing, setIsReparsing] = useState(false);
   const [reparseProgress, setReparseProgress] = useState(0);
+  const [reparseTotal, setReparseTotal] = useState(0);
+  const [reparseIndex, setReparseIndex] = useState(0);
   const [reparseCurrentFile, setReparseCurrentFile] = useState('');
 
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
@@ -232,14 +234,20 @@ function App() {
 
     setIsReparsing(true);
     setReparseProgress(0);
+    setReparseTotal(0);
+    setReparseIndex(0);
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
 
     try {
       const { data: allFiles } = await supabase.from('tuc_uploaded_files').select('*');
       if (!allFiles) return;
+      
+      const totalCount = allFiles.length;
+      setReparseTotal(totalCount);
 
-      for (let i = 0; i < allFiles.length; i++) {
+      for (let i = 0; i < totalCount; i++) {
         const fileRecord = allFiles[i];
+        setReparseIndex(i + 1);
         setReparseCurrentFile(fileRecord.original_name);
 
         try {
@@ -271,21 +279,24 @@ function App() {
               }
             }
           }
+          // 即時刷新列表狀態，讓使用者看到標籤變綠
+          fetchCloudFiles();
         } catch (e) {
           console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
         }
 
-        setReparseProgress(Math.round(((i + 1) / allFiles.length) * 100));
-        if (i < allFiles.length - 1) await new Promise(r => setTimeout(r, 2000));
+        setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
+        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
       alert('AI 標籤校準完成！所有歷史檔案已根據內容重新歸類。');
-      fetchCloudFiles();
     } catch (err: any) {
       alert('校準過程出錯: ' + err.message);
     } finally {
       setIsReparsing(false);
       setReparseProgress(0);
+      setReparseTotal(0);
+      setReparseIndex(0);
       setReparseCurrentFile('');
     }
   };
@@ -302,11 +313,15 @@ function App() {
 
     setIsReparsing(true);
     setReparseProgress(0);
+    setReparseTotal(targets.length);
+    setReparseIndex(0);
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
 
     try {
-      for (let i = 0; i < targets.length; i++) {
+      const totalCount = targets.length;
+      for (let i = 0; i < totalCount; i++) {
         const fileRecord = targets[i];
+        setReparseIndex(i + 1);
         setReparseCurrentFile(fileRecord.original_name);
         
         try {
@@ -318,23 +333,27 @@ function App() {
           // 2. 驅動 AI 解析引擎
           await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           
+          // 即時刷新列表狀態，讓使用者看到標籤變綠
+          fetchCloudFiles();
+
           // 3. 更新進度
-          setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
+          setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         } catch (fileErr) {
           console.error(`檔案 ${fileRecord.original_name} 解析失敗:`, fileErr);
         }
 
         // 為了避免頻控，間隔 2 秒
-        if (i < targets.length - 1) await new Promise(r => setTimeout(r, 2000));
+        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
       alert('批次補解析任務已完成！');
-      fetchCloudFiles(); // 重新整理列表，更新計數
     } catch (err: any) {
       alert('批次處理出錯: ' + err.message);
     } finally {
       setIsReparsing(false);
       setReparseProgress(0);
+      setReparseTotal(0);
+      setReparseIndex(0);
       setReparseCurrentFile('');
     }
   };
@@ -629,12 +648,20 @@ function App() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Loader2 size={14} className="spin" /> 正在重新解析: <b>{reparseCurrentFile}</b>
+                    <Loader2 size={14} className="spin" /> 正在處理: <b>{reparseCurrentFile}</b>
                   </span>
-                  <span style={{ color: '#888' }}>整體進度 {reparseProgress}%</span>
+                  <span style={{ color: '#888' }}>
+                    進度: <b style={{ color: '#60A5FA' }}>{reparseIndex} / {reparseTotal}</b> ({reparseProgress}%)
+                  </span>
                 </div>
-                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ width: `${reparseProgress}%`, height: '100%', background: '#60A5FA', transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${reparseProgress}%`, 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #3B82F6, #60A5FA)', 
+                    transition: 'width 0.5s ease-out',
+                    boxShadow: '0 0 10px rgba(96, 165, 250, 0.5)'
+                  }} />
                 </div>
               </div>
             )}
