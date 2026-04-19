@@ -273,9 +273,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
               </div>
             )}
           </div>
-        </div>
 
-        {/* 右側：最近上傳紀錄 */}
+          {/* 右側：最近上傳紀錄 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
               <History size={16} /> 最近上傳成果
