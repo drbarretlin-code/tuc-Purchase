@@ -179,7 +179,7 @@ function App() {
   };
 
   const handleCleanupDuplicates = async () => {
-    if (!supabase || !confirm('系統將自動掃描資料庫中「檔名與設備相同」的重複項，僅保留最新的一筆紀錄。\n此操作將同步清理實體檔案與解析紀錄，確定執行嗎？')) return;
+    if (!supabase || !confirm('系統將自動掃描資料庫中「檔名相同」的重複項，僅保留最新的一筆紀錄。\n此操作將同步清理實體檔案與解析紀錄，確定執行嗎？')) return;
     
     try {
       // 1. 獲取所有紀錄
@@ -187,15 +187,16 @@ function App() {
         .from('tuc_uploaded_files')
         .select('id, original_name, equipment_name, created_at, storage_path')
         .order('created_at', { ascending: false });
-
+ 
       if (fetchError || !allFiles) throw fetchError;
-
+ 
       // 2. 演算法辨識重複項 (保留每組的第一筆，即最新的)
       const seen = new Set<string>();
       const toDelete: { id: string, path: string, name: string }[] = [];
-
+ 
       allFiles.forEach(bit => {
-        const key = `${bit.original_name}_${bit.equipment_name}`;
+        // V8.7: 改為僅以檔名作為去重基準 (寬鬆判斷)
+        const key = bit.original_name;
         if (seen.has(key)) {
           toDelete.push({ id: bit.id, path: bit.storage_path, name: bit.original_name });
         } else {
