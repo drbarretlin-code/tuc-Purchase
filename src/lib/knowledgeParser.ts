@@ -49,8 +49,12 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   if (!text) throw new Error('無法從檔案中提取內容');
 
+  // V8.0: 提示詞升級，強制要求辨識設備名稱
   const prompt = `
-    你是一個專業的採購規範專家。請分析以下文字內容，從中提取「技術要求」並將其分類。
+    你是一個專業的採購規範專家。請分析以下文字內容，完成兩件事：
+    1. 辨別出這份技術規範所描述的「設備主體名稱」(比如：RTO蓄熱式焚化爐、冷卻水塔、高壓變壓器等)。
+    2. 從內容中提取「技術要求」並分類。
+
     分類標準如下：
     - appearance: 外觀、顏色、材質
     - environmental: 環保、節能、廢棄物
@@ -59,8 +63,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     - installation: 施工標準、程序要求
     - technical: 特性規格、電氣機構要求
   
-    回傳格式：純 JSON 陣列。
-    [{"category": "類別名稱", "content": "提取出的單條技術規範文字"}]
+    回傳格式：嚴格純 JSON 物件。
+    {
+      "detectedEquipment": "辨識出的設備名稱",
+      "specEntries": [{"category": "類別", "content": "規範文字"}]
+    }
     
     內容：
     ${text.substring(0, 5000)}
@@ -88,16 +95,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         const status = err.status || 0;
         const msg = err.message || "";
 
-        // 處理頻率限制：429
         if (status === 429 || msg.includes("429")) {
           retryCount++;
-          const delay = 5000 + (retryCount * 2000); // 指數退避
+          const delay = 5000 + (retryCount * 2000);
           console.warn(`[頻控] ${modelConfig.id} 配額滿載，等待 ${delay}ms 後重試...`);
           await wait(delay);
           continue;
         }
 
-        // 處理模型不支援或 404
         console.warn(`[跳過過] ${modelConfig.id} 無法使用 (${status})，切換下一個機型。`);
         break; 
       }
@@ -111,21 +116,23 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   // 清理 JSON 文字
   const cleanJson = finalJsonResponse.replace(/```json|```/g, '').trim();
-  const indexData = JSON.parse(cleanJson);
+  const parsed = JSON.parse(cleanJson);
+  
+  const detectedEq = parsed.detectedEquipment || equipmentName || '未命名設備';
+  const indexData = parsed.specEntries || [];
 
-  if (!supabase) return { added: 0, skipped: 0 };
+  if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
 
   let addedCount = 0;
   let skippedCount = 0;
   
-  const targetEq = equipmentName || '未命名設備';
   for (const item of indexData) {
     const { data: existing } = await supabase
       .from('tuc_history_knowledge')
       .select('id')
       .eq('category', item.category)
       .eq('content', item.content)
-      .contains('metadata', { equipment_name: targetEq })
+      .contains('metadata', { equipment_name: detectedEq })
       .maybeSingle();
 
     if (existing) {
@@ -137,13 +144,13 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       category: item.category,
       content: item.content,
       source_file_name: file.name,
-      metadata: { equipment_name: targetEq }
+      metadata: { equipment_name: detectedEq }
     });
 
     if (!error) addedCount++;
   }
   
-  return { added: addedCount, skipped: skippedCount };
+  return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq };
 };
 
 /**

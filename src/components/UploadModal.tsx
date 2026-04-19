@@ -160,8 +160,20 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         setFilesInQueue(uploadResults.length - i);
 
         const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName);
+        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || '未命名設備';
+        
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
+
+        // V8.0: 更新檔案主紀錄的設備標籤為 AI 偵測到的結果
+        const displayName = `${file.name} (${finalDetectedEq})`;
+        await client.from('tuc_uploaded_files')
+          .update({ 
+            equipment_name: finalDetectedEq, 
+            display_name: displayName 
+          })
+          .eq('original_name', file.name)
+          .eq('storage_path', uploadResults[i].storage_path);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));

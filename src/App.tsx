@@ -226,6 +226,69 @@ function App() {
     }
   };
 
+  const handleAutofixLabels = async () => {
+    if (!supabase || !confirm('系統將分析全課檔案內容，自動辨識並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？')) return;
+
+    setIsReparsing(true);
+    setReparseProgress(0);
+    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+
+    try {
+      const { data: allFiles } = await supabase.from('tuc_uploaded_files').select('*');
+      if (!allFiles) return;
+
+      for (let i = 0; i < allFiles.length; i++) {
+        const fileRecord = allFiles[i];
+        setReparseCurrentFile(fileRecord.original_name);
+
+        try {
+          const resp = await fetch(fileRecord.public_url);
+          const blob = await resp.blob();
+          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
+
+          const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          const newLabel = result?.detectedEquipment || fileRecord.equipment_name;
+
+          if (newLabel && newLabel !== fileRecord.equipment_name) {
+            const newDisplayName = `${fileRecord.original_name} (${newLabel})`;
+            // 1. 更新檔案紀錄
+            await supabase.from('tuc_uploaded_files')
+              .update({ equipment_name: newLabel, display_name: newDisplayName })
+              .eq('id', fileRecord.id);
+
+            // 2. 更新知識條目 (Metadata 中的標籤)
+            // 先獲取舊條目，手動更新 JSONB
+            const { data: entries } = await supabase
+              .from('tuc_history_knowledge')
+              .select('id, metadata')
+              .eq('source_file_name', fileRecord.original_name);
+            
+            if (entries) {
+              for (const entry of entries) {
+                const newMetadata = { ...entry.metadata, equipment_name: newLabel };
+                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
+        }
+
+        setReparseProgress(Math.round(((i + 1) / allFiles.length) * 100));
+        if (i < allFiles.length - 1) await new Promise(r => setTimeout(r, 2000));
+      }
+
+      alert('AI 標籤校準完成！所有歷史檔案已根據內容重新歸類。');
+      fetchCloudFiles();
+    } catch (err: any) {
+      alert('校準過程出錯: ' + err.message);
+    } finally {
+      setIsReparsing(false);
+      setReparseProgress(0);
+      setReparseCurrentFile('');
+    }
+  };
+
   const handleExportAll = (format: 'csv') => {
     // ... (existing export logic)
   };
@@ -533,6 +596,20 @@ function App() {
                   title="補齊未解析檔案的條目"
                 >
                   <Zap size={16} /> <span className="header-btn-text">一鍵補解析</span>
+                </button>
+                <button 
+                  className="ghost-button" 
+                  onClick={handleAutofixLabels} 
+                  disabled={isReparsing}
+                  style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#10B981', 
+                    borderColor: 'rgba(16,185,129,0.3)',
+                    opacity: isReparsing ? 0.5 : 1
+                  }}
+                  title="由 AI 重新掃描文件內容並校準設備標籤"
+                >
+                  <ShieldAlert size={16} /> <span className="header-btn-text">AI 標籤校準</span>
                 </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
