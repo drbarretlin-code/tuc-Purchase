@@ -232,11 +232,10 @@ function App() {
 
   const handleAutofixLabels = async () => {
     if (!supabase || !confirm('系統將分析全課檔案內容，自動辨識並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？')) return;
-
-    setIsReparsing(true);
-    setReparseProgress(0);
-    setReparseTotal(0);
-    setReparseIndex(0);
+    if (!supabase) {
+      alert('資料庫尚未就緒，請檢查連線。');
+      return;
+    }
     const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
 
     try {
@@ -314,7 +313,10 @@ function App() {
   };
 
   const handleReparseAll = async () => {
-    // V8.5: 過擬目標改為 is_parsed 為 false 的檔案，支援可靠的斷點續傳
+    if (!supabase) {
+      alert('資料庫尚未就緒，請檢查連線後再試。');
+      return;
+    }
     const targets = cloudFiles.filter(f => !f.is_parsed);
     
     if (targets.length === 0) {
