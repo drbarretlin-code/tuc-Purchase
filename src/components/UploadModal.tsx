@@ -142,7 +142,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
         const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
         const displayName = `${file.name} (${data.requester || '未知'})`;
 
-        await client.from('tuc_uploaded_files').insert({
+        const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
           public_url: publicUrl,
@@ -151,9 +151,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
           equipment_name: manualEquipmentName || '未命名設備',
           requirement_desc: data.requirementDesc || '無需求說明',
           is_parsed: false
-        });
-
-        return { file, url: publicUrl, displayName, storagePath: fileName };
+        }).select('id').single();
+ 
+        if (insertError) throw insertError;
+ 
+        return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
       }));
 
       // --- 第四階段：智慧解析 ---
@@ -178,8 +180,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, data }) => {
             is_parsed: true,
             parsed_at: new Date().toISOString()
           })
-          .eq('original_name', file.name)
-          .eq('storage_path', storagePath);
+          .eq('id', id);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
