@@ -127,16 +127,29 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const targets = categoryMap[tabIndex];
     if (!targets) return;
 
-    const newData = { ...data };
+    const newData = { ...data } as any;
     let changed = false;
 
+    // V10.5: 修正覆蓋漏洞 - 使用暫存區進行多類別結果合併
+    const pendingUpdates: Record<string, AIHintSelection[]> = {};
+
     for (const target of targets) {
-      const currentHistory = data[target.key] as AIHintSelection[];
-      // 每次分頁切換或強制更新時，根據最新權重抓取歷史
       const results = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
       
-      if (JSON.stringify(currentHistory) !== JSON.stringify(results)) {
-        (newData[target.key] as any) = results;
+      if (!pendingUpdates[target.key]) {
+        pendingUpdates[target.key] = [...results];
+      } else {
+        // 如果該欄位已有結果，進行合併並去重
+        const existingIds = new Set(pendingUpdates[target.key].map(h => h.id));
+        const uniqueNew = results.filter(h => !existingIds.has(h.id));
+        pendingUpdates[target.key] = [...pendingUpdates[target.key], ...uniqueNew];
+      }
+    }
+
+    // 批量更新並比對差異
+    for (const key in pendingUpdates) {
+      if (JSON.stringify(data[key as keyof FormState]) !== JSON.stringify(pendingUpdates[key])) {
+        newData[key] = pendingUpdates[key];
         changed = true;
       }
     }
