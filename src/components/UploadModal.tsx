@@ -10,9 +10,10 @@ interface Props {
   onMinimize?: () => void;
   isMinimized?: boolean;
   data: FormState;
+  onApplyData?: (data: FormState) => void;
 }
 
-const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data }) => {
+const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data, onApplyData }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesInQueue, setFilesInQueue] = useState(0);
@@ -190,6 +191,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         newUploads.push({ name: file.name, url, displayName: newDisplayName });
         setUploadProgress(Math.round(((i + 1) / uploadResults.length) * 100));
 
+        if (result?.fullJson) {
+          setLastParsedJson(result.fullJson);
+          setLastParsedName(file.name);
+        }
+
         if (i < uploadResults.length - 1) await new Promise(r => setTimeout(r, 2000));
       }
 
@@ -216,6 +222,9 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       setCurrentUploadingName('');
     }
   };
+
+  const [lastParsedJson, setLastParsedJson] = useState<any>(null);
+  const [lastParsedName, setLastParsedName] = useState('');
 
   if (!isOpen) return null;
 
@@ -317,10 +326,19 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           </div>
         </div>
 
-        <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(230,0,18,0.05)', borderRadius: '8px', border: '1px solid rgba(230,0,18,0.1)' }}>
+        <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(230,0,18,0.05)', borderRadius: '8px', border: '1px solid rgba(230,0,18,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--tuc-red)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Zap size={14} /> <b>專家提醒：</b> 系統會自動根據「設備名稱」進行知識分群。解析完成後，您即可在左側對應分頁中看到「TUC 歷史參考 (來自上傳檔案)」的建議條文。
+            <Zap size={14} /> <b>專家提醒：</b> 系統已將檔案轉為結構化 JSON 儲存。
           </p>
+          {lastParsedJson && onApplyData && (
+            <button 
+              onClick={() => { onApplyData(lastParsedJson); onClose(); }}
+              className="primary-button"
+              style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+            >
+              🚀 載入「{lastParsedName}」的 AI 解析結果
+            </button>
+          )}
         </div>
       </div>
     </div>

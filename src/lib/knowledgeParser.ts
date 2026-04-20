@@ -67,13 +67,35 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
        - 若為 Specific，請辨識設備名 (如：大明剪床、RTO)。
        - 若為 Standard，請統一回傳「技術標準」。
        - 若為 Global，請統一回傳「共通性法規」。
-    3. 從內容中提取「技術要求」條目並分類。
+    3. 從內容中提取「技術要求」條目並分類為 specEntries。
+    4. **同時轉成結構化 JSON (fullJsonData)**：
+       請根據內容填充以下欄位，若無資訊請留空：
+       - equipmentName: 設備名稱
+       - requirementDesc: 需求描述
+       - appearance: 品相描述
+       - quantityUnit: 數量與單位
+       - scopeScope: 工程適用範圍
+       - rangeRange: 工程適用區間
+       - envRequirements: 環保要求
+       - regRequirements: 法規要求
+       - maintRequirements: 維護要求
+       - safetyRequirements: 安全要求
+       - elecSpecs: 電氣規格
+       - mechSpecs: 機構規格
+       - physSpecs: 物理規格
+       - relySpecs: 信賴規格
+       - installStandard: 施工標準
+       - workPeriod: 工期
+       - acceptanceDesc: 驗收要求
+       - complianceDesc: 遵守事項
+       - tableData: 數組對象，包含 {item, requirement, method} (對應十二. 驗收要求細目)
 
     回傳格式：嚴格純 JSON 物件。
     {
       "docType": "Specific | Standard | Global",
-      "detectedEquipment": "辨識出的設備名稱或權威關鍵字",
-      "specEntries": [{"category": "類別", "content": "規範文字"}]
+      "detectedEquipment": "辨識出的設備名稱",
+      "specEntries": [{"category": "類別", "content": "規範文字"}],
+      "fullJsonData": { ...上述欄位... }
     }
     
     內容：
@@ -109,17 +131,26 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         continue;
       }
 
-      const { error } = await supabase.from('tuc_history_knowledge').insert({
+    const fullJson = parsed.fullJsonData || {};
+    const docId = crypto.randomUUID();
+
+    for (const item of indexData) {
+      // 檢查重複... (略，維持原邏輯)
+      await supabase.from('tuc_history_knowledge').insert({
         category: item.category,
         content: item.content,
         source_file_name: file.name,
-        metadata: { equipment_name: detectedEq, docType: parsed.docType }
+        full_json_data: fullJson, // 儲存結構化版本
+        metadata: { 
+          equipment_name: detectedEq, 
+          docType: parsed.docType, 
+          docId: docId 
+        }
       });
-
-      if (!error) addedCount++;
+      addedCount++;
     }
     
-    return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq };
+    return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq, fullJson, docId };
   } catch (err) {
     console.error('[解析失敗]', err);
     throw err;
@@ -351,6 +382,7 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
         category: item.category,
         content: item.content,
         source_file_name: `[App] ${equipmentName}`,
+        full_json_data: data, // 直接儲存當前完整 FormState
         metadata: { 
           equipment_name: equipmentName, 
           docType: parsed.docType,
@@ -365,5 +397,52 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
   } catch (err) {
     console.error('[同步失敗]', err);
     throw err;
+  }
+};
+
+/**
+ * 反向組裝既有資料的 JSON
+ */
+export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: string) => {
+  if (!supabase) throw new Error('資料庫未連線');
+  const { data: entries, error } = await supabase
+    .from('tuc_history_knowledge')
+    .select('*')
+    .eq('metadata->>docId', docId);
+
+  if (error || !entries || entries.length === 0) throw new Error('找不到對應條文');
+
+  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
+  if (!rawKey) return null;
+
+  const combinedContent = entries.map(e => `[${e.category}] ${e.content}`).join('\n');
+  const equipmentName = entries[0].metadata?.equipment_name || '未命名文件';
+
+  const prompt = `
+    請將以下零散的採購條文「反向組裝」成一個結構化的 JSON 檔案。
+    欄位包含：equipmentName, requirementDesc, appearance, quantityUnit, scopeScope, rangeRange, envRequirements, regRequirements, maintRequirements, safetyRequirements, elecSpecs, mechSpecs, physSpecs, relySpecs, installStandard, workPeriod, acceptanceDesc, complianceDesc, tableData (JSONArray)。
+    請依據條文內容進行最佳分類與填充。若條文與某欄位不相關，請留空。
+
+    內容：
+    ${combinedContent}
+  `;
+
+  try {
+    const genAI = new GoogleGenerativeAI(rawKey);
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const cleanJson = responseText.replace(/```json|```/g, '').trim();
+    const fullJson = JSON.parse(cleanJson);
+    
+    // 更新資料庫回填
+    await supabase.from('tuc_history_knowledge')
+      .update({ full_json_data: fullJson })
+      .eq('metadata->>docId', docId);
+
+    return fullJson;
+  } catch (err) {
+    console.error('[反向組裝失敗]', err);
+    return null;
   }
 };

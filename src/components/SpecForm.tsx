@@ -1,15 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import type { FormState, 工程類別, AIHintSelection } from '../types/form';
-import SectionEditor from './SectionEditor';
-import ImageUpload from './ImageUpload';
-import SpecTable from './SpecTable';
 import { 
-  Info, Settings, Hammer, Table, 
-  ChevronRight, ChevronLeft, User, Building2, Hash, PenTool,
-  Download, Upload,
-  Package, ShieldCheck, Zap, Calendar
+  ChevronLeft, 
+  ChevronRight, 
+  Save, 
+  Download, 
+  Upload, 
+  FileText, 
+  Info, 
+  Settings, 
+  FileCheck, 
+  User, 
+  Hash, 
+  Package, 
+  ShieldCheck, 
+  Zap,
+  ChevronDown,
+  Database,
+  CloudUpload,
+  Hammer,
+  Table,
+  Building2,
+  PenTool,
+  Calendar
 } from 'lucide-react';
+import { SectionEditor } from './SectionEditor';
+import { SpecTable } from './SpecTable';
+import { ImageUpload } from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
+import { FormState, AIHintSelection, 工程類別 } from '../types/form';
+import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
   data: FormState;
@@ -22,6 +41,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isDbImportModalOpen, setIsDbImportModalOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -32,12 +53,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
   const currentDate = new Date().toLocaleDateString('zh-TW');
 
-  /**
-   * 載入建議 (V11: 支援雙重建議分類)
-   */
-  /**
-   * 載入建議 (V12: 佇列管理與手動觸發)
-   */
   const loadHistoryHints = async (tabIndex: number) => {
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
       0: [
@@ -65,7 +80,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const targets = categoryMap[tabIndex];
     if (!targets) return;
 
-    // 初始化狀態為 pending
     const initialStatus = { ...data.searchStatus };
     targets.forEach(t => { 
       initialStatus[t.key as string] = 'pending';
@@ -75,7 +89,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     let currentData = { ...data, searchStatus: initialStatus };
     onChange(currentData);
 
-    // 佇列執行器 (一次處理 2 個目標)
     const concurrency = 2;
     for (let i = 0; i < targets.length; i += concurrency) {
       const chunk = targets.slice(i, i + concurrency);
@@ -90,7 +103,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         }
       }));
 
-      // 更新資料與狀態
       const nextData = { ...currentData };
       chunkResults.forEach(({ target, res }) => {
         nextData[target.key as keyof FormState] = res.hints.filter(h => h.docType === 'Specific') as any;
@@ -105,7 +117,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   useEffect(() => {
-    // 切換頁面時僅做視覺滾動，不再自動觸發載入 (V12)
     const formContainer = document.querySelector('.form-content-wrap');
     if (formContainer) {
       formContainer.scrollTo({ top: 0, behavior: 'smooth' });
@@ -124,9 +135,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     onChange({ ...data, [field]: value });
   };
 
-  /**
-   * 切換建議選取狀態並同步至文字欄位
-   */
   const toggleHint = (hintField: keyof FormState, contentField: keyof FormState, hintId: string) => {
     const currentHints = data[hintField] as AIHintSelection[];
     const targetHint = currentHints.find(h => String(h.id) === String(hintId));
@@ -172,6 +180,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     a.href = url;
     a.download = `TUC_Spec_${data.equipmentName || 'Draft'}.json`;
     a.click();
+    setIsExportMenuOpen(false);
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,6 +191,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
         onChange(importedData);
+        setIsExportMenuOpen(false);
       } catch (error) {
         alert('無效的 JSON 檔案');
       }
@@ -189,9 +199,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     reader.readAsText(file);
   };
 
-  /**
-   * 執行完稿同步
-   */
   const handleSyncToKnowledge = async () => {
     if (!data.equipmentName || !data.requirementDesc) {
       setSyncStatus({ type: 'error', message: '請至少填寫設備名稱與需求說明再進行同步。' });
@@ -264,22 +271,59 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             </div>
           )}
 
-          <header className="form-header-toolbar" style={{ height: isMobile ? 'auto' : '60px', padding: isMobile ? '0.75rem' : '0 1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white', fontWeight: 'bold' }}>
-              {tabs[activeTab].icon}
-              {tabs[activeTab].label}
+          <header className="form-header-toolbar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <FileText size={20} color="var(--tuc-red)" />
+              <span style={{ fontWeight: 600, color: 'white' }}>
+                {data.equipmentName || '未命名規範文件'}
+              </span>
+              <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                DocID: {data.docId.substring(0,8)}
+              </span>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '20px' }}>
-                <Calendar size={14} /> <span>日期：{currentDate}</span>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div className="dropdown-container">
+                <button 
+                  className="icon-btn" 
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  style={{ gap: '8px', padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)' }}
+                >
+                  <Download size={16} /> 
+                  <span className="header-btn-text">檔案選項</span>
+                  <ChevronDown size={14} />
+                </button>
+
+                {isExportMenuOpen && (
+                  <div className="dropdown-menu glass-panel">
+                    <button className="dropdown-item" onClick={handleExportJSON}>
+                      <Download size={16} /> 下載編輯 JSON (本地)
+                    </button>
+                    <button className="dropdown-item" onClick={() => { setIsExportMenuOpen(false); setIsDbImportModalOpen(true); }}>
+                      <Database size={16} /> 從雲端知識庫匯入
+                    </button>
+                    <label className="dropdown-item" style={{ cursor: 'pointer' }}>
+                      <Upload size={16} /> 載入本地 JSON
+                      <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+                )}
               </div>
-              <div style={{ height: '20px', width: '1px', background: 'var(--border-color)' }}></div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <label className="icon-btn" style={{ cursor: 'pointer' }} title="導入專案">
-                  <Upload size={16} /><input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
-                </label>
-                <button className="icon-btn" onClick={handleExportJSON} title="儲存專案"><Download size={16} /></button>
-              </div>
+
+              <button 
+                onClick={handleSyncToKnowledge} 
+                disabled={isSyncing}
+                className="icon-btn" 
+                style={{ 
+                  gap: '8px', 
+                  padding: '0.6rem 1.2rem', 
+                  background: 'linear-gradient(135deg, #059669, #10B981)',
+                  border: 'none'
+                }}
+              >
+                <CloudUpload size={16} /> 
+                <span className="header-btn-text">{isSyncing ? '同步中...' : '同步至雲端'}</span>
+              </button>
             </div>
           </header>
 
@@ -332,7 +376,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onRegHintToggle={(id) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
 
-                  {/* V12: 手動觸發按鈕 */}
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => loadHistoryHints(0)}
@@ -374,7 +417,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onHistoryHintToggle={(id) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
-                 {/* V12: 章節 2-4 的手動按鈕也放在這以便重新分析 */}
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => loadHistoryHints(activeTab)}
@@ -651,9 +693,29 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 下一步 <ChevronRight size={20} />
               </button>
             )}
-          </footer>
         </main>
       </div>
+
+      <DatabaseImportModal 
+        isOpen={isDbImportModalOpen}
+        onClose={() => setIsDbImportModalOpen(false)}
+        onSelect={(importedData) => onChange(importedData)}
+      />
+
+      <style>{`
+        .ghost-button {
+          background: none;
+          border: 1px solid var(--border-color);
+          color: white;
+          padding: 0.5rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .ghost-button:disabled { opacity: 0.3; cursor: not-allowed; }
+      `}</style>
     </div>
   );
 };

@@ -931,9 +931,10 @@ function App() {
       <UploadWizardModal 
         isOpen={showUploadWizard} 
         onClose={() => setShowUploadWizard(false)} 
-        onMinimize={() => setIsReparseMinimized(true)}
+        onMinimize={() => { setShowUploadWizard(false); }}
         isMinimized={isReparseMinimized}
         data={data} 
+        onApplyData={setData}
       />
 
       {/* V9.9: 全域任務監測膠囊 (Floating Task Capsule) */}
