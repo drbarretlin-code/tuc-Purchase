@@ -1,4 +1,4 @@
-import mammoth from 'mammoth';
+// 已移除 mammoth，改用 Gemini 多模態解析匯入
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenAI } from "@google/genai";
@@ -33,12 +33,12 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   }
 
   // 優先順序策略 (由 2026 最新至穩定版)
+  // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
     'gemini-3.1-flash',
     'gemini-3.0-flash',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
     'gemini-1.5-flash'
   ];
 
@@ -59,17 +59,8 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
       
-      // 處理 404 (Not Found) 或 503 (Overloaded/Unavailable)
-      if (
-        status === 404 || 
-        status === 503 ||
-        errMsg.includes('404') || 
-        errMsg.includes('503') ||
-        errMsg.toLowerCase().includes('not found') ||
-        errMsg.toLowerCase().includes('unavailable') ||
-        errMsg.toLowerCase().includes('high demand')
-      ) {
-        console.warn(`[AI Discovery] 模型 ${mId} 暫時不可用 (${status || 'Error'})，嘗試下一個...`);
+      if (errMsg.includes('404') || status === 404 || errMsg.toLowerCase().includes('not found')) {
+        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404/Not Found)，嘗試下一個...`);
         continue;
       }
       
@@ -79,7 +70,7 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
         continue;
       }
 
-      console.error(`[AI Discovery] 試驗 ${mId} 時發生關鍵錯誤:`, errMsg);
+      console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
       // 若為授權錯誤 (401)，則不需要再試驗其他模型
       if (status === 401 || errMsg.includes('API key not valid')) break;
     }
@@ -87,6 +78,21 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
 
   return cachedModelId || 'gemini-1.5-flash';
 }
+
+/**
+ * 助手函式：將 File 轉換為 Base64 字串
+ */
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+};
 
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
@@ -97,25 +103,27 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   const ai = new GoogleGenAI({ apiKey: finalKey });
   const modelId = await getAutoSelectedModel(finalKey);
 
+  let inlineData: { data: string, mimeType: string } | null = null;
   let text = '';
   
-  if (file.name.endsWith('.docx')) {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    text = result.value;
-  } else if (file.name.endsWith('.doc')) {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    const decoder = new TextDecoder('utf-8', { fatal: false });
-    const rawContent = decoder.decode(uint8);
-    text = rawContent.replace(/[^\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF]/g, ' ');
+  // V13.5: 多模態解析架構
+  if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+    const base64 = await fileToBase64(file);
+    const mimeType = file.name.endsWith('.docx') 
+      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+    
+    inlineData = { data: base64, mimeType };
+    console.log(`[AI Multimodal] 使用多模態解析檔案: ${file.name} (${mimeType})`);
   } else if (file.name.endsWith('.pdf')) {
     const arrayBuffer = await file.arrayBuffer();
+    // V13.1: 修正 PDF.js cMap 配置
     const pdf = await pdfjsLib.getDocument({ 
       data: arrayBuffer,
       cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
       cMapPacked: true
     }).promise;
+    
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -123,15 +131,15 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       fullText += content.items.map((item: any) => item.str).join(' ');
     }
     text = fullText;
+    if (!text || text.trim().length === 0) {
+      throw new Error('無法從傳入的 PDF 中提取任何文字 (檔案可能受保護或僅包含影像)。');
+    }
   }
 
-  if (!text || text.trim().length === 0) {
-    const errorSuffix = file.name.endsWith('.pdf') ? ' (此檔案可能受保護或僅包含影像，無法提取純文字)' : '';
-    throw new Error(`無法從檔案中提取內容${errorSuffix}`);
-  }
+  if (!text && !inlineData) throw new Error('不支援的檔案格式或無法解析檔案內容。');
 
   const prompt = `
-    你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
+    你是一個專業的採購規範專家。請分析${inlineData ? '「附件檔案」' : '「以下文字」'}的內容，完成以下任務：
     1. 辨別這份文件的知識層級 (docType)：
        - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
        - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
@@ -171,14 +179,19 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       "fullJsonData": { ...上述欄位... }
     }
     
-    內容：
-    ${text.substring(0, 8000)}
+    ${text ? `內容文字：\n${text.substring(0, 15000)}` : '請直接分析附件二進制檔案。'}
   `;
 
   try {
+    const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
+    
+    if (inlineData) {
+      contents[0].parts.push({ inlineData });
+    }
+
     const result = await ai.models.generateContent({
       model: modelId,
-      contents: prompt
+      contents
     });
     const responseText = result.text;
     if (!responseText) throw new Error('AI 回傳內容為空');
@@ -335,7 +348,7 @@ export const getHistorySuggestions = async (
       }
       
       return { ...item, score };
-    }).filter(item => item.score >= 0.4); // 門檻調整為 40% (符合 broader recall 策略下之精確要求)
+    }).filter(item => item.score >= 0.2); // 門檻調整為 20%
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
