@@ -424,21 +424,54 @@ function App() {
           // 2. 驅動 AI 解析引擎
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
           const newAdded = parseResult?.added || 0;
+          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
           
-          // V8.6: 解析成功後，立即使用 ID 寫入 is_parsed 狀態，並校驗結果
+          // V12: 補解析時同步進行「標籤校準」
+          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
+          const updateData: any = { 
+            is_parsed: true, 
+            is_calibrated: true, // 同步進行校準
+            parsed_at: new Date().toISOString(),
+            equipment_name: currentDetectedLabel,
+            equipment_tags: [currentDetectedLabel],
+            display_name: newDisplayName
+          };
+
           const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update({ is_parsed: true, parsed_at: new Date().toISOString() })
+            .update(updateData)
             .eq('id', fileRecord.id);
 
           if (updateError) {
-            console.error('更新解析狀態失敗:', updateError);
-            throw new Error(`無法將檔案標記為已解析。請確保您已執行 SQL 腳本新增 is_parsed 欄位。(${updateError.message})`);
+            console.error('更新解析與校準狀態失敗:', updateError);
+            throw new Error(`無法將檔案標記為已解析/校準。(${updateError.message})`);
+          }
+
+          // 同步更新知識庫內的 metadata (標籤校準核心)
+          if (currentDetectedLabel !== fileRecord.equipment_name) {
+            const { data: entries } = await supabase
+              .from('tuc_history_knowledge')
+              .select('id, metadata')
+              .eq('source_file_name', fileRecord.original_name);
+            
+            if (entries) {
+              for (const entry of entries) {
+                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
+                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
+              }
+            }
           }
 
           // V8.6: 精準刷新列表狀態 (純本地使用 ID)
           setCloudFiles(prev => prev.map(f => {
             if (f.id === fileRecord.id) {
-              return { ...f, knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, is_parsed: true };
+              return { 
+                ...f, 
+                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, 
+                is_parsed: true,
+                is_calibrated: true,
+                equipment_name: currentDetectedLabel,
+                equipment_tags: [currentDetectedLabel]
+              };
             }
             return f;
           }));
@@ -446,19 +479,18 @@ function App() {
           // 渲染緩衝
           await new Promise(r => setTimeout(r, 100));
         } catch (fileErr: any) {
-          console.error(`檔案 ${fileRecord.original_name} 解析失敗:`, fileErr);
+          console.error(`檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
           alert(`處理 ${fileRecord.original_name} 時中斷: ${fileErr.message}`);
-          break; // 若資料庫出錯，停止後續檔案，避免重複無效請求
+          break; 
         }
 
         // 為了避免頻控，間隔 6 秒
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
       }
 
-      // V8.10: 增加後置同步緩衝，確保 DB 索引已落地
       await new Promise(r => setTimeout(r, 1000));
       await fetchCloudFiles(); 
-      alert('批次補解析任務已完成！');
+      alert('批次補解析與 AI 標籤校準任務已完成！');
     } catch (err: any) {
       alert('批次處理出錯: ' + err.message);
     } finally {
