@@ -1,4 +1,4 @@
-// 已移除 mammoth，改用 Gemini 多模態解析匯入
+import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenAI } from "@google/genai";
@@ -103,6 +103,41 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+/**
+ * 助手函式：從二進制檔案中「粗暴提取」可讀文字 (針對舊版 .doc)
+ * 掃描 ASCII 與 UTF-16LE 序列，過濾掉長度小於 4 的片段。
+ */
+const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
+  const view = new DataView(buffer);
+  let result = '';
+  let currentString = '';
+
+  // 1. 嘗試掃描 1-byte (ASCII/UTF-8) 序列
+  for (let i = 0; i < buffer.byteLength; i++) {
+    const charCode = view.getUint8(i);
+    if ((charCode >= 32 && charCode <= 126) || (charCode >= 161 && charCode <= 254)) {
+      currentString += String.fromCharCode(charCode);
+    } else {
+      if (currentString.length >= 4) result += currentString + ' ';
+      currentString = '';
+    }
+  }
+
+  // 2. 嘗試掃描 2-byte (UTF-16LE) 序列 (Word 常用)
+  for (let i = 0; i < buffer.byteLength - 1; i += 2) {
+    const charCode = view.getUint16(i, true);
+    // 包含基本 ASCII 與 CJK 範圍
+    if ((charCode >= 32 && charCode <= 126) || (charCode >= 0x4E00 && charCode <= 0x9FFF)) {
+      currentString += String.fromCharCode(charCode);
+    } else {
+      if (currentString.length >= 4) result += currentString + ' ';
+      currentString = '';
+    }
+  }
+
+  return result.replace(/\s+/g, ' ').trim();
+};
+
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   const finalKey = rawKey.trim();
@@ -115,15 +150,21 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   let inlineData: { data: string, mimeType: string } | null = null;
   let text = '';
   
-  // V13.5: 多模態解析架構
-  if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-    const base64 = await fileToBase64(file);
-    const mimeType = file.name.endsWith('.docx') 
-      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      : 'application/msword';
-    
-    inlineData = { data: base64, mimeType };
-    console.log(`[AI Multimodal] 使用多模態解析檔案: ${file.name} (${mimeType})`);
+  // V13.8: 複合式解析架構 (Docx/Doc 本地提取，PDF 自動回退多模態)
+  if (file.name.endsWith('.docx')) {
+    const arrayBuffer = await file.arrayBuffer();
+    try {
+      const resp = await mammoth.extractRawText({ arrayBuffer });
+      text = resp.value;
+      console.log(`[AI Parser] .docx 本地提取成功: ${text.length} 字`);
+    } catch (err) {
+      console.warn(`[AI Parser] .docx 本地提取失敗，嘗試粗暴掃描:`, err);
+      text = extractStringsFromBinary(arrayBuffer);
+    }
+  } else if (file.name.endsWith('.doc')) {
+    const arrayBuffer = await file.arrayBuffer();
+    text = extractStringsFromBinary(arrayBuffer);
+    console.log(`[AI Parser] .doc (Legacy) 字串掃描成功: ${text.length} 字`);
   } else if (file.name.endsWith('.pdf')) {
     const arrayBuffer = await file.arrayBuffer();
     // V13.1: 修正 PDF.js cMap 配置
@@ -154,7 +195,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   if (!text && !inlineData) throw new Error('不支援的檔案格式或無法解析檔案內容。');
 
   const prompt = `
-    你是一個專業的採購規範專家。請分析${inlineData ? '「附件檔案」' : '「以下文字」'}的內容，完成以下任務：
+    你是一個專業的採購規範專家。請分析${inlineData ? '「附件檔案」' : '「以下內容」'}，完成以下任務：
     1. 辨別這份文件的知識層級 (docType)：
        - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
        - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
