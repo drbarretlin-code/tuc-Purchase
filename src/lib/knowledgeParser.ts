@@ -7,8 +7,8 @@ import type { AIHintSelection } from '../types/form';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
-// V12.3: 依使用者要求使用最先進模型 (不降轉)
-const GEMINI_MODEL = "gemini-3-flash";
+// V12.4: 更新為 Gemini 3 系列準確識別碼 (解決 404 報錯)
+const GEMINI_MODEL = "gemini-3.1-flash";
 
 const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '防爆': 2.0,
