@@ -130,33 +130,41 @@ export const INITIAL_FORM_STATE: FormState = {
   model: '',
   category: '新增',
   requirementDesc: '',
+  requirementDescHistoryHints: [],
   requirementDescRegHints: [],
   appearance: '',
+  appearanceHistoryHints: [],
   appearanceRegHints: [],
   quantityUnit: '',
   rangeRange: '依請購內容而定',
+  rangeHistoryHints: [],
   rangeRegHints: [],
   envRequirements: '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
   envAIHints: [],
-  envAIHints: [],
+  envHistoryHints: [],
   envRegHints: [],
   regRequirements: '符合國家法規',
   regAIHints: [],
-  regAIHints: [],
+  regHistoryHints: [],
   regRegHints: [],
   maintRequirements: '依台燿規定',
+  maintHistoryHints: [],
   maintRegHints: [],
   safetyRequirements: '設計與安裝符合職業安全衛生法令規範',
   safetyAIHints: [],
-  safetyAIHints: [],
+  safetyHistoryHints: [],
   safetyRegHints: [],
   elecSpecs: '依台燿規定',
+  elecHistoryHints: [],
   elecRegHints: [],
   mechSpecs: '依台燿規定',
+  mechHistoryHints: [],
   mechRegHints: [],
   physSpecs: '依台燿規定',
+  physHistoryHints: [],
   physRegHints: [],
   relySpecs: '依台燿規定',
+  relyHistoryHints: [],
   relyRegHints: [],
   customSpec1Name: '',
   customSpec1Value: '',
@@ -168,7 +176,7 @@ export const INITIAL_FORM_STATE: FormState = {
 4. 工程固定安全衛生管理監工乙員，現場無監工不得作業
 5. 工程完工符合人員安全操作及維修方便性，承包商自行評估進來
 6. 本案工程以功能符合需求、責任施工，承包商不得追加費用
-7. 工程完工設施整體須整齊、美觀、安全。未經核准不得使用葫蘆吊
+7. 工程完工設施整體須整齊、美觀、安全。未經核須不得使用葫蘆吊
 8. 手閥把手顏色依操作方式裝設。常開(藍色)/常閉(紅色)/調整(黃色)
 9. 金屬管、支架屬sus亮面材質
 10. 現場施工需維護環境及設備整潔
@@ -177,12 +185,13 @@ export const INITIAL_FORM_STATE: FormState = {
 13. 施工日期須配合業主許可日期進行
 14. 本工程金屬類廢棄物須清運至tuc指定位置，其餘非金屬類廢棄物承包商須負責處理
 15. 承包工程當訂單確定後須提供進廠相關資料，如附件內容`,
+  installHistoryHints: [],
   installRegHints: [],
   deliveryDate: '',
   workPeriod: '',
   acceptanceDesc: '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收',
   acceptanceAIHints: [],
-  acceptanceAIHints: [],
+  acceptanceHistoryHints: [],
   acceptanceRegHints: [],
   acceptanceExtra: '補充說明',
   complianceDesc: `1. 工程設施驗收後保固一年，工程費用含萬分之7工程保險
@@ -202,6 +211,7 @@ export const INITIAL_FORM_STATE: FormState = {
 15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
 16. 電力/電控盤與旋轉/傳動機構張貼警告標語
 17. 因本工程造成設施(備)損(傷)壞須賠償。`,
+  complianceHistoryHints: [],
   complianceRegHints: [],
   images: [],
   tableData: [

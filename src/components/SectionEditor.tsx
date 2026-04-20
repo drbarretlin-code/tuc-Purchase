@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar, ExternalLink, Loader2 } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -16,13 +16,12 @@ interface Props {
   required?: boolean;
   placeholder?: string;
   inputType?: string;
-  isLoading?: boolean;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
   label, value, onChange, hints, historyHints, regHints, 
   onHintToggle, onHistoryHintToggle, onRegHintToggle, 
-  isTextArea = true, required = false, placeholder, inputType = "text", isLoading = false
+  isTextArea = true, required = false, placeholder, inputType = "text"
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
