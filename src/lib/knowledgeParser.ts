@@ -1,14 +1,53 @@
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from "@google/genai";
 import type { AIHintSelection } from '../types/form';
 
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
-// V12.5: 更新為 2026.04 預覽版識別碼 (解決 404 報錯)
-const GEMINI_MODEL = "gemini-3.1-flash-preview";
+/**
+ * V13: 動態模型管理系統 (2026 最新版)
+ * 使用 @google/genai 統一 SDK，具備自動模型發現機制
+ */
+let cachedModelId: string | null = null;
+
+async function getAutoSelectedModel(apiKey: string): Promise<string> {
+  if (cachedModelId) return cachedModelId;
+  
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    // 獲取當前 API Key 有權限的所有模型
+    const response = await ai.models.list();
+    
+    // 提取模型名稱並過濾
+    const availableNames = response.map(m => m.name.replace('models/', ''));
+    console.log('[AI Discovery] 可用模型列表:', availableNames);
+
+    // 優先順序策略 (由新至舊)
+    const priorityList = [
+      'gemini-3.1-flash',
+      'gemini-3-flash',
+      'gemini-2.1-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash'
+    ];
+
+    for (const p of priorityList) {
+      const match = availableNames.find(name => name.startsWith(p));
+      if (match) {
+        cachedModelId = match;
+        console.log(`[AI Discovery] 成功匹配最優模型: ${cachedModelId}`);
+        break;
+      }
+    }
+  } catch (err) {
+    console.warn('[AI Discovery] 自動偵測失敗，使用預設 1.5-flash:', err);
+  }
+
+  return cachedModelId || 'gemini-1.5-flash';
+}
 
 const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '防爆': 2.0,
@@ -30,7 +69,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
   
-  const genAI = new GoogleGenerativeAI(finalKey);
+  const ai = new GoogleGenAI({ apiKey: finalKey });
+  const modelId = await getAutoSelectedModel(finalKey);
+
   let text = '';
   
   if (file.name.endsWith('.docx')) {
@@ -103,9 +144,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL }, { apiVersion: 'v1beta' });
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt
+    });
+    const responseText = result.text;
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
     
@@ -211,8 +254,8 @@ const rerankWithAI = async (
   if (!apiKey || candidates.length === 0) return candidates;
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL }, { apiVersion: 'v1beta' });
+    const ai = new GoogleGenAI({ apiKey });
+    const modelId = await getAutoSelectedModel(apiKey);
 
     const prompt = `
       你是一個專業的採購規範審核專家。
@@ -231,8 +274,11 @@ const rerankWithAI = async (
       僅回傳純 JSON 陣列。
     `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt
+    });
+    const responseText = result.text;
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const scores = JSON.parse(cleanJson);
 
@@ -354,11 +400,14 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
   `;
 
   try {
-    // 執行 AI 解析
-    const genAI = new GoogleGenerativeAI(finalKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL }, { apiVersion: 'v1beta' });
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const ai = new GoogleGenAI({ apiKey: finalKey });
+    const modelId = await getAutoSelectedModel(finalKey);
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt
+    });
+    const responseText = result.text;
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
     const indexData = parsed.specEntries || [];
@@ -444,10 +493,14 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   `;
 
   try {
-    const genAI = new GoogleGenerativeAI(rawKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL }, { apiVersion: 'v1beta' });
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const ai = new GoogleGenAI({ apiKey: rawKey });
+    const modelId = await getAutoSelectedModel(rawKey);
+
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt
+    });
+    const responseText = result.text;
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const fullJson = JSON.parse(cleanJson);
     
