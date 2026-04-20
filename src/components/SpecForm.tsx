@@ -23,7 +23,8 @@ import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
-import { FormState, AIHintSelection, 工程類別, INITIAL_FORM_STATE } from '../types/form';
+import type { FormState, AIHintSelection, 工程類別 } from '../types/form';
+import { INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
@@ -683,16 +684,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         onClose={() => setIsDbImportModalOpen(false)}
         onSelect={(importedData: any) => {
           // V12.5: 強化狀態合併邏輯，確保 searchStatus 等關鍵 UI 狀態不會遺失
-          onChange((prev: FormState) => ({
+          // 使用目前的 data prop 進行合併，確保符合 onChange(newData: FormState) 的類型要求
+          const merged: FormState = {
             ...INITIAL_FORM_STATE,
-            ...prev,
+            ...data,
             ...importedData,
             searchStatus: {
               ...(INITIAL_FORM_STATE.searchStatus || {}),
-              ...(prev.searchStatus || {}),
+              ...(data.searchStatus || {}),
               ...(importedData.searchStatus || {})
             }
-          }));
+          };
+          onChange(merged);
         }}
       />
 
