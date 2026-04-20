@@ -17,37 +17,62 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
   const ai = new GoogleGenAI({ apiKey });
-  // 優先順序策略 (由新至舊)
+  
+  // 嘗試列出所有可用模型供開發診斷 (嘗試多種可能的 API 命名)
+  try {
+    const listMethods = ['list', 'listModels', 'list_models'];
+    for (const methodName of listMethods) {
+      if (typeof (ai.models as any)[methodName] === 'function') {
+        const listResponse = await (ai.models as any)[methodName]();
+        console.log(`[AI Discovery] 透過 ${methodName}() 獲取完整模型列表:`, listResponse);
+        break;
+      }
+    }
+  } catch (diagErr) {
+    console.warn('[AI Discovery] 嘗試列出模型失敗 (診斷用):', diagErr);
+  }
+
+  // 優先順序策略 (由 2026 最新至穩定版)
+  // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
     'gemini-3.1-flash',
-    'gemini-3-flash',
-    'gemini-2.1-flash',
-    'gemini-2.0-flash',
+    'gemini-3.0-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
     'gemini-1.5-flash'
   ];
 
-  console.log('[AI Discovery] 開始進行可用模型試驗...');
+  console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
 
   for (const mId of priorityList) {
     try {
-      // 使用 countTokens 進行輕量級連線測試，這不需要花費 Token 也比直接 List 穩定
-      await ai.models.countTokens({
+      // 必須使用 generateContent 進行試驗，因為 countTokens 可能在已禁用模型上仍然成功
+      await ai.models.generateContent({
         model: mId,
-        contents: [{ role: 'user', parts: [{ text: 'ping' }] }]
+        contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+        config: { maxOutputTokens: 1 } // 極小消耗
       });
       cachedModelId = mId;
-      console.log(`[AI Discovery] 試驗成功，確認最優可用模型: ${cachedModelId}`);
+      console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
       break;
     } catch (err: any) {
-      // 捕捉 404 或 Not Found 錯誤，繼續試驗下一個模型
       const errMsg = err.message || '';
-      if (errMsg.includes('404') || errMsg.toLowerCase().includes('not found')) {
-        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404)，嘗試下一個...`);
+      const status = err.status || (err.response ? err.response.status : null);
+      
+      if (errMsg.includes('404') || status === 404 || errMsg.toLowerCase().includes('not found')) {
+        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404/Not Found)，嘗試下一個...`);
         continue;
       }
-      // 其他嚴重錯誤 (如 401 Unauthorized) 則停止嘗試
-      console.error(`[AI Discovery] 試驗 ${mId} 時發生嚴重錯誤:`, errMsg);
-      break;
+      
+      // 處理「新使用者受限」的特殊報錯
+      if (errMsg.includes('no longer available to new users')) {
+        console.warn(`[AI Discovery] 模型 ${mId} 受限 (僅限舊用戶)，跳過...`);
+        continue;
+      }
+
+      console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
+      // 若為授權錯誤 (401)，則不需要再試驗其他模型
+      if (status === 401 || errMsg.includes('API key not valid')) break;
     }
   }
 
