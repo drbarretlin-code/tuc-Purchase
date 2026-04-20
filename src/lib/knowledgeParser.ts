@@ -2,6 +2,7 @@ import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { AIHintSelection } from '../types/form';
 
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;

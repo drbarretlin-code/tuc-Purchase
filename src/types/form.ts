@@ -119,7 +119,7 @@ export interface FormState {
   applicantName: string;
   deptHeadName: string;
   signOffGrid: string[][]; // 3 rows x 6 columns
-  searchStatus: Record<string, 'pending' | 'success' | 'no_key' | 'error' | 'none'>;
+  searchStatus: Record<string, 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none'>;
 }
 
 export const INITIAL_FORM_STATE: FormState = {
