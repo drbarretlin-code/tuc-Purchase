@@ -6,6 +6,7 @@ export interface AIHintSelection {
   link?: string;
   selected: boolean;
   source?: string; // 來源檔案名稱
+  docType: string; // V12: 新增文檔類型區分 (Specific/Standard/Global)
 }
 
 export interface SpecImage {
