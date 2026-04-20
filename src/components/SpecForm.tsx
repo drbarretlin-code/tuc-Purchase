@@ -579,13 +579,15 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>九. 安裝與遵守事項</h3>
                 <SectionEditor 
                    label="施工標準 (九)" 
-                   value={data.installStandard} 
-                   onChange={(v: string) => updateField('installStandard', v)} 
-                   historyHints={data.installHistoryHints}
-                   regHints={data.installRegHints}
-                   searchStatus={data.searchStatus['installHistoryHints']}
-                   onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
-                   onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
+                    value={data.installStandard} 
+                    onChange={(v: string) => updateField('installStandard', v)} 
+                    hints={data.installAIHints}
+                    historyHints={data.installHistoryHints}
+                    regHints={data.installRegHints}
+                    searchStatus={data.searchStatus?.['installHistoryHints'] || 'none'}
+                    onHintToggle={(id: string) => toggleHint('installAIHints', 'installStandard', id)}
+                    onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
+                    onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />

@@ -98,6 +98,7 @@ export interface FormState {
   
   // 九. 安裝程序
   installStandard: string;
+  installAIHints: AIHintSelection[];
   installHistoryHints: AIHintSelection[];
   installRegHints: AIHintSelection[];
   deliveryDate: string;
@@ -110,6 +111,7 @@ export interface FormState {
   
   // 十. 遵守事項
   complianceDesc: string;
+  complianceAIHints: AIHintSelection[];
   complianceHistoryHints: AIHintSelection[];
   complianceRegHints: AIHintSelection[];
   
@@ -191,6 +193,7 @@ export const INITIAL_FORM_STATE: FormState = {
 13. 施工日期須配合業主許可日期進行
 14. 本工程金屬類廢棄物須清運至tuc指定位置，其餘非金屬類廢棄物承包商須負責處理
 15. 承包工程當訂單確定後須提供進廠相關資料，如附件內容`,
+  installAIHints: [],
   installHistoryHints: [],
   installRegHints: [],
   deliveryDate: '',
@@ -217,6 +220,7 @@ export const INITIAL_FORM_STATE: FormState = {
 15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
 16. 電力/電控盤與旋轉/傳動機構張貼警告標語
 17. 因本工程造成設施(備)損(傷)壞須賠償。`,
+  complianceAIHints: [],
   complianceHistoryHints: [],
   complianceRegHints: [],
   images: [],
