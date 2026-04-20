@@ -306,20 +306,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 )}
               </div>
 
-              <button 
-                onClick={handleSyncToKnowledge} 
-                disabled={isSyncing}
-                className="icon-btn" 
-                style={{ 
-                  gap: '8px', 
-                  padding: '0.6rem 1.2rem', 
-                  background: 'linear-gradient(135deg, #059669, #10B981)',
-                  border: 'none'
-                }}
-              >
-                <CloudUpload size={16} /> 
-                <span className="header-btn-text">{isSyncing ? '同步中...' : '同步至雲端'}</span>
-              </button>
+
             </div>
           </header>
 
