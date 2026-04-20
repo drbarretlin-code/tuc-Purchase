@@ -16,35 +16,39 @@ let cachedModelId: string | null = null;
 async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    // 獲取當前 API Key 有權限的所有模型
-    // V13.1: 修正 TS2339 報錯並增加型別定義
-    const response = await (ai.models as any).list();
-    
-    // 提取模型名稱並過濾
-    const availableNames = response.map((m: any) => m.name.replace('models/', ''));
-    console.log('[AI Discovery] 可用模型列表:', availableNames);
+  const ai = new GoogleGenAI({ apiKey });
+  // 優先順序策略 (由新至舊)
+  const priorityList = [
+    'gemini-3.1-flash',
+    'gemini-3-flash',
+    'gemini-2.1-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
 
-    // 優先順序策略 (由新至舊)
-    const priorityList = [
-      'gemini-3.1-flash',
-      'gemini-3-flash',
-      'gemini-2.1-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash'
-    ];
+  console.log('[AI Discovery] 開始進行可用模型試驗...');
 
-    for (const p of priorityList) {
-      const match = availableNames.find((name: string) => name.startsWith(p));
-      if (match) {
-        cachedModelId = match;
-        console.log(`[AI Discovery] 成功匹配最優模型: ${cachedModelId}`);
-        break;
+  for (const mId of priorityList) {
+    try {
+      // 使用 countTokens 進行輕量級連線測試，這不需要花費 Token 也比直接 List 穩定
+      await ai.models.countTokens({
+        model: mId,
+        contents: [{ role: 'user', parts: [{ text: 'ping' }] }]
+      });
+      cachedModelId = mId;
+      console.log(`[AI Discovery] 試驗成功，確認最優可用模型: ${cachedModelId}`);
+      break;
+    } catch (err: any) {
+      // 捕捉 404 或 Not Found 錯誤，繼續試驗下一個模型
+      const errMsg = err.message || '';
+      if (errMsg.includes('404') || errMsg.toLowerCase().includes('not found')) {
+        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404)，嘗試下一個...`);
+        continue;
       }
+      // 其他嚴重錯誤 (如 401 Unauthorized) 則停止嘗試
+      console.error(`[AI Discovery] 試驗 ${mId} 時發生嚴重錯誤:`, errMsg);
+      break;
     }
-  } catch (err) {
-    console.warn('[AI Discovery] 自動偵測失敗，使用預設 1.5-flash:', err);
   }
 
   return cachedModelId || 'gemini-1.5-flash';
