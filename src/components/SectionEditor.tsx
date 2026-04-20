@@ -142,7 +142,7 @@ const SectionEditor: React.FC<Props> = ({
             </div>
           )}
           {searchStatus === 'empty' && (
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ 未發現符合門檻 (60%) 的智慧建議，請嘗試增加更多需求描述內容。</p>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ 未發現符合門檻 (70%) 的智慧建議，請嘗試增加更多需求描述內容。</p>
           )}
         </div>
       )}
