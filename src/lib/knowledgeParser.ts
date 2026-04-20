@@ -230,7 +230,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 };
 
 /**
- * 計算加權相似度 (V11: 20% 設備名稱 / 80% 需求說明 + 關鍵字加權)
+ * 計算加權相似度 (V12: 30% 設備名稱 / 70% 需求說明 + 關鍵字加權)
  */
 export const calculateWeightedSimilarity = (
   content: string, 
@@ -264,13 +264,13 @@ export const calculateWeightedSimilarity = (
   const eqTokens = tokenize(eqKeywords);
   const reqTokens = tokenize(reqKeywords);
 
-  // 1. 設備名稱比對 (20% 權重)
+  // 1. 設備名稱比對 (30% 權重)
   const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, dbEquipmentName) : 0.5;
   
-  // 2. 說明內容比對 (80% 權重)
+  // 2. 說明內容比對 (70% 權重)
   const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 0.5;
 
-  return (scoreEq * 0.2) + (scoreReq * 0.8);
+  return (scoreEq * 0.3) + (scoreReq * 0.7);
 };
 
 /**
@@ -346,7 +346,7 @@ export const getHistorySuggestions = async (
     if (error) throw error;
     if (!candidates || candidates.length === 0) return { hints: [], status: 'empty' };
 
-    // 第一階段：快速加權過濾 (設定 0.4 為候選門檻)
+    // 第一階段：快速加權過濾 (設定 0.3 為候選門檻)
     const scoredData = candidates.map(item => {
       const baseScore = calculateWeightedSimilarity(
         item.content, 
@@ -355,7 +355,7 @@ export const getHistorySuggestions = async (
         item.metadata
       );
       return { ...item, score: baseScore };
-    }).filter(item => item.score >= 0.4);
+    }).filter(item => item.score >= 0.3);
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
@@ -368,7 +368,7 @@ export const getHistorySuggestions = async (
     if (!hasAIScore) return { hints: [], status: 'ai_error' };
 
     const filtered = reranked
-      .filter(item => (item.aiScore || 0) >= 0.6) // 最終語意門檻 60%
+      .filter(item => (item.aiScore || 0) >= 0.5) // 最終語意門檻 50%
       .map((item) => ({
         id: item.id.toString(),
         content: item.content,

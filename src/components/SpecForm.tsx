@@ -50,7 +50,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
 
-  const loadHistoryHints = async (tabIndex: number) => {
+  const loadHistoryHints = async (mode: number | 'all') => {
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
       0: [
         { key: 'appearanceHistoryHints', regKey: 'appearanceRegHints', category: 'appearance' },
@@ -74,8 +74,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       3: [{ key: 'acceptanceHistoryHints', regKey: 'acceptanceRegHints', category: 'technical' }]
     };
 
-    const targets = categoryMap[tabIndex];
-    if (!targets) return;
+    let targets: {key: keyof FormState, regKey: keyof FormState, category: string}[] = [];
+    if (mode === 'all') {
+      targets = Object.values(categoryMap).flat();
+    } else {
+      targets = categoryMap[mode] || [];
+    }
+    
+    if (targets.length === 0) return;
 
     const initialStatus = { ...data.searchStatus };
     targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string}) => { 
@@ -92,7 +98,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       
       const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
         try {
-          const res = await KP.getHistorySuggestions(target.category, data.requirementDesc);
+          // V12: 同時傳入設備名稱與需求說明作為比對關鍵字
+          const res = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
           return { target, res };
         } catch (err) {
           console.error(`Fetch failed for ${target.category}:`, err);
@@ -384,7 +391,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
-                      onClick={() => loadHistoryHints(0)}
+                      onClick={() => loadHistoryHints('all')}
                       className="primary-button"
                       style={{ 
                         padding: '8px 16px', 
@@ -424,7 +431,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   />
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
-                      onClick={() => loadHistoryHints(activeTab)}
+                      onClick={() => loadHistoryHints('all')}
                       className="primary-button"
                       style={{ 
                         padding: '6px 12px', 
