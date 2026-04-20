@@ -25,6 +25,7 @@ export interface TableRowData {
 
 export interface FormState {
   // 基本資訊
+  docId: string; // 隱藏識別碼，用於同步覆蓋校準
   department: string;
   requester: string;
   extension: string;
@@ -36,56 +37,56 @@ export interface FormState {
   
   // 一. 名稱與需求
   requirementDesc: string; // 必填
-  requirementDescTUCHints: AIHintSelection[];
   requirementDescHistoryHints: AIHintSelection[];
+  requirementDescRegHints: AIHintSelection[];
   
   // 二. 品相
   appearance: string;
-  appearanceTUCHints: AIHintSelection[];
   appearanceHistoryHints: AIHintSelection[];
+  appearanceRegHints: AIHintSelection[];
   
   // 三. 數量與單位
   quantityUnit: string;
   
   // 五. 適用區間
   rangeRange: string;
-  rangeTUCHints: AIHintSelection[];
   rangeHistoryHints: AIHintSelection[];
+  rangeRegHints: AIHintSelection[];
   
   // 六. 設計要求
   envRequirements: string;
   envAIHints: AIHintSelection[];
-  envTUCHints: AIHintSelection[];
   envHistoryHints: AIHintSelection[];
+  envRegHints: AIHintSelection[];
   
   regRequirements: string;
   regAIHints: AIHintSelection[];
-  regTUCHints: AIHintSelection[];
   regHistoryHints: AIHintSelection[];
+  regRegHints: AIHintSelection[];
   
   maintRequirements: string;
-  maintTUCHints: AIHintSelection[];
   maintHistoryHints: AIHintSelection[];
+  maintRegHints: AIHintSelection[];
   
   // 七. 安全要求
   safetyRequirements: string;
   safetyAIHints: AIHintSelection[];
-  safetyTUCHints: AIHintSelection[];
   safetyHistoryHints: AIHintSelection[];
+  safetyRegHints: AIHintSelection[];
   
   // 八. 特性要求
   elecSpecs: string;
-  elecTUCHints: AIHintSelection[];
   elecHistoryHints: AIHintSelection[];
+  elecRegHints: AIHintSelection[];
   mechSpecs: string;
-  mechTUCHints: AIHintSelection[];
   mechHistoryHints: AIHintSelection[];
+  mechRegHints: AIHintSelection[];
   physSpecs: string;
-  physTUCHints: AIHintSelection[];
   physHistoryHints: AIHintSelection[];
+  physRegHints: AIHintSelection[];
   relySpecs: string;
-  relyTUCHints: AIHintSelection[];
   relyHistoryHints: AIHintSelection[];
+  relyRegHints: AIHintSelection[];
   customSpec1Name: string;
   customSpec1Value: string;
   customSpec2Name: string;
@@ -93,27 +94,26 @@ export interface FormState {
   
   // 九. 安裝程序
   installStandard: string;
-  installTUCHints: AIHintSelection[];
   installHistoryHints: AIHintSelection[];
+  installRegHints: AIHintSelection[];
   deliveryDate: string;
   workPeriod: string;
   acceptanceDesc: string;
   acceptanceAIHints: AIHintSelection[];
-  acceptanceTUCHints: AIHintSelection[];
   acceptanceHistoryHints: AIHintSelection[];
+  acceptanceRegHints: AIHintSelection[];
   acceptanceExtra: string;
   
   // 十. 遵守事項
   complianceDesc: string;
-  complianceTUCHints: AIHintSelection[];
   complianceHistoryHints: AIHintSelection[];
+  complianceRegHints: AIHintSelection[];
   
   // 十一. 圖說
   images: SpecImage[];
   
   // 十二. 驗收要求表格
   tableData: TableRowData[];
-  tableTUCHints: AIHintSelection[];
 
   // 規格確認及會簽
   applicantName: string;
@@ -122,49 +122,42 @@ export interface FormState {
 }
 
 export const INITIAL_FORM_STATE: FormState = {
-  department: '',
+  docId: typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+  department: localStorage.getItem('tuc_dept') || '',
   requester: '',
   extension: '',
   equipmentName: '',
   model: '',
   category: '新增',
   requirementDesc: '',
-  requirementDescTUCHints: [],
-  requirementDescHistoryHints: [],
+  requirementDescRegHints: [],
   appearance: '',
-  appearanceTUCHints: [],
-  appearanceHistoryHints: [],
+  appearanceRegHints: [],
   quantityUnit: '',
   rangeRange: '依請購內容而定',
-  rangeTUCHints: [],
-  rangeHistoryHints: [],
+  rangeRegHints: [],
   envRequirements: '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
   envAIHints: [],
-  envTUCHints: [],
-  envHistoryHints: [],
+  envAIHints: [],
+  envRegHints: [],
   regRequirements: '符合國家法規',
   regAIHints: [],
-  regTUCHints: [],
-  regHistoryHints: [],
+  regAIHints: [],
+  regRegHints: [],
   maintRequirements: '依台燿規定',
-  maintTUCHints: [],
-  maintHistoryHints: [],
+  maintRegHints: [],
   safetyRequirements: '設計與安裝符合職業安全衛生法令規範',
   safetyAIHints: [],
-  safetyTUCHints: [],
-  safetyHistoryHints: [],
+  safetyAIHints: [],
+  safetyRegHints: [],
   elecSpecs: '依台燿規定',
-  elecTUCHints: [],
-  elecHistoryHints: [],
+  elecRegHints: [],
   mechSpecs: '依台燿規定',
-  mechTUCHints: [],
-  mechHistoryHints: [],
+  mechRegHints: [],
   physSpecs: '依台燿規定',
-  physTUCHints: [],
-  physHistoryHints: [],
+  physRegHints: [],
   relySpecs: '依台燿規定',
-  relyTUCHints: [],
-  relyHistoryHints: [],
+  relyRegHints: [],
   customSpec1Name: '',
   customSpec1Value: '',
   customSpec2Name: '',
@@ -184,14 +177,13 @@ export const INITIAL_FORM_STATE: FormState = {
 13. 施工日期須配合業主許可日期進行
 14. 本工程金屬類廢棄物須清運至tuc指定位置，其餘非金屬類廢棄物承包商須負責處理
 15. 承包工程當訂單確定後須提供進廠相關資料，如附件內容`,
-  installTUCHints: [],
-  installHistoryHints: [],
+  installRegHints: [],
   deliveryDate: '',
   workPeriod: '',
   acceptanceDesc: '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收',
   acceptanceAIHints: [],
-  acceptanceTUCHints: [],
-  acceptanceHistoryHints: [],
+  acceptanceAIHints: [],
+  acceptanceRegHints: [],
   acceptanceExtra: '補充說明',
   complianceDesc: `1. 工程設施驗收後保固一年，工程費用含萬分之7工程保險
 2. 施工配合本公司安排日期((不含例假日))，施工期間遇有臨時問題需停工配合本公司安排
@@ -210,15 +202,13 @@ export const INITIAL_FORM_STATE: FormState = {
 15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
 16. 電力/電控盤與旋轉/傳動機構張貼警告標語
 17. 因本工程造成設施(備)損(傷)壞須賠償。`,
-  complianceTUCHints: [],
-  complianceHistoryHints: [],
+  complianceRegHints: [],
   images: [],
   tableData: [
     { category: '功能', item: '運轉測試', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '品質', item: '外觀檢驗', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
     { category: '產能', item: '出力測速', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
   ],
-  tableTUCHints: [],
   applicantName: '',
   deptHeadName: '',
   signOffGrid: Array(3).fill(null).map(() => Array(6).fill(''))

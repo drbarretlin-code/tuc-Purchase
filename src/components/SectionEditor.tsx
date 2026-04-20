@@ -7,11 +7,11 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   hints?: AIHintSelection[];
-  tucHints?: AIHintSelection[];
   historyHints?: AIHintSelection[];
+  regHints?: AIHintSelection[];
   onHintToggle?: (id: string) => void;
-  onTUCHintToggle?: (id: string) => void;
   onHistoryHintToggle?: (id: string) => void;
+  onRegHintToggle?: (id: string) => void;
   isTextArea?: boolean;
   required?: boolean;
   placeholder?: string;
@@ -20,7 +20,8 @@ interface Props {
 }
 
 const SectionEditor: React.FC<Props> = ({ 
-  label, value, onChange, hints, tucHints, historyHints, onHintToggle, onTUCHintToggle, onHistoryHintToggle, 
+  label, value, onChange, hints, historyHints, regHints, 
+  onHintToggle, onHistoryHintToggle, onRegHintToggle, 
   isTextArea = true, required = false, placeholder, inputType = "text", isLoading = false
 }) => {
   return (
@@ -78,9 +79,10 @@ const SectionEditor: React.FC<Props> = ({
         </div>
       )}
 
-      {/* TUC 建議新增 (優先顯示) */}
-      {tucHints && tucHints.length > 0 && (
-        <div className="tuc-hints-box" style={{ 
+
+      {/* 2. 技術法令補充建議 (V11: 新增分類) */}
+      {regHints && regHints.length > 0 && (
+        <div className="reg-hints-box" style={{ 
           marginTop: '0.75rem', 
           padding: '0.75rem',
           background: 'rgba(59, 130, 246, 0.05)',
@@ -89,59 +91,33 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#60A5FA' }}>
             <Book size={14} />
-            <span>TUC 知識庫建議 (勾選導入)</span>
+            <span>技術法令補充建議</span>
           </div>
-          
-          {tucHints.length >= 2 ? (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <select 
-                value="" 
-                onChange={(e) => {
-                  if (e.target.value) onTUCHintToggle?.(e.target.value);
-                }}
-                style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
-              >
-                <option value="" disabled>點擊選擇建議以導入...</option>
-                {tucHints.map(hint => (
-                  <option key={hint.id} value={hint.id}>
-                    {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
-                  </option>
-                ))}
-              </select>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {tucHints.filter(h => h.link).map(h => (
-                  <a key={h.id} href={h.link} target="_blank" rel="noreferrer" title={`查看原文: ${h.content.substring(0, 20)}...`} style={{ display: 'flex', alignItems: 'center', color: '#60A5FA', opacity: 0.6 }}>
-                    <ExternalLink size={14} />
-                  </a>
-                )).slice(0, 3)}
-              </div>
-            </div>
+          {regHints.length >= 2 ? (
+            <select 
+              value="" 
+              onChange={(e) => e.target.value && onRegHintToggle?.(e.target.value)}
+              style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
+            >
+              <option value="" disabled>點擊選擇法令建議...</option>
+              {regHints.map(hint => (
+                <option key={hint.id} value={hint.id}>
+                  {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
+                </option>
+              ))}
+            </select>
           ) : (
-            tucHints.map((hint) => (
-              <div 
-                key={hint.id} 
-                style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.5rem', borderRadius: '4px', transition: 'background 0.2s' }}
-                className="hint-item"
-              >
-                <div onClick={() => onTUCHintToggle?.(hint.id)} style={{ cursor: 'pointer', display: 'flex', gap: '0.75rem', flex: 1 }}>
-                  {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
-                  <div style={{ fontSize: '0.875rem' }}>
-                    <p style={{ margin: 0 }}>{hint.content}</p>
-                  </div>
-                </div>
-                {hint.link && (
-                  <a href={hint.link} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', padding: '0 4px' }}>
-                    <ExternalLink size={14} />
-                  </a>
-                )}
+            regHints.map((hint) => (
+              <div key={hint.id} onClick={() => onRegHintToggle?.(hint.id)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} className="hint-item">
+                {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
+                <div style={{ fontSize: '0.875rem' }}><p style={{ margin: 0 }}>{hint.content}</p></div>
               </div>
             ))
           )}
-          {isLoading && <div style={{ textAlign: 'center', marginTop: '4px' }}><Loader2 size={12} className="animate-spin" color="#60A5FA" /></div>}
         </div>
       )}
 
-      {/* 歷史檔案參考 (RAG) */}
+      {/* 1. TUC 歷史資料建議 */}
       {historyHints && historyHints.length > 0 && (
         <div className="history-hints-box" style={{ 
           marginTop: '0.75rem', 
@@ -152,7 +128,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#10B981' }}>
             <History size={14} />
-            <span>TUC 歷史參考 (來自上傳檔案)</span>
+            <span>TUC 歷史資料建議</span>
           </div>
 
           {historyHints.length >= 2 ? (
