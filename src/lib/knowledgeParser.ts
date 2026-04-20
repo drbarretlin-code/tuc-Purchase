@@ -33,12 +33,12 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   }
 
   // 優先順序策略 (由 2026 最新至穩定版)
-  // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
     'gemini-3.1-flash',
     'gemini-3.0-flash',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
     'gemini-1.5-flash'
   ];
 
@@ -59,8 +59,17 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
       
-      if (errMsg.includes('404') || status === 404 || errMsg.toLowerCase().includes('not found')) {
-        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404/Not Found)，嘗試下一個...`);
+      // 處理 404 (Not Found) 或 503 (Overloaded/Unavailable)
+      if (
+        status === 404 || 
+        status === 503 ||
+        errMsg.includes('404') || 
+        errMsg.includes('503') ||
+        errMsg.toLowerCase().includes('not found') ||
+        errMsg.toLowerCase().includes('unavailable') ||
+        errMsg.toLowerCase().includes('high demand')
+      ) {
+        console.warn(`[AI Discovery] 模型 ${mId} 暫時不可用 (${status || 'Error'})，嘗試下一個...`);
         continue;
       }
       
@@ -70,7 +79,7 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
         continue;
       }
 
-      console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
+      console.error(`[AI Discovery] 試驗 ${mId} 時發生關鍵錯誤:`, errMsg);
       // 若為授權錯誤 (401)，則不需要再試驗其他模型
       if (status === 401 || errMsg.includes('API key not valid')) break;
     }
@@ -102,7 +111,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     text = rawContent.replace(/[^\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF]/g, ' ');
   } else if (file.name.endsWith('.pdf')) {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjsLib.getDocument({ 
+      data: arrayBuffer,
+      cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
+      cMapPacked: true
+    }).promise;
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -112,7 +125,10 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     text = fullText;
   }
 
-  if (!text) throw new Error('無法從檔案中提取內容');
+  if (!text || text.trim().length === 0) {
+    const errorSuffix = file.name.endsWith('.pdf') ? ' (此檔案可能受保護或僅包含影像，無法提取純文字)' : '';
+    throw new Error(`無法從檔案中提取內容${errorSuffix}`);
+  }
 
   const prompt = `
     你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
@@ -319,7 +335,7 @@ export const getHistorySuggestions = async (
       }
       
       return { ...item, score };
-    }).filter(item => item.score >= 0.2); // 門檻調整為 20%
+    }).filter(item => item.score >= 0.4); // 門檻調整為 40% (符合 broader recall 策略下之精確要求)
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
