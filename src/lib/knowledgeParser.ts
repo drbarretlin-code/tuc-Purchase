@@ -104,33 +104,49 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * 助手函式：高容錯二進制字串提取 (針對舊版 .doc)
- * V13.9: 不再手動掃描位元組，改為全量編碼流解碼後進行語意過濾。
- * 支援掃描 UTF-8 (ASCII/RTF) 與 UTF-16LE (Word Binary Text)。
+ * 助手函式：高容錯二進制字串提取 (V14.0 - 全方位編碼陣列版)
+ * 針對台燿舊版文件常見的編碼問題進行終極修復。
  */
 const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
   try {
-    // 1. 同時採用 UTF-8 與 UTF-16 進行暴力解碼
-    const decoder8 = new TextDecoder('utf-8', { fatal: false });
-    const decoder16 = new TextDecoder('utf-16le', { fatal: false });
+    const uint8 = new Uint8Array(buffer);
     
-    const utf8Text = decoder8.decode(buffer);
-    const utf16Text = decoder16.decode(buffer);
+    // 診斷日誌：輸出前 16 個位元組以便判斷檔案格式 (Hex)
+    const hexHeader = Array.from(uint8.slice(0, 16))
+      .map(b => b.toString(16).padStart(2, '0')).join(' ');
+    console.log(`[AI Parser] .doc 格式硬核診斷 (Hex Header): ${hexHeader}`);
+
+    let fileType = 'Unknown-Binary';
+    if (hexHeader.startsWith('d0 cf 11 e0 a1 b1 1a e1')) fileType = 'OLE2-Word-97-2003';
+    else if (hexHeader.includes('7b 5c 72 74 66 31')) fileType = 'RTF-Format';
+    console.log(`[AI Parser] 偵測檔案類型: ${fileType}`);
+
+    // 定義探測編碼列表
+    const encodings = ['utf-8', 'utf-16le', 'big5', 'gbk'];
+    let combinedText = "";
+
+    encodings.forEach(enc => {
+      try {
+        const decoder = new TextDecoder(enc, { fatal: false });
+        combinedText += `\n--- [Encoding: ${enc}] ---\n` + decoder.decode(buffer);
+      } catch (e) {
+        console.warn(`[AI Parser] 解碼嘗試失敗 (${enc}):`, e);
+      }
+    });
+
+    // 多重字串密度提取：保留 CJK、標點、英數字
+    // 這次特別加入對中日韓寬字符的精細匹配
+    const filtered = combinedText.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF\x20-\x7E\n\r\t]/g, ' ');
     
-    // 2. 混合提取內容
-    const combined = utf8Text + "\n--- [Encoding Split] ---\n" + utf16Text;
-    
-    // 3. 語意過濾：只保留中文字、英數字、標點符號與換行，過濾掉無法識別的二進制雜訊
-    // 正則重點：CJK 統一漢字區、CJK 標點、半角英數、全角符號
-    const filtered = combined.replace(/[^\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF\x20-\x7E\n\r\t]/g, ' ');
-    
-    // 4. 清理連續空格並確保長度
-    const cleaned = filtered.replace(/[ ]{2,}/g, ' ').trim();
-    
-    console.log(`[AI Parser] .doc 暴力解析完成，原始長度: ${combined.length}, 過濾後長度: ${cleaned.length}`);
+    // 智慧降噪：移除大量重複的無意義空白與單字元碎片
+    const cleaned = filtered
+      .replace(/[ ]{3,}/g, ' ')        // 縮減長空白
+      .replace(/([^0-9a-zA-Z\u4E00-\u9FFF])\1{2,}/g, '$1') // 移除重複符號
+      .trim();
+
     return cleaned;
   } catch (err) {
-    console.error('[AI Parser] 暴力解析異常:', err);
+    console.error('[AI Parser] V14 解析災難:', err);
     return "";
   }
 };
@@ -192,8 +208,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   if (!text && !inlineData) throw new Error('不支援的檔案格式或無法解析檔案內容。');
 
   const prompt = `
-    你是一個專業的採購規範專家。請分析${inlineData ? '「附件檔案」' : '「以下內容」'}，完成以下任務：
-    (注意：若內容包含一些雜亂的字串碎片，那是從舊版 Word 檔案中暴力提取的結果，請自動忽略無意義雜訊，專注於尋找技術要求、設備規格、驗收標準等有意義的條文)。
+    你是一個專業的採購規範專家。目前你正在處理一份「從二進制亂碼中救援提取」的文件內容。
+    請分析${inlineData ? '「附件檔案」' : '「以下殘缺內容」'}，完成以下任務：
+    (注意：內容中混合了多種編碼探測出的字串碎塊，請發揮強大的語意推理能力，自動忽略亂碼與解碼錯誤產生的雜訊，專注於尋找技術要求、設備規格、驗收標準等有意義的條文)。
 
     1. 辨別這份文件的知識層級 (docType)：
        - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
