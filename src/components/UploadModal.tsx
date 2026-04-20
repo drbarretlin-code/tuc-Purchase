@@ -167,7 +167,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         setCurrentUploadingName(file.name);
         setFilesInQueue(uploadResults.length - i);
 
-        const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName);
+        const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName, id);
         const finalDetectedEq = result?.detectedEquipment || data.equipmentName || '未命名設備';
  
         totalAdded += result?.added || 0;

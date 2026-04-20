@@ -24,7 +24,7 @@ const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '粉塵': 1.7
 };
 
-export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string) => {
+export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   const finalKey = rawKey.trim();
   
@@ -118,7 +118,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     let skippedCount = 0;
     
     const fullJson = parsed.fullJsonData || {};
-    const docId = crypto.randomUUID();
+    const docId = overrideDocId || crypto.randomUUID();
 
     for (const item of indexData) {
       const { data: existing } = await supabase

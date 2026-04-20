@@ -315,7 +315,7 @@ function App() {
           const blob = await resp.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
-          const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
           currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
 
           const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
@@ -422,7 +422,7 @@ function App() {
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           // 2. 驅動 AI 解析引擎
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name);
+          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
           const newAdded = parseResult?.added || 0;
           const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
           
