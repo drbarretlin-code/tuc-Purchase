@@ -117,6 +117,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     let addedCount = 0;
     let skippedCount = 0;
     
+    const fullJson = parsed.fullJsonData || {};
+    const docId = crypto.randomUUID();
+
     for (const item of indexData) {
       const { data: existing } = await supabase
         .from('tuc_history_knowledge')
@@ -131,23 +134,18 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         continue;
       }
 
-    const fullJson = parsed.fullJsonData || {};
-    const docId = crypto.randomUUID();
-
-    for (const item of indexData) {
-      // 檢查重複... (略，維持原邏輯)
-      await supabase.from('tuc_history_knowledge').insert({
+      const { error } = await supabase.from('tuc_history_knowledge').insert({
         category: item.category,
         content: item.content,
         source_file_name: file.name,
-        full_json_data: fullJson, // 儲存結構化版本
+        full_json_data: fullJson,
         metadata: { 
           equipment_name: detectedEq, 
           docType: parsed.docType, 
           docId: docId 
         }
       });
-      addedCount++;
+      if (!error) addedCount++;
     }
     
     return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq, fullJson, docId };

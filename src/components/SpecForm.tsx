@@ -693,6 +693,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 下一步 <ChevronRight size={20} />
               </button>
             )}
+          </footer>
         </main>
       </div>
 
