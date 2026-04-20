@@ -258,7 +258,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 value={activeTab}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setActiveTab(parseInt(e.target.value))}
               >
-                {tabs.map((tab: string, index: number) => (
+                {tabs.map((tab, index) => (
                   <option key={tab.label} value={index}>
                     第 {index + 1} 部分：{tab.label}
                   </option>

@@ -414,7 +414,6 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   if (!rawKey) return null;
 
   const combinedContent = entries.map(e => `[${e.category}] ${e.content}`).join('\n');
-  const equipmentName = entries[0].metadata?.equipment_name || '未命名文件';
 
   const prompt = `
     請將以下零散的採購條文「反向組裝」成一個結構化的 JSON 檔案。

@@ -49,6 +49,9 @@ export interface FormState {
   // 三. 數量與單位
   quantityUnit: string;
   
+  // 四. 適用範圍
+  equipmentScope: string;
+  
   // 五. 適用區間
   rangeRange: string;
   rangeHistoryHints: AIHintSelection[];
@@ -138,6 +141,7 @@ export const INITIAL_FORM_STATE: FormState = {
   appearanceHistoryHints: [],
   appearanceRegHints: [],
   quantityUnit: '',
+  equipmentScope: '依請購內容而定',
   rangeRange: '依請購內容而定',
   rangeHistoryHints: [],
   rangeRegHints: [],
