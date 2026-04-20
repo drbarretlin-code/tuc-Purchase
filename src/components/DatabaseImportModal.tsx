@@ -66,8 +66,8 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         } else {
           alert('AI 反向組裝失敗，該文件可能缺少關鍵條文。');
         }
-      } catch (err) {
-        alert('解析過程發生錯誤');
+      } catch (err: any) {
+        alert(`解析過程發生錯誤: ${err.message || '未知錯誤'}`);
       } finally {
         setProcessingId(null);
       }

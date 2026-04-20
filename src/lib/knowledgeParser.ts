@@ -430,7 +430,7 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   }
 
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
-  if (!rawKey) return null;
+  if (!rawKey) throw new Error('缺少 Gemini API Key，請在設定中輸入。');
 
   const combinedContent = entries.map(e => `[${e.category}] ${e.content}`).join('\n');
 
@@ -457,8 +457,8 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
       .eq('id', docId);
 
     return fullJson;
-  } catch (err) {
+  } catch (err: any) {
     console.error('[反向組裝失敗]', err);
-    return null;
+    throw new Error(`AI 組裝模組執行失敗: ${err.message || '網路或 API 錯誤'}`);
   }
 };
