@@ -35,6 +35,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   /**
    * 載入建議 (V11: 支援雙重建議分類)
    */
+  /**
+   * 載入建議 (V12: 佇列管理與手動觸發)
+   */
   const loadHistoryHints = async (tabIndex: number) => {
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
       0: [
@@ -62,56 +65,52 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const targets = categoryMap[tabIndex];
     if (!targets) return;
 
-    const newData = { ...data };
-    let changed = false;
+    // 初始化狀態為 pending
+    const initialStatus = { ...data.searchStatus };
+    targets.forEach(t => { 
+      initialStatus[t.key as string] = 'pending';
+      initialStatus[t.regKey as string] = 'pending';
+    });
+    
+    let currentData = { ...data, searchStatus: initialStatus };
+    onChange(currentData);
 
-    // 分流儲存區
-    const historyUpdates: Record<string, AIHintSelection[]> = {};
-    const regUpdates: Record<string, AIHintSelection[]> = {};
-
-    for (const target of targets) {
-      const results = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
+    // 佇列執行器 (一次處理 2 個目標)
+    const concurrency = 2;
+    for (let i = 0; i < targets.length; i += concurrency) {
+      const chunk = targets.slice(i, i + concurrency);
       
-      const historyList = results.filter(r => r.docType === 'Specific');
-      const regList = results.filter(r => r.docType === 'Standard' || r.docType === 'Global');
+      const chunkResults = await Promise.all(chunk.map(async (target) => {
+        try {
+          const res = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
+          return { target, res };
+        } catch (err) {
+          console.error(`Fetch failed for ${target.category}:`, err);
+          return { target, res: { hints: [], status: 'ai_error' as const } };
+        }
+      }));
 
-      historyUpdates[target.key as string] = historyList;
-      regUpdates[target.regKey as string] = regList;
+      // 更新資料與狀態
+      const nextData = { ...currentData };
+      chunkResults.forEach(({ target, res }) => {
+        nextData[target.key as keyof FormState] = res.hints.filter(h => h.docType === 'Specific') as any;
+        nextData[target.regKey as keyof FormState] = res.hints.filter(h => h.docType !== 'Specific') as any;
+        nextData.searchStatus[target.key as string] = res.status as any;
+        nextData.searchStatus[target.regKey as string] = res.status as any;
+      });
+
+      currentData = nextData;
+      onChange(currentData);
     }
-
-    // 批量對比並更新
-    Object.keys(historyUpdates).forEach(key => {
-      if (JSON.stringify(data[key as keyof FormState]) !== JSON.stringify(historyUpdates[key])) {
-        newData[key as keyof FormState] = historyUpdates[key] as any;
-        changed = true;
-      }
-    });
-
-    Object.keys(regUpdates).forEach(key => {
-      if (JSON.stringify(data[key as keyof FormState]) !== JSON.stringify(regUpdates[key])) {
-        newData[key as keyof FormState] = regUpdates[key] as any;
-        changed = true;
-      }
-    });
-
-    if (changed) onChange(newData);
   };
 
   useEffect(() => {
-    loadHistoryHints(activeTab);
+    // 切換頁面時僅做視覺滾動，不再自動觸發載入 (V12)
     const formContainer = document.querySelector('.form-content-wrap');
     if (formContainer) {
       formContainer.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [activeTab]);
-
-  // V11: 使用者停止輸入 0.8s 後觸發 AI 重排序與檢索
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadHistoryHints(activeTab);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [data.equipmentName, data.requirementDesc]);
 
   const tabs = [
     { label: '基本資訊', icon: <Info size={18} /> },
@@ -328,9 +327,28 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
                     historyHints={data.requirementDescHistoryHints}
                     regHints={data.requirementDescRegHints}
+                    searchStatus={data.searchStatus['requirementDescHistoryHints']}
                     onHistoryHintToggle={(id) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
                     onRegHintToggle={(id) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
+
+                  {/* V12: 手動觸發按鈕 */}
+                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => loadHistoryHints(0)}
+                      className="primary-button"
+                      style={{ 
+                        padding: '8px 16px', 
+                        fontSize: '0.85rem',
+                        background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Zap size={14} /> 點此生成智慧建議 (AI 重分析)
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '1.5rem' }}>
@@ -340,6 +358,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v) => updateField('appearance', v)} 
                     historyHints={data.appearanceHistoryHints}
                     regHints={data.appearanceRegHints}
+                    searchStatus={data.searchStatus['appearanceHistoryHints']}
                     onHistoryHintToggle={(id) => toggleHint('appearanceHistoryHints', 'appearance', id)}
                     onRegHintToggle={(id) => toggleHint('appearanceRegHints', 'appearance', id)}
                   />
@@ -351,9 +370,28 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v) => updateField('rangeRange', v)} 
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
+                    searchStatus={data.searchStatus['rangeHistoryHints']}
                     onHistoryHintToggle={(id) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
+                 {/* V12: 章節 2-4 的手動按鈕也放在這以便重新分析 */}
+                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => loadHistoryHints(activeTab)}
+                      className="primary-button"
+                      style={{ 
+                        padding: '6px 12px', 
+                        fontSize: '0.75rem',
+                        opacity: 0.8,
+                        background: 'linear-gradient(135deg, #4B5563, #1F2937)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Zap size={12} /> 重新分析本章建議
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -369,6 +407,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v) => updateField('envRequirements', v)} 
                      historyHints={data.envHistoryHints}
                      regHints={data.envRegHints}
+                     searchStatus={data.searchStatus['envHistoryHints']}
                      onHistoryHintToggle={(id) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id) => toggleHint('envRegHints', 'envRequirements', id)}
                   />
@@ -378,6 +417,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v) => updateField('regRequirements', v)} 
                      historyHints={data.regHistoryHints}
                      regHints={data.regRegHints}
+                     searchStatus={data.searchStatus['regHistoryHints']}
                      onHistoryHintToggle={(id) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id) => toggleHint('regRegHints', 'regRequirements', id)}
                   />
@@ -387,6 +427,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v) => updateField('maintRequirements', v)} 
                      historyHints={data.maintHistoryHints}
                      regHints={data.maintRegHints}
+                     searchStatus={data.searchStatus['maintHistoryHints']}
                      onHistoryHintToggle={(id) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
                      onRegHintToggle={(id) => toggleHint('maintRegHints', 'maintRequirements', id)}
                   />
@@ -400,6 +441,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v) => updateField('safetyRequirements', v)} 
                      historyHints={data.safetyHistoryHints}
                      regHints={data.safetyRegHints}
+                     searchStatus={data.searchStatus['safetyHistoryHints']}
                      onHistoryHintToggle={(id) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
                      onRegHintToggle={(id) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
                   />
@@ -414,6 +456,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onChange={(v) => updateField('elecSpecs', v)} 
                        historyHints={data.elecHistoryHints}
                        regHints={data.elecRegHints}
+                       searchStatus={data.searchStatus['elecHistoryHints']}
                        onHistoryHintToggle={(id) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
                        onRegHintToggle={(id) => toggleHint('elecRegHints', 'elecSpecs', id)}
                     />
@@ -423,6 +466,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onChange={(v) => updateField('mechSpecs', v)} 
                        historyHints={data.mechHistoryHints}
                        regHints={data.mechRegHints}
+                       searchStatus={data.searchStatus['mechHistoryHints']}
                        onHistoryHintToggle={(id) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
                        onRegHintToggle={(id) => toggleHint('mechRegHints', 'mechSpecs', id)}
                     />
@@ -432,6 +476,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onChange={(v) => updateField('physSpecs', v)} 
                        historyHints={data.physHistoryHints}
                        regHints={data.physRegHints}
+                       searchStatus={data.searchStatus['physHistoryHints']}
                        onHistoryHintToggle={(id) => toggleHint('physHistoryHints', 'physSpecs', id)}
                        onRegHintToggle={(id) => toggleHint('physRegHints', 'physSpecs', id)}
                     />
@@ -441,6 +486,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onChange={(v) => updateField('relySpecs', v)} 
                        historyHints={data.relyHistoryHints}
                        regHints={data.relyRegHints}
+                       searchStatus={data.searchStatus['relyHistoryHints']}
                        onHistoryHintToggle={(id) => toggleHint('relyHistoryHints', 'relySpecs', id)}
                        onRegHintToggle={(id) => toggleHint('relyRegHints', 'relySpecs', id)}
                     />
@@ -467,6 +513,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    onChange={(v) => updateField('installStandard', v)} 
                    historyHints={data.installHistoryHints}
                    regHints={data.installRegHints}
+                   searchStatus={data.searchStatus['installHistoryHints']}
                    onHistoryHintToggle={(id) => toggleHint('installHistoryHints', 'installStandard', id)}
                    onRegHintToggle={(id) => toggleHint('installRegHints', 'installStandard', id)}
                 />
@@ -480,6 +527,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   onChange={(v) => updateField('acceptanceDesc', v)} 
                   historyHints={data.acceptanceHistoryHints}
                   regHints={data.acceptanceRegHints}
+                  searchStatus={data.searchStatus['acceptanceHistoryHints']}
                   onHistoryHintToggle={(id) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                   onRegHintToggle={(id) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
                 />
@@ -489,6 +537,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    onChange={(v) => updateField('complianceDesc', v)} 
                    historyHints={data.complianceHistoryHints}
                    regHints={data.complianceRegHints}
+                   searchStatus={data.searchStatus['complianceHistoryHints']}
                    onHistoryHintToggle={(id) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
                    onRegHintToggle={(id) => toggleHint('complianceRegHints', 'complianceDesc', id)}
                 />

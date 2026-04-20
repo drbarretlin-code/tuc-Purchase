@@ -219,8 +219,11 @@ export const getHistorySuggestions = async (
   category: string, 
   eqKeywords: string = '', 
   reqKeywords: string = ''
-) => {
-  if (!supabase) return [];
+): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
+  const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
+  if (!apiKey) return { hints: [], status: 'no_key' };
+  if (!supabase) return { hints: [], status: 'ai_error' };
+
   try {
     // 抓取基礎候選人 (類別相符 或 docType 為標準/法規)
     const { data: candidates, error } = await supabase
@@ -229,7 +232,8 @@ export const getHistorySuggestions = async (
       .or(`category.eq.${category},metadata->>docType.in.("Standard","Global")`)
       .limit(60);
 
-    if (error || !candidates || candidates.length === 0) return [];
+    if (error) throw error;
+    if (!candidates || candidates.length === 0) return { hints: [], status: 'empty' };
 
     // 第一階段：快速加權過濾 (設定 0.4 為候選門檻)
     const scoredData = candidates.map(item => {
@@ -242,13 +246,17 @@ export const getHistorySuggestions = async (
       return { ...item, score: baseScore };
     }).filter(item => item.score >= 0.4);
 
-    if (scoredData.length === 0) return [];
+    if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
     // 第二階段：AI 語意重排序 (針對前 15 名候選人進行上下文分析)
     const topCandidates = scoredData.sort((a, b) => b.score - a.score).slice(0, 15);
     const reranked = await rerankWithAI(topCandidates, eqKeywords, reqKeywords);
 
-    return reranked
+    // 檢查 reranked 是否有 aiScore (若 rerank 失敗會返回原陣列)
+    const hasAIScore = reranked.length > 0 && reranked[0].aiScore !== undefined;
+    if (!hasAIScore) return { hints: [], status: 'ai_error' };
+
+    const filtered = reranked
       .filter(item => (item.aiScore || 0) >= 0.6) // 最終語意門檻 60%
       .map((item) => ({
         id: item.id.toString(),
@@ -257,9 +265,14 @@ export const getHistorySuggestions = async (
         docType: (item.metadata as any)?.docType || 'Specific',
         source: item.source_file_name
       }));
+
+    return { 
+      hints: filtered, 
+      status: filtered.length > 0 ? 'success' : 'empty' 
+    };
   } catch (err) {
     console.error('History fetch fatal error:', err);
-    return [];
+    return { hints: [], status: 'ai_error' };
   }
 };
 
