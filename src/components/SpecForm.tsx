@@ -23,7 +23,7 @@ import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
-import type { FormState, AIHintSelection, 工程類別 } from '../types/form';
+import { FormState, AIHintSelection, 工程類別, INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
@@ -353,7 +353,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
                     historyHints={data.requirementDescHistoryHints}
                     regHints={data.requirementDescRegHints}
-                    searchStatus={data.searchStatus['requirementDescHistoryHints']}
+                    searchStatus={data.searchStatus?.['requirementDescHistoryHints'] || 'none'}
                     onHistoryHintToggle={(id: string) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
                     onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
@@ -383,7 +383,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v: string) => updateField('appearance', v)} 
                     historyHints={data.appearanceHistoryHints}
                     regHints={data.appearanceRegHints}
-                    searchStatus={data.searchStatus['appearanceHistoryHints']}
+                    searchStatus={data.searchStatus?.['appearanceHistoryHints'] || 'none'}
                     onHistoryHintToggle={(id: string) => toggleHint('appearanceHistoryHints', 'appearance', id)}
                     onRegHintToggle={(id: string) => toggleHint('appearanceRegHints', 'appearance', id)}
                   />
@@ -395,7 +395,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v: string) => updateField('rangeRange', v)} 
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
-                    searchStatus={data.searchStatus['rangeHistoryHints']}
+                    searchStatus={data.searchStatus?.['rangeHistoryHints'] || 'none'}
                     onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
@@ -430,7 +430,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v: string) => updateField('envRequirements', v)} 
                      historyHints={data.envHistoryHints}
                      regHints={data.envRegHints}
-                     searchStatus={data.searchStatus['envHistoryHints']}
+                     searchStatus={data.searchStatus?.['envHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
                   />
@@ -440,7 +440,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v: string) => updateField('regRequirements', v)} 
                      historyHints={data.regHistoryHints}
                      regHints={data.regRegHints}
-                     searchStatus={data.searchStatus['regHistoryHints']}
+                     searchStatus={data.searchStatus?.['regHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
                   />
@@ -681,7 +681,19 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       <DatabaseImportModal 
         isOpen={isDbImportModalOpen}
         onClose={() => setIsDbImportModalOpen(false)}
-        onSelect={(importedData: any) => onChange(importedData)}
+        onSelect={(importedData: any) => {
+          // V12.5: 強化狀態合併邏輯，確保 searchStatus 等關鍵 UI 狀態不會遺失
+          onChange((prev: FormState) => ({
+            ...INITIAL_FORM_STATE,
+            ...prev,
+            ...importedData,
+            searchStatus: {
+              ...(INITIAL_FORM_STATE.searchStatus || {}),
+              ...(prev.searchStatus || {}),
+              ...(importedData.searchStatus || {})
+            }
+          }));
+        }}
       />
 
       <style>{`
