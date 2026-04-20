@@ -17,7 +17,8 @@ import {
   Hammer,
   Table,
   Building2,
-  PenTool
+  PenTool,
+  Trash2
 } from 'lucide-react';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
@@ -176,7 +177,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     a.href = url;
     a.download = `TUC_Spec_${data.equipmentName || 'Draft'}.json`;
     a.click();
-    setIsExportMenuOpen(false);
+  };
+
+  const handleClear = () => {
+    if (confirm('確定要清除所有欄位並恢復預設完整版面嗎？(此操作不可還原)')) {
+      onChange(INITIAL_FORM_STATE);
+      setSyncStatus({ type: 'success', message: '✅ 資料已重置為預設狀態' });
+      setTimeout(() => setSyncStatus({ type: null, message: '' }), 3000);
+    }
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -306,6 +314,21 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 )}
               </div>
 
+              <button 
+                className="icon-btn" 
+                onClick={handleClear}
+                title="清除所有內容並重置"
+                style={{ 
+                  gap: '8px', 
+                  padding: '0.6rem 1rem', 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  borderColor: 'rgba(239, 68, 68, 0.2)',
+                  color: '#F87171' 
+                }}
+              >
+                <Trash2 size={16} /> 
+                <span className="header-btn-text">清除歸零</span>
+              </button>
 
             </div>
           </header>
