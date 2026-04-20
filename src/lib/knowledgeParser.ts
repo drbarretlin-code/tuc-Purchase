@@ -79,204 +79,31 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   return cachedModelId || 'gemini-1.5-flash';
 }
 
-const TECHNICAL_BOOST_MAP: Record<string, number> = {
-  '防爆': 2.0,
-  '電壓': 1.5,
-  'SUS': 1.5,
-  '火災': 1.8,
-  '靜電': 1.6,
-  '消防': 1.8,
-  '高架': 1.7,
-  '局限空間': 1.9,
-  '廢水': 1.6,
-  '安全': 1.4,
-  '粉塵': 1.7
-};
-
-export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
-  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
-  const finalKey = rawKey.trim();
-  
-  if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
-  
-  const ai = new GoogleGenAI({ apiKey: finalKey });
-  const modelId = await getAutoSelectedModel(finalKey);
-
-  let text = '';
-  
-  if (file.name.endsWith('.docx')) {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    text = result.value;
-  } else if (file.name.endsWith('.doc')) {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    const decoder = new TextDecoder('utf-8', { fatal: false });
-    const rawContent = decoder.decode(uint8);
-    text = rawContent.replace(/[^\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF]/g, ' ');
-  } else if (file.name.endsWith('.pdf')) {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += content.items.map((item: any) => item.str).join(' ');
-    }
-    text = fullText;
-  }
-
-  if (!text) throw new Error('無法從檔案中提取內容');
-
-  const prompt = `
-    你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
-    1. 辨別這份文件的知識層級 (docType)：
-       - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
-       - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
-       - Global: 政府法規、勞安或環境保護「共通法規」(如職安法、環保規章)。
-    2. 辨別設備主體名稱 (detectedEquipment)：
-       - 若為 Specific，請辨識設備名 (如：大明剪床、RTO)。
-       - 若為 Standard，請統一回傳「技術標準」。
-       - 若為 Global，請統一回傳「共通性法規」。
-    3. 從內容中提取「技術要求」條目並分類為 specEntries。
-    4. **同時轉成結構化 JSON (fullJsonData)**：
-       請根據內容填充以下欄位，若無資訊請留空：
-       - equipmentName: 設備名稱
-       - requirementDesc: 需求描述
-       - appearance: 品相描述
-       - quantityUnit: 數量與單位
-       - scopeScope: 工程適用範圍
-       - rangeRange: 工程適用區間
-       - envRequirements: 環保要求
-       - regRequirements: 法規要求
-       - maintRequirements: 維護要求
-       - safetyRequirements: 安全要求
-       - elecSpecs: 電氣規格
-       - mechSpecs: 機構規格
-       - physSpecs: 物理規格
-       - relySpecs: 信賴規格
-       - installStandard: 施工標準
-       - workPeriod: 工期
-       - acceptanceDesc: 驗收要求
-       - complianceDesc: 遵守事項
-       - tableData: 數組對象，包含 {item, requirement, method} (對應十二. 驗收要求細目)
-
-    回傳格式：嚴格純 JSON 物件。
-    {
-      "docType": "Specific | Standard | Global",
-      "detectedEquipment": "辨識出的設備名稱",
-      "specEntries": [{"category": "類別", "content": "規範文字"}],
-      "fullJsonData": { ...上述欄位... }
-    }
-    
-    內容：
-    ${text.substring(0, 8000)}
-  `;
-
-  try {
-    const result = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt
-    });
-    const responseText = result.text;
-    if (!responseText) throw new Error('AI 回傳內容為空');
-    const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
-    
-    const detectedEq = parsed.detectedEquipment || equipmentName || '未命名設備';
-    const indexData = parsed.specEntries || [];
-
-    if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
-
-    let addedCount = 0;
-    let skippedCount = 0;
-    
-    const fullJson = parsed.fullJsonData || {};
-    const docId = overrideDocId || crypto.randomUUID();
-
-    for (const item of indexData) {
-      const { data: existing } = await supabase
-        .from('tuc_history_knowledge')
-        .select('id')
-        .eq('category', item.category)
-        .eq('content', item.content)
-        .contains('metadata', { equipment_name: detectedEq })
-        .maybeSingle();
-
-      if (existing) {
-        skippedCount++;
-        continue;
-      }
-
-      const { error } = await supabase.from('tuc_history_knowledge').insert({
-        category: item.category,
-        content: item.content,
-        source_file_name: file.name,
-        full_json_data: fullJson,
-        metadata: { 
-          equipment_name: detectedEq, 
-          docType: parsed.docType, 
-          docId: docId 
-        }
-      });
-      if (!error) addedCount++;
-    }
-    
-    return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq, fullJson, docId };
-  } catch (err) {
-    console.error('[解析失敗]', err);
-    throw err;
-  }
-};
-
 /**
- * 計算加權相似度 (V12: 30% 設備名稱 / 70% 需求說明 + 關鍵字加權)
+ * 新版詞彙拆解與吻合度計算 (吻合度 = 輸入詞彙命中數 / 輸入詞彙總數)
+ * 70% 門檻指「輸入內容中，有 70% 出現在目標字串中」
  */
-export const calculateWeightedSimilarity = (
-  content: string, 
-  eqKeywords: string = '', 
-  reqKeywords: string = '',
-  metadata?: any
-) => {
+const calculateTokenOverlap = (input: string, target: string): number => {
+  if (!input || !target) return 0;
+  
   const tokenize = (str: string) => {
-    if (!str) return [];
     return str.match(/[\u4e00-\u9fa5]|[a-zA-Z0-9]+/g) || [];
   };
 
-  const calculateOverlap = (tokens: string[], target: string) => {
-    if (tokens.length === 0) return 0;
-    const uniqueTokens = Array.from(new Set(tokens));
-    const normalizedTarget = target.toLowerCase();
-    const matches = uniqueTokens.filter(t => normalizedTarget.includes(t.toLowerCase())).length;
-    let score = matches / uniqueTokens.length;
+  const inputTokens = Array.from(new Set(tokenize(input)));
+  if (inputTokens.length === 0) return 0;
 
-    // 關鍵字引力增壓 (Keyword Boosting)
-    Object.entries(TECHNICAL_BOOST_MAP).forEach(([word, boost]) => {
-      if (tokens.includes(word) && target.includes(word)) {
-        score *= boost;
-      }
-    });
-
-    return Math.min(1.0, score);
-  };
-
-  const dbEquipmentName = metadata?.equipment_name || '';
-  const eqTokens = tokenize(eqKeywords);
-  const reqTokens = tokenize(reqKeywords);
-
-  // 1. 設備名稱比對 (30% 權重)
-  const scoreEq = eqTokens.length > 0 ? calculateOverlap(eqTokens, dbEquipmentName) : 0.5;
+  const targetLower = target.toLowerCase();
+  const matches = inputTokens.filter(t => targetLower.includes(t.toLowerCase())).length;
   
-  // 2. 說明內容比對 (70% 權重)
-  const scoreReq = reqTokens.length > 0 ? calculateOverlap(reqTokens, content) : 0.5;
-
-  return (scoreEq * 0.3) + (scoreReq * 0.7);
+  return matches / inputTokens.length;
 };
 
 /**
- * AI 語意重排序 (Reranker) - 提升上下文連貫性
+ * 極輕量 AI 語意篩選 (Final 15 Selector)
+ * 僅在第一階段通過 70% 門檻的候選清單中進行最後的相關性確認
  */
-const rerankWithAI = async (
+const liteAIRerank = async (
   candidates: any[], 
   equipmentName: string, 
   requirementDesc: string
@@ -289,20 +116,17 @@ const rerankWithAI = async (
     const modelId = await getAutoSelectedModel(apiKey);
 
     const prompt = `
-      你是一個專業的採購規範審核專家。
-      使用者目前正在編寫一份採購規範，背景如下：
+      任務：從下方的「候選條文清單」中，挑選出最符合當前「採購背景」的 15 筆條文。
+      
+      [採購背景]
       - 設備名稱: "${equipmentName}"
       - 需求描述: "${requirementDesc}"
 
-      以下是從資料庫中檢索出的相似條文候選清單，請根據與「當前上下文語意」的相關性進行評分（0.0 到 1.0）。
-      相關性是指：候選條文是否能解決需求描述中的技術問題，或與該設備的典型安全/環保規範相符。
-      請特別注意技術關鍵字（如：防爆、電力、SUS、消防等）的契合度。
+      [候選條文清單]
+      ${candidates.map((c, i) => `[${i}] ${c.content}`).join('\n')}
 
-      候選清單：
-      ${candidates.map((c, i) => `ID [${i}]: ${c.content}`).join('\n')}
-
-      請回傳 JSON 陣列，包含 ID 與 Score，例如：[{"id": 0, "score": 0.95}, ...]
-      僅回傳純 JSON 陣列。
+      請僅回傳一個 JSON 數字陣列，代表入選的索引（例如：[0, 2, 5...]），總數不超過 15 個。
+      回傳格式：嚴格 JSON Array。
     `;
 
     const result = await ai.models.generateContent({
@@ -310,19 +134,17 @@ const rerankWithAI = async (
       contents: prompt
     });
     const responseText = result.text;
-    if (!responseText) throw new Error('AI 重排序回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const scores = JSON.parse(cleanJson);
+    const selectedIndices = JSON.parse(cleanJson);
 
-    if (!Array.isArray(scores)) return candidates;
+    if (!Array.isArray(selectedIndices)) return candidates.slice(0, 15);
 
-    return candidates.map((c, i) => {
-      const match = scores.find((s: any) => s.id === i);
-      return { ...c, aiScore: match ? match.score : 0 };
-    }).sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
+    return candidates
+      .filter((_, i) => selectedIndices.includes(i))
+      .slice(0, 15);
   } catch (err) {
-    console.warn('[AI Rerank] 失敗，退回基礎排序:', err);
-    return candidates;
+    console.warn('[Lite AI Rerank] 失敗，採用基礎排序:', err);
+    return candidates.slice(0, 15);
   }
 };
 
@@ -336,50 +158,52 @@ export const getHistorySuggestions = async (
   if (!supabase) return { hints: [], status: 'ai_error' };
 
   try {
-    // 抓取基礎候選人 (類別相符 或 docType 為標準/法規)
+    // 1. 抓取基礎候選人 (類別相符 或 docType 為標準/法規)
     const { data: candidates, error } = await supabase
       .from('tuc_history_knowledge')
       .select('id, content, source_file_name, metadata, category')
       .or(`category.eq.${category},metadata->>docType.in.("Standard","Global")`)
-      .limit(60);
+      .limit(100);
 
     if (error) throw error;
     if (!candidates || candidates.length === 0) return { hints: [], status: 'empty' };
 
-    // 第一階段：快速加權過濾 (設定 0.3 為候選門檻)
+    // 2. 第一階段：分離比對邏輯 (70% 門檻)
     const scoredData = candidates.map(item => {
-      const baseScore = calculateWeightedSimilarity(
-        item.content, 
-        eqKeywords, 
-        reqKeywords,
-        item.metadata
-      );
-      return { ...item, score: baseScore };
-    }).filter(item => item.score >= 0.3);
+      const docType = (item.metadata as any)?.docType || 'Specific';
+      let score = 0;
+
+      if (docType === 'Specific') {
+        // TUC 歷史資料：僅比對設備名稱
+        const dbEquipmentName = (item.metadata as any)?.equipment_name || '';
+        score = calculateTokenOverlap(eqKeywords, dbEquipmentName);
+      } else {
+        // 技術法令/標準：僅比對條文內容與需求說明
+        score = calculateTokenOverlap(reqKeywords, item.content);
+      }
+      
+      return { ...item, score };
+    }).filter(item => item.score >= 0.7); // 嚴格 70% 門檻
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
-    // 第二階段：AI 語意重排序 (針對前 15 名候選人進行上下文分析)
-    const topCandidates = scoredData.sort((a, b) => b.score - a.score).slice(0, 15);
-    const reranked = await rerankWithAI(topCandidates, eqKeywords, reqKeywords);
+    // 3. 排序並取前 30 名進入 Lite AI 篩選
+    const topCandidates = scoredData.sort((a, b) => b.score - a.score).slice(0, 30);
+    
+    // 4. 第二階段：極輕量 AI 篩選 (Final 15)
+    const finalSelection = await liteAIRerank(topCandidates, eqKeywords, reqKeywords);
 
-    // 檢查 reranked 是否有 aiScore (若 rerank 失敗會返回原陣列)
-    const hasAIScore = reranked.length > 0 && reranked[0].aiScore !== undefined;
-    if (!hasAIScore) return { hints: [], status: 'ai_error' };
-
-    const filtered = reranked
-      .filter(item => (item.aiScore || 0) >= 0.5) // 最終語意門檻 50%
-      .map((item) => ({
-        id: item.id.toString(),
-        content: item.content,
-        selected: false,
-        docType: (item.metadata as any)?.docType || 'Specific',
-        source: item.source_file_name
-      }));
+    const mappedHints = finalSelection.map((item) => ({
+      id: item.id.toString(),
+      content: item.content,
+      selected: false,
+      docType: (item.metadata as any)?.docType || 'Specific',
+      source: item.source_file_name
+    }));
 
     return { 
-      hints: filtered, 
-      status: filtered.length > 0 ? 'success' : 'empty' 
+      hints: mappedHints, 
+      status: mappedHints.length > 0 ? 'success' : 'empty' 
     };
   } catch (err) {
     console.error('History fetch fatal error:', err);
