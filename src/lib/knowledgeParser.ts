@@ -7,6 +7,9 @@ import type { AIHintSelection } from '../types/form';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
+// V12: 統一 AI 模型配置
+const GEMINI_MODEL = "gemini-3-flash-preview";
+
 const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '防爆': 2.0,
   '電壓': 1.5,
@@ -78,7 +81,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
@@ -180,7 +183,7 @@ const rerankWithAI = async (
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
     const prompt = `
       你是一個專業的採購規範審核專家。
