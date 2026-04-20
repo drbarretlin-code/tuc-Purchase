@@ -8,7 +8,7 @@ import type { AIHintSelection } from '../types/form';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 // V12: 統一 AI 模型配置
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '防爆': 2.0,
@@ -373,14 +373,13 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
       console.warn('[智慧覆蓋] 刪除舊資料失敗 (可能為首次上傳):', deleteError);
     }
 
-    // 3. 執行新資料插入
+    // 3. 執行新資料插入 (僅插入條目)
     let addedCount = 0;
     for (const item of indexData) {
       const { error } = await supabase.from('tuc_history_knowledge').insert({
         category: item.category,
         content: item.content,
         source_file_name: `[App] ${equipmentName}`,
-        full_json_data: data, // 直接儲存當前完整 FormState
         metadata: { 
           equipment_name: equipmentName, 
           docType: parsed.docType,
@@ -390,6 +389,11 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
       });
       if (!error) addedCount++;
     }
+
+    // 4. 同時更新檔案記錄的完整 JSON 存檔
+    await supabase.from('tuc_uploaded_files')
+      .update({ full_json_data: data })
+      .eq('id', docId);
 
     return { success: true, count: addedCount, docId };
   } catch (err) {
@@ -433,9 +437,9 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
     const fullJson = JSON.parse(cleanJson);
     
     // 更新資料庫回填
-    await supabase.from('tuc_history_knowledge')
+    await supabase.from('tuc_uploaded_files')
       .update({ full_json_data: fullJson })
-      .eq('metadata->>docId', docId);
+      .eq('id', docId);
 
     return fullJson;
   } catch (err) {
