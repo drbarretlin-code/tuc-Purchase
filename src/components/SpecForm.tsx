@@ -156,7 +156,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     let nextContent = data[contentField] as string;
     if (newSelected) {
       const baseContent = nextContent.trimEnd();
-      const separator = baseContent ? '\n' : '';
+      // V13.9: 改為雙換行 \n\n，確保建議條文自成一個獨立段落
+      const separator = baseContent ? '\n\n' : '';
       nextContent = baseContent + separator + targetHint.content;
     } else {
       nextContent = nextContent.replace(targetHint.content, '');
@@ -435,6 +436,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
                     searchStatus={data.searchStatus?.['rangeHistoryHints'] || 'none'}
+                    onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
