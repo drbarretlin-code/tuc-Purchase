@@ -53,7 +53,8 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
   const handleSelect = async (doc: any) => {
     if (doc.hasJson) {
-      onSelect(doc.fullJson);
+      // 確保傳出的資料包含 docId (處理可能缺少的舊資料)
+      onSelect({ ...doc.fullJson, docId: doc.docId });
       onClose();
     } else {
       // 執行反向組裝

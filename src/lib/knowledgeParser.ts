@@ -538,12 +538,18 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const fullJson = JSON.parse(cleanJson);
     
+    // 確保輸出的 JSON 包含 docId，避免 UI 渲染報錯
+    const finalResult = {
+      ...fullJson,
+      docId: docId
+    };
+
     // 更新資料庫回填
     await supabase.from('tuc_uploaded_files')
-      .update({ full_json_data: fullJson })
+      .update({ full_json_data: finalResult })
       .eq('id', docId);
 
-    return fullJson;
+    return finalResult;
   } catch (err: any) {
     console.error('[反向組裝失敗]', err);
     throw new Error(`AI 組裝模組執行失敗: ${err.message || '網路或 API 錯誤'}`);
