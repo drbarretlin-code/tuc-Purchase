@@ -7,8 +7,8 @@ import type { AIHintSelection } from '../types/form';
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
-// V12: 統一 AI 模型配置
-const GEMINI_MODEL = "gemini-1.5-flash";
+// V12.2: 升級至 2026 穩定型模型 (解決 404 棄用問題)
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 const TECHNICAL_BOOST_MAP: Record<string, number> = {
   '防爆': 2.0,
