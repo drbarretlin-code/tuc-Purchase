@@ -14,7 +14,6 @@ import {
   Zap,
   ChevronDown,
   Database,
-  CloudUpload,
   Hammer,
   Table,
   Building2,
