@@ -59,8 +59,17 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
       
-      if (errMsg.includes('404') || status === 404 || errMsg.toLowerCase().includes('not found')) {
-        console.warn(`[AI Discovery] 模型 ${mId} 不可用 (404/Not Found)，嘗試下一個...`);
+      if (
+        errMsg.includes('404') || 
+        status === 404 || 
+        errMsg.includes('429') || 
+        status === 429 || 
+        errMsg.toLowerCase().includes('not found') ||
+        errMsg.toLowerCase().includes('resource_exhausted') ||
+        errMsg.toLowerCase().includes('quota') ||
+        errMsg.toLowerCase().includes('rate limit')
+      ) {
+        console.warn(`[AI Discovery] 模型 ${mId} 暫時不可用 (404/429/Quota)，嘗試下一個...`);
         continue;
       }
       
@@ -130,9 +139,15 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       const content = await page.getTextContent();
       fullText += content.items.map((item: any) => item.str).join(' ');
     }
-    text = fullText;
-    if (!text || text.trim().length === 0) {
-      throw new Error('無法從傳入的 PDF 中提取任何文字 (檔案可能受保護或僅包含影像)。');
+    
+    // V13.6: 自動回退機制 - 若提取文字過少，嘗試多模態解析
+    if (!fullText || fullText.trim().length < 50) {
+      console.warn(`[AI Multimodal] PDF 文字提取內容不足 (${fullText?.length || 0} 字)，自動切換至多模態附件模式: ${file.name}`);
+      const base64 = await fileToBase64(file);
+      inlineData = { data: base64, mimeType: 'application/pdf' };
+      text = ''; 
+    } else {
+      text = fullText;
     }
   }
 

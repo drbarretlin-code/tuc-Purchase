@@ -349,9 +349,9 @@ function App() {
             }
           }
         } catch (e: any) {
-          console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
-          alert(`處理檔案 ${fileRecord.original_name} 時出錯: ${e.message}`);
-          break;
+          console.error(`[Batch] 檔案 ${fileRecord.original_name} 校準失敗:`, e);
+          // V13.7: 改為 continue，避免單一檔案配額耗盡或錯誤導致整批中斷
+          continue; 
         }
 
         setCloudFiles(prev => prev.map(f => {
@@ -479,9 +479,9 @@ function App() {
           // 渲染緩衝
           await new Promise(r => setTimeout(r, 100));
         } catch (fileErr: any) {
-          console.error(`檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
-          alert(`處理 ${fileRecord.original_name} 時中斷: ${fileErr.message}`);
-          break; 
+          console.error(`[Batch] 檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
+          // V13.7: 改為 continue，避免單一檔案配額耗盡或格式錯誤導致整批中斷
+          continue; 
         }
 
         // 為了避免頻控，間隔 6 秒
