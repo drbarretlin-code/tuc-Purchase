@@ -319,7 +319,7 @@ export const getHistorySuggestions = async (
       }
       
       return { ...item, score };
-    }).filter(item => item.score >= 0.7); // 嚴格 70% 門檻
+    }).filter(item => item.score >= 0.2); // 門檻調整為 20%
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
