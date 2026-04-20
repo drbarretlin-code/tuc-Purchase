@@ -78,7 +78,9 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
   const filteredDocs = documents.filter(d => 
     d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) &&
     !d.equipmentName.includes('共通性法規') && 
-    !d.equipmentName.includes('技術標準')
+    !d.equipmentName.includes('技術標準') &&
+    !d.equipmentName.startsWith('KCG') &&
+    !(d.fileName || '').startsWith('KCG')
   );
 
   if (!isOpen) return null;
