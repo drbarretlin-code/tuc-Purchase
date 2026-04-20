@@ -144,7 +144,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const toggleHint = (hintField: keyof FormState, contentField: keyof FormState, hintId: string) => {
-    const currentHints = data[hintField] as AIHintSelection[];
+    const currentHints = (data[hintField] as AIHintSelection[]) || [];
     const targetHint = currentHints.find(h => String(h.id) === String(hintId));
     if (!targetHint) return;
 
@@ -153,15 +153,17 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       String(h.id) === String(hintId) ? { ...h, selected: newSelected } : h
     );
 
-    let nextContent = data[contentField] as string;
+    let nextContent = (data[contentField] as string) || '';
+    
     if (newSelected) {
+      // V14.2 防禦性合併：清潔尾端空白後，若有內容則強制補上單換行 \n
       const baseContent = nextContent.trimEnd();
-      // V14.1: 根據使用者要求，改回單換行 \n
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + targetHint.content;
     } else {
-      nextContent = nextContent.replace(targetHint.content, '');
-      nextContent = nextContent.split('\n').filter(line => line.trim()).join('\n').trim();
+      // 移除邏輯優化：精準替換目標內容，並清理多誤換行
+      nextContent = nextContent.replace(targetHint.content, '').trim();
+      nextContent = nextContent.replace(/\n{2,}/g, '\n');
     }
 
     onChange({
@@ -469,9 +471,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      label="1. 環保要求" 
                      value={data.envRequirements} 
                      onChange={(v: string) => updateField('envRequirements', v)} 
+                     hints={data.envAIHints}
                      historyHints={data.envHistoryHints}
                      regHints={data.envRegHints}
                      searchStatus={data.searchStatus?.['envHistoryHints'] || 'none'}
+                     onHintToggle={(id: string) => toggleHint('envAIHints', 'envRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
                   />
@@ -479,9 +483,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      label="2. 法規要求" 
                      value={data.regRequirements} 
                      onChange={(v: string) => updateField('regRequirements', v)} 
+                     hints={data.regAIHints}
                      historyHints={data.regHistoryHints}
                      regHints={data.regRegHints}
                      searchStatus={data.searchStatus?.['regHistoryHints'] || 'none'}
+                     onHintToggle={(id: string) => toggleHint('regAIHints', 'regRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
                   />
@@ -491,7 +497,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onChange={(v: string) => updateField('maintRequirements', v)} 
                      historyHints={data.maintHistoryHints}
                      regHints={data.maintRegHints}
-                     searchStatus={data.searchStatus['maintHistoryHints']}
+                     searchStatus={data.searchStatus?.['maintHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('maintRegHints', 'maintRequirements', id)}
                   />
@@ -589,9 +595,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   label="驗收要求" 
                   value={data.acceptanceDesc} 
                   onChange={(v: string) => updateField('acceptanceDesc', v)} 
+                  hints={data.acceptanceAIHints}
                   historyHints={data.acceptanceHistoryHints}
                   regHints={data.acceptanceRegHints}
-                  searchStatus={data.searchStatus['acceptanceHistoryHints']}
+                  searchStatus={data.searchStatus?.['acceptanceHistoryHints'] || 'none'}
+                  onHintToggle={(id: string) => toggleHint('acceptanceAIHints', 'acceptanceDesc', id)}
                   onHistoryHintToggle={(id: string) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                   onRegHintToggle={(id: string) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
                 />
@@ -599,9 +607,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    label="十. 遵守事項" 
                    value={data.complianceDesc} 
                    onChange={(v: string) => updateField('complianceDesc', v)} 
+                   hints={data.complianceAIHints}
                    historyHints={data.complianceHistoryHints}
                    regHints={data.complianceRegHints}
-                   searchStatus={data.searchStatus['complianceHistoryHints']}
+                   searchStatus={data.searchStatus?.['complianceHistoryHints'] || 'none'}
+                   onHintToggle={(id: string) => toggleHint('complianceAIHints', 'complianceDesc', id)}
                    onHistoryHintToggle={(id: string) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
                    onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
                 />
