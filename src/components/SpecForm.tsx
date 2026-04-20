@@ -156,8 +156,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     let nextContent = data[contentField] as string;
     if (newSelected) {
       const baseContent = nextContent.trimEnd();
-      // V13.9: 改為雙換行 \n\n，確保建議條文自成一個獨立段落
-      const separator = baseContent ? '\n\n' : '';
+      // V14.1: 根據使用者要求，改回單換行 \n
+      const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + targetHint.content;
     } else {
       nextContent = nextContent.replace(targetHint.content, '');
