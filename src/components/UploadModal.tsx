@@ -181,7 +181,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             display_name: newDisplayName,
             is_parsed: true,
             is_calibrated: true, // V12: 上傳即完成校準
-            parsed_at: new Date().toISOString()
+            parsed_at: new Date().toISOString(),
+            full_json_data: result.fullJson
           })
           .eq('id', id);
 

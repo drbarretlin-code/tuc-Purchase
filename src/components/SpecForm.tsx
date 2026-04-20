@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Save, 
   Download, 
   Upload, 
   FileText, 
   Info, 
   Settings, 
-  FileCheck, 
   User, 
   Hash, 
   Package, 
@@ -20,14 +18,13 @@ import {
   Hammer,
   Table,
   Building2,
-  PenTool,
-  Calendar
+  PenTool
 } from 'lucide-react';
-import { SectionEditor } from './SectionEditor';
-import { SpecTable } from './SpecTable';
-import { ImageUpload } from './ImageUpload';
+import SectionEditor from './SectionEditor';
+import SpecTable from './SpecTable';
+import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
-import { FormState, AIHintSelection, 工程類別 } from '../types/form';
+import type { FormState, AIHintSelection, 工程類別 } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
@@ -51,7 +48,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   }, []);
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
-  const currentDate = new Date().toLocaleDateString('zh-TW');
 
   const loadHistoryHints = async (tabIndex: number) => {
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
@@ -81,7 +77,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     if (!targets) return;
 
     const initialStatus = { ...data.searchStatus };
-    targets.forEach(t => { 
+    targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string}) => { 
       initialStatus[t.key as string] = 'pending';
       initialStatus[t.regKey as string] = 'pending';
     });
@@ -93,9 +89,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     for (let i = 0; i < targets.length; i += concurrency) {
       const chunk = targets.slice(i, i + concurrency);
       
-      const chunkResults = await Promise.all(chunk.map(async (target) => {
+      const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
         try {
-          const res = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
+          const res = await KP.getHistorySuggestions(target.category, data.requirementDesc);
           return { target, res };
         } catch (err) {
           console.error(`Fetch failed for ${target.category}:`, err);
@@ -104,9 +100,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       }));
 
       const nextData = { ...currentData };
-      chunkResults.forEach(({ target, res }) => {
-        nextData[target.key as keyof FormState] = res.hints.filter(h => h.docType === 'Specific') as any;
-        nextData[target.regKey as keyof FormState] = res.hints.filter(h => h.docType !== 'Specific') as any;
+      chunkResults.forEach(({ target, res }: { target: {key: keyof FormState, regKey: keyof FormState}, res: any }) => {
+        nextData[target.key as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific') as any;
+        nextData[target.regKey as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific') as any;
         nextData.searchStatus[target.key as string] = res.status as any;
         nextData.searchStatus[target.regKey as string] = res.status as any;
       });
@@ -163,8 +159,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const updateSignOff = (row: number, col: number, value: string) => {
-    const newGrid = data.signOffGrid.map((r, ri) => 
-      ri === row ? r.map((c, ci) => ci === col ? value : c) : r
+    const newGrid = data.signOffGrid.map((r: string[], ri: number) => 
+      ri === row ? r.map((c: string, ci: number) => ci === col ? value : c) : r
     );
     updateField('signOffGrid', newGrid);
   };
@@ -187,7 +183,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (event: ProgressEvent<FileReader>) => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
         onChange(importedData);
@@ -241,7 +237,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
             </div>
-            {tabs.map((tab, index) => (
+            {tabs.map((tab: {label: string, icon: any}, index: number) => (
               <button
                 key={tab.label}
                 onClick={() => setActiveTab(index)}
@@ -260,9 +256,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <select 
                 className="mobile-chapter-selector"
                 value={activeTab}
-                onChange={(e) => setActiveTab(parseInt(e.target.value))}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setActiveTab(parseInt(e.target.value))}
               >
-                {tabs.map((tab, index) => (
+                {tabs.map((tab: string, index: number) => (
                   <option key={tab.label} value={index}>
                     第 {index + 1} 部分：{tab.label}
                   </option>
@@ -337,16 +333,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div className="input-with-label">
                     <label><Building2 size={14} /> 申請單位</label>
-                    <input type="text" value={data.department} onChange={(e) => updateField('department', e.target.value)} />
+                    <input type="text" value={data.department} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('department', e.target.value)} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
                     <div className="input-with-label">
                       <label><User size={14} /> 申請人員</label>
-                      <input type="text" value={data.requester} onChange={(e) => updateField('requester', e.target.value)} />
+                      <input type="text" value={data.requester} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('requester', e.target.value)} />
                     </div>
                     <div className="input-with-label">
                       <label><Hash size={14} /> 分機</label>
-                      <input type="text" value={data.extension} onChange={(e) => updateField('extension', e.target.value)} />
+                      <input type="text" value={data.extension} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('extension', e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -354,26 +350,26 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <div className="doc-section-box">
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>一. 名稱 (請購細目)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <SectionEditor label="設備名稱" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} isTextArea={false} />
-                    <SectionEditor label="型別" value={data.model} onChange={(v) => updateField('model', v)} isTextArea={false} />
+                    <SectionEditor label="設備名稱" value={data.equipmentName} onChange={(v: string) => updateField('equipmentName', v)} isTextArea={false} />
+                    <SectionEditor label="型別" value={data.model} onChange={(v: string) => updateField('model', v)} isTextArea={false} />
                   </div>
                   <div className="input-with-label">
                     <label>工程類別</label>
-                    <select value={data.category} onChange={(e) => updateField('category', e.target.value as 工程類別)} style={{ width: '100%' }}>
+                    <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as 工程類別)} style={{ width: '100%' }}>
                       {['新增', '修繕', '整改', '優化', '購置'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <SectionEditor 
                     label="需求說明" 
                     value={data.requirementDesc} 
-                    onChange={(v) => updateField('requirementDesc', v)} 
+                    onChange={(v: string) => updateField('requirementDesc', v)} 
                     required 
                     placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
                     historyHints={data.requirementDescHistoryHints}
                     regHints={data.requirementDescRegHints}
                     searchStatus={data.searchStatus['requirementDescHistoryHints']}
-                    onHistoryHintToggle={(id) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
-                    onRegHintToggle={(id) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
+                    onHistoryHintToggle={(id: string) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
+                    onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
 
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
@@ -398,24 +394,23 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <SectionEditor 
                     label="二. 品相" 
                     value={data.appearance} 
-                    onChange={(v) => updateField('appearance', v)} 
+                    onChange={(v: string) => updateField('appearance', v)} 
                     historyHints={data.appearanceHistoryHints}
                     regHints={data.appearanceRegHints}
                     searchStatus={data.searchStatus['appearanceHistoryHints']}
-                    onHistoryHintToggle={(id) => toggleHint('appearanceHistoryHints', 'appearance', id)}
-                    onRegHintToggle={(id) => toggleHint('appearanceRegHints', 'appearance', id)}
+                    onHistoryHintToggle={(id: string) => toggleHint('appearanceHistoryHints', 'appearance', id)}
+                    onRegHintToggle={(id: string) => toggleHint('appearanceRegHints', 'appearance', id)}
                   />
-                  <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v) => updateField('quantityUnit', v)} isTextArea={false} />
-                  <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentName} onChange={(v) => updateField('equipmentName', v)} />
+                  <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v: string) => updateField('quantityUnit', v)} isTextArea={false} />
+                  <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentScope} onChange={(v: string) => updateField('equipmentScope', v)} />
                   <SectionEditor 
                     label="五. 工程(或設備)適用區間 (Range)" 
                     value={data.rangeRange} 
-                    onChange={(v) => updateField('rangeRange', v)} 
+                    onChange={(v: string) => updateField('rangeRange', v)} 
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
                     searchStatus={data.searchStatus['rangeHistoryHints']}
-                    onHistoryHintToggle={(id) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
-                    onRegHintToggle={(id) => toggleHint('rangeRegHints', 'rangeRange', id)}
+                    onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
@@ -446,32 +441,32 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <SectionEditor 
                      label="1. 環保要求" 
                      value={data.envRequirements} 
-                     onChange={(v) => updateField('envRequirements', v)} 
+                     onChange={(v: string) => updateField('envRequirements', v)} 
                      historyHints={data.envHistoryHints}
                      regHints={data.envRegHints}
                      searchStatus={data.searchStatus['envHistoryHints']}
-                     onHistoryHintToggle={(id) => toggleHint('envHistoryHints', 'envRequirements', id)}
-                     onRegHintToggle={(id) => toggleHint('envRegHints', 'envRequirements', id)}
+                     onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
+                     onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
                   />
                   <SectionEditor 
                      label="2. 法規要求" 
                      value={data.regRequirements} 
-                     onChange={(v) => updateField('regRequirements', v)} 
+                     onChange={(v: string) => updateField('regRequirements', v)} 
                      historyHints={data.regHistoryHints}
                      regHints={data.regRegHints}
                      searchStatus={data.searchStatus['regHistoryHints']}
-                     onHistoryHintToggle={(id) => toggleHint('regHistoryHints', 'regRequirements', id)}
-                     onRegHintToggle={(id) => toggleHint('regRegHints', 'regRequirements', id)}
+                     onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
+                     onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
                   />
                   <SectionEditor 
                      label="3. 維護要求" 
                      value={data.maintRequirements} 
-                     onChange={(v) => updateField('maintRequirements', v)} 
+                     onChange={(v: string) => updateField('maintRequirements', v)} 
                      historyHints={data.maintHistoryHints}
                      regHints={data.maintRegHints}
                      searchStatus={data.searchStatus['maintHistoryHints']}
-                     onHistoryHintToggle={(id) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
-                     onRegHintToggle={(id) => toggleHint('maintRegHints', 'maintRequirements', id)}
+                     onHistoryHintToggle={(id: string) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
+                     onRegHintToggle={(id: string) => toggleHint('maintRegHints', 'maintRequirements', id)}
                   />
                 </div>
 
@@ -480,12 +475,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <SectionEditor 
                      label="安全要求內容" 
                      value={data.safetyRequirements} 
-                     onChange={(v) => updateField('safetyRequirements', v)} 
+                     onChange={(v: string) => updateField('safetyRequirements', v)} 
                      historyHints={data.safetyHistoryHints}
                      regHints={data.safetyRegHints}
-                     searchStatus={data.searchStatus['safetyHistoryHints']}
-                     onHistoryHintToggle={(id) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
-                     onRegHintToggle={(id) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
+                     searchStatus={data.safetyHistoryHints ? data.searchStatus['safetyHistoryHints'] : 'none'}
+                     onHistoryHintToggle={(id: string) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
+                     onRegHintToggle={(id: string) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
                   />
                 </div>
 
@@ -495,52 +490,52 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     <SectionEditor 
                        label="1. 電氣特性規格" 
                        value={data.elecSpecs} 
-                       onChange={(v) => updateField('elecSpecs', v)} 
+                       onChange={(v: string) => updateField('elecSpecs', v)} 
                        historyHints={data.elecHistoryHints}
                        regHints={data.elecRegHints}
                        searchStatus={data.searchStatus['elecHistoryHints']}
-                       onHistoryHintToggle={(id) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
-                       onRegHintToggle={(id) => toggleHint('elecRegHints', 'elecSpecs', id)}
+                       onHistoryHintToggle={(id: string) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
+                       onRegHintToggle={(id: string) => toggleHint('elecRegHints', 'elecSpecs', id)}
                     />
                     <SectionEditor 
                        label="2. 機構特性規格" 
                        value={data.mechSpecs} 
-                       onChange={(v) => updateField('mechSpecs', v)} 
+                       onChange={(v: string) => updateField('mechSpecs', v)} 
                        historyHints={data.mechHistoryHints}
                        regHints={data.mechRegHints}
                        searchStatus={data.searchStatus['mechHistoryHints']}
-                       onHistoryHintToggle={(id) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
-                       onRegHintToggle={(id) => toggleHint('mechRegHints', 'mechSpecs', id)}
+                       onHistoryHintToggle={(id: string) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
+                       onRegHintToggle={(id: string) => toggleHint('mechRegHints', 'mechSpecs', id)}
                     />
                     <SectionEditor 
                        label="3. 物理特性規格" 
                        value={data.physSpecs} 
-                       onChange={(v) => updateField('physSpecs', v)} 
+                       onChange={(v: string) => updateField('physSpecs', v)} 
                        historyHints={data.physHistoryHints}
                        regHints={data.physRegHints}
                        searchStatus={data.searchStatus['physHistoryHints']}
-                       onHistoryHintToggle={(id) => toggleHint('physHistoryHints', 'physSpecs', id)}
-                       onRegHintToggle={(id) => toggleHint('physRegHints', 'physSpecs', id)}
+                       onHistoryHintToggle={(id: string) => toggleHint('physHistoryHints', 'physSpecs', id)}
+                       onRegHintToggle={(id: string) => toggleHint('physRegHints', 'physSpecs', id)}
                     />
                     <SectionEditor 
                        label="4. 信賴特性規格" 
                        value={data.relySpecs} 
-                       onChange={(v) => updateField('relySpecs', v)} 
+                       onChange={(v: string) => updateField('relySpecs', v)} 
                        historyHints={data.relyHistoryHints}
                        regHints={data.relyRegHints}
                        searchStatus={data.searchStatus['relyHistoryHints']}
-                       onHistoryHintToggle={(id) => toggleHint('relyHistoryHints', 'relySpecs', id)}
-                       onRegHintToggle={(id) => toggleHint('relyRegHints', 'relySpecs', id)}
+                       onHistoryHintToggle={(id: string) => toggleHint('relyHistoryHints', 'relySpecs', id)}
+                       onRegHintToggle={(id: string) => toggleHint('relyRegHints', 'relySpecs', id)}
                     />
                   </div>
                   <SectionEditor 
                     label="適用區間 (Range)" 
                     value={data.rangeRange} 
-                    onChange={v => updateField('rangeRange', v)}
+                    onChange={(v: string) => updateField('rangeRange', v)}
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
-                    onHistoryHintToggle={(id) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
-                    onRegHintToggle={(id) => toggleHint('rangeRegHints', 'rangeRange', id)}
+                    onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
+                    onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
                 </div>
               </div>
@@ -552,36 +547,36 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <SectionEditor 
                    label="施工標準 (九)" 
                    value={data.installStandard} 
-                   onChange={(v) => updateField('installStandard', v)} 
+                   onChange={(v: string) => updateField('installStandard', v)} 
                    historyHints={data.installHistoryHints}
                    regHints={data.installRegHints}
                    searchStatus={data.searchStatus['installHistoryHints']}
-                   onHistoryHintToggle={(id) => toggleHint('installHistoryHints', 'installStandard', id)}
-                   onRegHintToggle={(id) => toggleHint('installRegHints', 'installStandard', id)}
+                   onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
+                   onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
-                  <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v) => updateField('workPeriod', v)} isTextArea={false} />
+                  <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
+                  <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v: string) => updateField('workPeriod', v)} isTextArea={false} />
                 </div>
                 <SectionEditor 
                   label="驗收要求" 
                   value={data.acceptanceDesc} 
-                  onChange={(v) => updateField('acceptanceDesc', v)} 
+                  onChange={(v: string) => updateField('acceptanceDesc', v)} 
                   historyHints={data.acceptanceHistoryHints}
                   regHints={data.acceptanceRegHints}
                   searchStatus={data.searchStatus['acceptanceHistoryHints']}
-                  onHistoryHintToggle={(id) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
-                  onRegHintToggle={(id) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
+                  onHistoryHintToggle={(id: string) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
+                  onRegHintToggle={(id: string) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
                 />
                 <SectionEditor 
                    label="十. 遵守事項" 
                    value={data.complianceDesc} 
-                   onChange={(v) => updateField('complianceDesc', v)} 
+                   onChange={(v: string) => updateField('complianceDesc', v)} 
                    historyHints={data.complianceHistoryHints}
                    regHints={data.complianceRegHints}
                    searchStatus={data.searchStatus['complianceHistoryHints']}
-                   onHistoryHintToggle={(id) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
-                   onRegHintToggle={(id) => toggleHint('complianceRegHints', 'complianceDesc', id)}
+                   onHistoryHintToggle={(id: string) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
+                   onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
                 />
               </div>
             )}
@@ -589,10 +584,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             {activeTab === 3 && (
               <div className="tab-pane">
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
-                <ImageUpload images={data.images} onChange={(imgs) => updateField('images', imgs)} />
+                <ImageUpload images={data.images} onChange={(imgs: any[]) => updateField('images', imgs)} />
                 <div style={{ marginTop: '2.5rem' }}>
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求細目</h4>
-                  <SpecTable data={data.tableData} onChange={(td) => updateField('tableData', td)} />
+                  <SpecTable data={data.tableData} onChange={(td: any[]) => updateField('tableData', td)} />
                 </div>
               </div>
             )}
@@ -601,14 +596,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <div className="tab-pane">
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>規格確認及會簽</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                  <SectionEditor label="申請人" value={data.applicantName} onChange={v => updateField('applicantName', v)} isTextArea={false} />
-                  <SectionEditor label="單位主管" value={data.deptHeadName} onChange={v => updateField('deptHeadName', v)} isTextArea={false} />
+                  <SectionEditor label="申請人" value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} />
+                  <SectionEditor label="單位主管" value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} />
                 </div>
                 
                 <div className="doc-section-box">
                   <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, border: '1px solid var(--border-color)' }}>
-                    {data.signOffGrid.map((row, ri) => row.map((cell, ci) => (
+                    {data.signOffGrid.map((row: string[], ri: number) => row.map((cell: string, ci: number) => (
                       <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', minHeight: '100px', background: 'rgba(255,255,255,0.02)' }}>
                         <div style={{ height: '30px', background: isDropdownCell(ri, ci) ? 'rgba(230,0,18,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
                           {isDropdownCell(ri, ci) ? '單位代號' : '核決簽署'}
@@ -616,7 +611,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                         {isDropdownCell(ri, ci) ? (
                           <select 
                             value={cell} 
-                            onChange={(e) => updateSignOff(ri, ci, e.target.value)} 
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateSignOff(ri, ci, e.target.value)} 
                             style={{ width: '100%', height: '70px', border: 'none', background: 'transparent', color: 'white', fontSize: '0.85rem', textAlign: 'center' }}
                           >
                             <option value="">選擇單位</option>
@@ -625,7 +620,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                         ) : (
                           <textarea 
                             value={cell} 
-                            onChange={(e) => updateSignOff(ri, ci, e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateSignOff(ri, ci, e.target.value)}
                             style={{ width: '100%', height: '70px', background: 'transparent', border: 'none', color: 'white', padding: '8px', resize: 'none', fontSize: '0.85rem', textAlign: 'center' }}
                           />
                         )}
@@ -700,7 +695,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       <DatabaseImportModal 
         isOpen={isDbImportModalOpen}
         onClose={() => setIsDbImportModalOpen(false)}
-        onSelect={(importedData) => onChange(importedData)}
+        onSelect={(importedData: any) => onChange(importedData)}
       />
 
       <style>{`

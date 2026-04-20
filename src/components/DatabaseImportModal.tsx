@@ -26,38 +26,23 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     try {
       if (!supabase) return;
       
-      // 抓取不重複的 docId 記錄
       const { data, error } = await supabase
-        .from('tuc_history_knowledge')
-        .select(`
-          docId: metadata->>docId,
-          equipmentName: metadata->>equipment_name,
-          created_at,
-          full_json_data
-        `)
-        .not('metadata->>docId', 'is', null)
+        .from('tuc_uploaded_files')
+        .select('id, original_name, display_name, created_at, full_json_data, requester')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const uniqueDocs: any[] = [];
-      const seenIds = new Set();
-      
-      data?.forEach(item => {
-        const realId = item.docId;
-        if (realId && !seenIds.has(realId)) {
-          seenIds.add(realId);
-          uniqueDocs.push({
-            docId: realId,
-            equipmentName: item.equipmentName || '未命名文件',
-            createdAt: item.created_at,
-            hasJson: !!item.full_json_data,
-            fullJson: item.full_json_data
-          });
-        }
-      });
+      const mappedDocs = data?.map(item => ({
+        docId: item.id,
+        equipmentName: item.display_name || item.original_name || '未命名文件',
+        createdAt: item.created_at,
+        hasJson: !!item.full_json_data,
+        fullJson: item.full_json_data,
+        requester: item.requester
+      }));
 
-      setDocuments(uniqueDocs);
+      setDocuments(mappedDocs || []);
     } catch (err) {
       console.error('Fetch docs failed:', err);
     } finally {
