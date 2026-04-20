@@ -104,38 +104,35 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * 助手函式：從二進制檔案中「粗暴提取」可讀文字 (針對舊版 .doc)
- * 掃描 ASCII 與 UTF-16LE 序列，過濾掉長度小於 4 的片段。
+ * 助手函式：高容錯二進制字串提取 (針對舊版 .doc)
+ * V13.9: 不再手動掃描位元組，改為全量編碼流解碼後進行語意過濾。
+ * 支援掃描 UTF-8 (ASCII/RTF) 與 UTF-16LE (Word Binary Text)。
  */
 const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
-  const view = new DataView(buffer);
-  let result = '';
-  let currentString = '';
-
-  // 1. 嘗試掃描 1-byte (ASCII/UTF-8) 序列
-  for (let i = 0; i < buffer.byteLength; i++) {
-    const charCode = view.getUint8(i);
-    if ((charCode >= 32 && charCode <= 126) || (charCode >= 161 && charCode <= 254)) {
-      currentString += String.fromCharCode(charCode);
-    } else {
-      if (currentString.length >= 4) result += currentString + ' ';
-      currentString = '';
-    }
+  try {
+    // 1. 同時採用 UTF-8 與 UTF-16 進行暴力解碼
+    const decoder8 = new TextDecoder('utf-8', { fatal: false });
+    const decoder16 = new TextDecoder('utf-16le', { fatal: false });
+    
+    const utf8Text = decoder8.decode(buffer);
+    const utf16Text = decoder16.decode(buffer);
+    
+    // 2. 混合提取內容
+    const combined = utf8Text + "\n--- [Encoding Split] ---\n" + utf16Text;
+    
+    // 3. 語意過濾：只保留中文字、英數字、標點符號與換行，過濾掉無法識別的二進制雜訊
+    // 正則重點：CJK 統一漢字區、CJK 標點、半角英數、全角符號
+    const filtered = combined.replace(/[^\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF\x20-\x7E\n\r\t]/g, ' ');
+    
+    // 4. 清理連續空格並確保長度
+    const cleaned = filtered.replace(/[ ]{2,}/g, ' ').trim();
+    
+    console.log(`[AI Parser] .doc 暴力解析完成，原始長度: ${combined.length}, 過濾後長度: ${cleaned.length}`);
+    return cleaned;
+  } catch (err) {
+    console.error('[AI Parser] 暴力解析異常:', err);
+    return "";
   }
-
-  // 2. 嘗試掃描 2-byte (UTF-16LE) 序列 (Word 常用)
-  for (let i = 0; i < buffer.byteLength - 1; i += 2) {
-    const charCode = view.getUint16(i, true);
-    // 包含基本 ASCII 與 CJK 範圍
-    if ((charCode >= 32 && charCode <= 126) || (charCode >= 0x4E00 && charCode <= 0x9FFF)) {
-      currentString += String.fromCharCode(charCode);
-    } else {
-      if (currentString.length >= 4) result += currentString + ' ';
-      currentString = '';
-    }
-  }
-
-  return result.replace(/\s+/g, ' ').trim();
 };
 
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
@@ -196,6 +193,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
   const prompt = `
     你是一個專業的採購規範專家。請分析${inlineData ? '「附件檔案」' : '「以下內容」'}，完成以下任務：
+    (注意：若內容包含一些雜亂的字串碎片，那是從舊版 Word 檔案中暴力提取的結果，請自動忽略無意義雜訊，專注於尋找技術要求、設備規格、驗收標準等有意義的條文)。
+
     1. 辨別這份文件的知識層級 (docType)：
        - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
        - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
