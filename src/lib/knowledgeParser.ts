@@ -405,14 +405,29 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
 /**
  * 反向組裝既有資料的 JSON
  */
-export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: string) => {
+export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: string, fileName?: string) => {
   if (!supabase) throw new Error('資料庫未連線');
-  const { data: entries, error } = await supabase
+  let { data: entries, error } = await supabase
     .from('tuc_history_knowledge')
     .select('*')
     .eq('metadata->>docId', docId);
 
-  if (error || !entries || entries.length === 0) throw new Error('找不到對應條文');
+  // V12.1: 增加檔名回退匹配 (支援舊資料)
+  if (!entries || entries.length === 0) {
+    console.log('[反向組裝] DocID 匹配失敗，嘗試使用檔名回退...', fileName);
+    const { data: fallbackEntries, error: fallbackError } = await supabase
+      .from('tuc_history_knowledge')
+      .select('*')
+      .eq('source_file_name', fileName);
+    
+    entries = fallbackEntries;
+    error = fallbackError;
+  }
+
+  if (error || !entries || entries.length === 0) {
+    console.error('[反向組裝] 找不到條文。DocID:', docId, 'FileName:', fileName);
+    throw new Error('找不到對應條文');
+  }
 
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   if (!rawKey) return null;

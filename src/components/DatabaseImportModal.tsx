@@ -39,6 +39,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         createdAt: item.created_at,
         hasJson: !!item.full_json_data,
         fullJson: item.full_json_data,
+        fileName: item.original_name,
         requester: item.requester
       }));
 
@@ -58,7 +59,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
       // 執行反向組裝
       setProcessingId(doc.docId);
       try {
-        const assembled = await assembleJsonFromExistingEntries(doc.docId);
+        const assembled = await assembleJsonFromExistingEntries(doc.docId, undefined, doc.fileName);
         if (assembled) {
           onSelect(assembled);
           onClose();
