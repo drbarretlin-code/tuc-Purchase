@@ -721,16 +721,20 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         isOpen={isDbImportModalOpen}
         onClose={() => setIsDbImportModalOpen(false)}
         onSelect={(importedData: any) => {
-          // V12.5: 強化狀態合併邏輯，確保 searchStatus 等關鍵 UI 狀態不會遺失
-          // 使用目前的 data prop 進行合併，確保符合 onChange(newData: FormState) 的類型要求
+          // V12.5: 強化防禦性，確保所有欄位都不是 null，避免後續 split() 等操作崩潰
+          const cleanImported = Object.entries(importedData).reduce((acc: any, [key, value]) => {
+            acc[key] = value === null ? '' : value;
+            return acc;
+          }, {});
+
           const merged: FormState = {
             ...INITIAL_FORM_STATE,
             ...data,
-            ...importedData,
+            ...cleanImported,
             searchStatus: {
               ...(INITIAL_FORM_STATE.searchStatus || {}),
               ...(data.searchStatus || {}),
-              ...(importedData.searchStatus || {})
+              ...(cleanImported.searchStatus || {})
             }
           };
           onChange(merged);
