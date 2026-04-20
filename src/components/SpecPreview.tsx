@@ -198,7 +198,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(data.installStandard)}</div>
                 <div style={{ margin: '8px 0' }}><strong>完工日期：</strong> {data.deliveryDate || 'NA'} | <strong>工期（天）：</strong> {data.workPeriod || 'NA'}</div>
                 <strong>驗收：</strong>
-                <div>{data.acceptanceDesc}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{data.acceptanceDesc}</div>
               </div>
             </div>
 
