@@ -79,6 +79,142 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   return cachedModelId || 'gemini-1.5-flash';
 }
 
+export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
+  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
+  const finalKey = rawKey.trim();
+  
+  if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
+  
+  const ai = new GoogleGenAI({ apiKey: finalKey });
+  const modelId = await getAutoSelectedModel(finalKey);
+
+  let text = '';
+  
+  if (file.name.endsWith('.docx')) {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    text = result.value;
+  } else if (file.name.endsWith('.doc')) {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const rawContent = decoder.decode(uint8);
+    text = rawContent.replace(/[^\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF]/g, ' ');
+  } else if (file.name.endsWith('.pdf')) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map((item: any) => item.str).join(' ');
+    }
+    text = fullText;
+  }
+
+  if (!text) throw new Error('無法從檔案中提取內容');
+
+  const prompt = `
+    你是一個專業的採購規範專家。請分析以下文字內容，完成以下任務：
+    1. 辨別這份文件的知識層級 (docType)：
+       - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
+       - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
+       - Global: 政府法規、勞安或環境保護「共通法規」(如職安法、環保規章)。
+    2. 辨別設備主體名稱 (detectedEquipment)：
+       - 若為 Specific，請辨識設備名 (如：大明剪床、RTO)。
+       - 若為 Standard，請統一回傳「技術標準」。
+       - 若為 Global，請統一回傳「共通性法規」。
+    3. 從內容中提取「技術要求」條目並分類為 specEntries。
+    4. **同時轉成結構化 JSON (fullJsonData)**：
+       請根據內容填充以下欄位，若無資訊請留空：
+       - equipmentName: 設備名稱
+       - requirementDesc: 需求描述
+       - appearance: 品相描述
+       - quantityUnit: 數量與單位
+       - scopeScope: 工程適用範圍
+       - rangeRange: 工程適用區間
+       - envRequirements: 環保要求
+       - regRequirements: 法規要求
+       - maintRequirements: 維護要求
+       - safetyRequirements: 安全要求
+       - elecSpecs: 電氣規格
+       - mechSpecs: 機構規格
+       - physSpecs: 物理規格
+       - relySpecs: 信賴規格
+       - installStandard: 施工標準
+       - workPeriod: 工期
+       - acceptanceDesc: 驗收要求
+       - complianceDesc: 遵守事項
+       - tableData: 數組對象，包含 {item, requirement, method} (對應十二. 驗收要求細目)
+
+    回傳格式：嚴格純 JSON 物件。
+    {
+      "docType": "Specific | Standard | Global",
+      "detectedEquipment": "辨識出的設備名稱",
+      "specEntries": [{"category": "類別", "content": "規範文字"}],
+      "fullJsonData": { ...上述欄位... }
+    }
+    
+    內容：
+    ${text.substring(0, 8000)}
+  `;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt
+    });
+    const responseText = result.text;
+    if (!responseText) throw new Error('AI 回傳內容為空');
+    const cleanJson = responseText.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    
+    const detectedEq = parsed.detectedEquipment || equipmentName || '未命名設備';
+    const indexData = parsed.specEntries || [];
+
+    if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
+
+    let addedCount = 0;
+    let skippedCount = 0;
+    
+    const fullJson = parsed.fullJsonData || {};
+    const docId = overrideDocId || crypto.randomUUID();
+
+    for (const item of indexData) {
+      const { data: existing } = await supabase
+        .from('tuc_history_knowledge')
+        .select('id')
+        .eq('category', item.category)
+        .eq('content', item.content)
+        .contains('metadata', { equipment_name: detectedEq })
+        .maybeSingle();
+
+      if (existing) {
+        skippedCount++;
+        continue;
+      }
+
+      const { error } = await supabase.from('tuc_history_knowledge').insert({
+        category: item.category,
+        content: item.content,
+        source_file_name: file.name,
+        full_json_data: fullJson,
+        metadata: { 
+          equipment_name: detectedEq, 
+          docType: parsed.docType, 
+          docId: docId 
+        }
+      });
+      if (!error) addedCount++;
+    }
+    
+    return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq, fullJson, docId };
+  } catch (err) {
+    console.error('[解析失敗]', err);
+    throw err;
+  }
+};
+
 /**
  * 新版詞彙拆解與吻合度計算 (吻合度 = 輸入詞彙命中數 / 輸入詞彙總數)
  * 70% 門檻指「輸入內容中，有 70% 出現在目標字串中」
@@ -133,7 +269,7 @@ const liteAIRerank = async (
       model: modelId,
       contents: prompt
     });
-    const responseText = result.text;
+    const responseText = result.text || '';
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const selectedIndices = JSON.parse(cleanJson);
 
