@@ -129,7 +129,9 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
                   <p>
                     <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                     {new Date(doc.createdAt).toLocaleString('zh-TW')}
-                    {!doc.hasJson && <span style={{ marginLeft: '12px', color: '#F59E0B', fontWeight: 600 }}>[需 AI 組裝]</span>}
+                    {!doc.hasJson && !doc.equipmentName.includes('技術標準') && !doc.equipmentName.includes('共通性法規') && (
+                      <span style={{ marginLeft: '12px', color: '#F59E0B', fontWeight: 600 }}>[需 AI 組裝]</span>
+                    )}
                   </p>
                 </div>
                 <div>
