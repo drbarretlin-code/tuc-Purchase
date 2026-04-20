@@ -19,10 +19,11 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   try {
     const ai = new GoogleGenAI({ apiKey });
     // 獲取當前 API Key 有權限的所有模型
-    const response = await ai.models.list();
+    // V13.1: 修正 TS2339 報錯並增加型別定義
+    const response = await (ai.models as any).list();
     
     // 提取模型名稱並過濾
-    const availableNames = response.map(m => m.name.replace('models/', ''));
+    const availableNames = response.map((m: any) => m.name.replace('models/', ''));
     console.log('[AI Discovery] 可用模型列表:', availableNames);
 
     // 優先順序策略 (由新至舊)
@@ -35,7 +36,7 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
     ];
 
     for (const p of priorityList) {
-      const match = availableNames.find(name => name.startsWith(p));
+      const match = availableNames.find((name: string) => name.startsWith(p));
       if (match) {
         cachedModelId = match;
         console.log(`[AI Discovery] 成功匹配最優模型: ${cachedModelId}`);
@@ -149,6 +150,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       contents: prompt
     });
     const responseText = result.text;
+    if (!responseText) throw new Error('AI 回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
     
@@ -279,6 +281,7 @@ const rerankWithAI = async (
       contents: prompt
     });
     const responseText = result.text;
+    if (!responseText) throw new Error('AI 重排序回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const scores = JSON.parse(cleanJson);
 
@@ -408,6 +411,7 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
       contents: prompt
     });
     const responseText = result.text;
+    if (!responseText) throw new Error('AI 同步回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
     const indexData = parsed.specEntries || [];
@@ -501,6 +505,7 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
       contents: prompt
     });
     const responseText = result.text;
+    if (!responseText) throw new Error('AI 反向組裝回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const fullJson = JSON.parse(cleanJson);
     
