@@ -41,6 +41,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -51,6 +52,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
 
   const loadHistoryHints = async (mode: number | 'all') => {
+    if (isAnalyzing) return;
+    setIsAnalyzing(true);
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
       0: [
         { key: 'appearanceHistoryHints', regKey: 'appearanceRegHints', category: 'appearance' },
@@ -118,6 +121,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       currentData = nextData;
       onChange(currentData);
     }
+    setIsAnalyzing(false);
   };
 
   useEffect(() => {
@@ -392,6 +396,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => loadHistoryHints('all')}
+                      disabled={isAnalyzing}
                       className="primary-button"
                       style={{ 
                         padding: '8px 16px', 
@@ -399,10 +404,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                         background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                        opacity: isAnalyzing ? 0.7 : 1
                       }}
                     >
-                      <Zap size={14} /> 點此生成智慧建議 (AI 重分析)
+                      <Zap size={14} className={isAnalyzing ? 'animate-pulse' : ''} /> 
+                      {isAnalyzing ? '智慧建議生成中...' : '點此生成智慧建議 (AI 重分析)'}
                     </button>
                   </div>
                 </div>
