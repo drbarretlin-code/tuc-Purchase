@@ -29,7 +29,7 @@ import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
 import type { FormState, AIHintSelection } from '../types/form';
-import { INITIAL_FORM_STATE, BOILERPLATE_KEYS } from '../types/form';
+import { INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
@@ -105,6 +105,7 @@ const CompactThreshold: React.FC<{
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = React.useState(0);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   // V14: 遷移舊有硬編碼中文至 i18n 標籤 (Migration Logic)
   React.useEffect(() => {
