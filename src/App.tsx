@@ -743,6 +743,22 @@ function App() {
             {t('editTab', data.language)}
           </button>
           <button 
+            className="nav-tab"
+            onClick={() => setShowUploadWizard(true)}
+            style={{ color: '#60A5FA' }}
+          >
+            <CloudUpload size={22} />
+            {t('import', data.language)}
+          </button>
+          <button 
+            className="nav-tab"
+            onClick={handleOpenInspector}
+            style={{ color: 'var(--tuc-red)' }}
+          >
+            <Database size={22} />
+            {t('history', data.language)}
+          </button>
+          <button 
             className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
             onClick={() => setMobileAppTab('preview')}
           >
