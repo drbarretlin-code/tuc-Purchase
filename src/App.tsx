@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Share2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat } from 'lucide-react';
+import { ShieldAlert, Cpu, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
@@ -529,12 +529,6 @@ function App() {
     a.download = `Cloud_Files_Export_${new Date().toISOString().split('T')[0]}.${format}`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleShareAll = () => {
-    const count = cloudFiles.length;
-    const text = `【台燿採購規範雲端歷史上傳檔案清單】\n目前共計 ${count} 筆。\n更新日期：${new Date().toLocaleString()}`;
-    navigator.clipboard.writeText(text).then(() => alert('已複製彙總資訊到剪貼簿'));
   };
 
   const handleDeleteApiKey = () => {
