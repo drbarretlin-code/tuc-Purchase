@@ -205,10 +205,19 @@ function App() {
   };
 
   const handleDeleteFile = async (id: string) => {
-    if (!supabase || !confirm('確定要永久刪除此上傳紀錄嗎？')) return;
+    if (!supabase || !confirm('確定要永久刪除此上傳紀錄（包含實體檔案與解析資料）嗎？')) return;
     try {
+      const targetFile = cloudFiles.find(f => f.id === id);
+      if (targetFile) {
+        // 1. 清除關聯的知識解析紀錄
+        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', targetFile.original_name);
+        // 2. 清除 Storage 實體檔案
+        await supabase.storage.from('spec-files').remove([targetFile.storage_path]);
+      }
+      
       const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
+      
       setCloudFiles(prev => prev.filter(f => f.id !== id));
       setSelectedFileIds(prev => prev.filter(x => x !== id));
       alert('刪除成功');
