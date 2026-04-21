@@ -325,7 +325,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       console.warn(`[AI Parser] 深度挖掘失敗，啟動最後防線：文檔摘要條目化`);
       indexData.push({ 
         category: '文檔核心摘要', 
-        content: text.substring(0, 500) || '此檔案內容較為簡略或為純圖像/殘缺二進制，建議查閱原始附件。' 
+        content: `(文檔來源: ${file.name}) ` + (text.substring(0, 500) || '此檔案內容較為簡略或為純圖像/殘缺二進制，只能記錄為純參考附件。') 
       });
     }
 
