@@ -268,9 +268,18 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       parsed = JSON.parse(cleanJson);
     } catch (parseError) {
       console.warn('[AI Parser] Strict JSON.parse failed, attempting aggressive sanitization:', parseError);
-      cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '');
-      cleanJson = cleanJson.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
-      parsed = JSON.parse(cleanJson);
+      try {
+        cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '');
+        cleanJson = cleanJson.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+        parsed = JSON.parse(cleanJson);
+      } catch (finalError) {
+        console.warn('[AI Parser] JSON 解析徹底失敗，啟動容錯備用機制。');
+        parsed = {
+          docType: 'Specific',
+          specEntries: [{ category: '未分類提取', content: responseText.substring(0, 1000) }],
+          fullJsonData: {}
+        };
+      }
     }
     
     const detectedEq = parsed.detectedEquipment || equipmentName || t('unnamedEq', lang);
@@ -337,10 +346,12 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     const docId = overrideDocId || crypto.randomUUID();
 
     for (const item of indexData) {
+      const safeCategory = item.category ? item.category.substring(0, 50) : '未分類';
+      
       const { data: existing } = await supabase
         .from('tuc_history_knowledge')
         .select('id')
-        .eq('category', item.category)
+        .eq('category', safeCategory)
         .eq('content', item.content)
         .contains('metadata', { equipment_name: detectedEq })
         .maybeSingle();
@@ -351,7 +362,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       }
 
       const { error } = await supabase.from('tuc_history_knowledge').insert({
-        category: item.category,
+        category: safeCategory,
         content: item.content,
         source_file_name: file.name,
         metadata: { 
@@ -565,7 +576,12 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
     const responseText = result.response.text();
     if (!responseText) throw new Error('AI 同步回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    let parsed: any = { specEntries: [], docType: 'Specific' };
+    try {
+      parsed = JSON.parse(cleanJson);
+    } catch(err) {
+      console.warn('[Sync] JSON 解析失敗，啟用容錯機制');
+    }
     const indexData = parsed.specEntries || [];
 
     // 2. 智慧覆蓋：根據 DocID 刪除舊資料
@@ -581,8 +597,9 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
     // 3. 執行新資料插入 (僅插入條目)
     let addedCount = 0;
     for (const item of indexData) {
+      const safeCategory = item.category ? item.category.substring(0, 50) : '未分類';
       const { error } = await supabase.from('tuc_history_knowledge').insert({
-        category: item.category,
+        category: safeCategory,
         content: item.content,
         source_file_name: `[App] ${equipmentName}`,
         metadata: { 
@@ -662,8 +679,20 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
     });
     const responseText = result.response.text();
     if (!responseText) throw new Error('AI 反向組裝回傳內容為空');
-    const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const fullJson = JSON.parse(cleanJson);
+    let cleanJson = responseText.replace(/```json|```/g, '').trim();
+    let fullJson: any = {};
+    try {
+      fullJson = JSON.parse(cleanJson);
+    } catch (e) {
+      console.warn('[反向組裝] JSON 解析失敗，啟用容錯機制');
+      try {
+        cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '').replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+        if (!cleanJson.endsWith('}')) cleanJson += '}';
+        fullJson = JSON.parse(cleanJson);
+      } catch (e2) {
+        console.error('[反向組裝] 完全解析失敗', e2);
+      }
+    }
     
     // 確保輸出的 JSON 包含 docId，避免 UI 渲染報錯
     const finalResult = {
