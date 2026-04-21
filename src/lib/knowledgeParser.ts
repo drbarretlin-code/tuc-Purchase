@@ -338,11 +338,63 @@ const calculateTokenOverlap = (input: string, target: string): number => {
   return matches / inputTokens.length;
 };
 
+const calculateMaxTokenOverlap = (variants: string[], target: string): number => {
+  if (!variants || variants.length === 0) return 0;
+  let maxScore = 0;
+  for (const v of variants) {
+    const score = calculateTokenOverlap(v, target);
+    if (score > maxScore) maxScore = score;
+    if (maxScore === 1) break;
+  }
+  return maxScore;
+};
+
+let searchVariantCache: { eqKey: string, reqKey: string, variants: { eqVariants: string[], reqVariants: string[] } } | null = null;
+
+export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: string): Promise<{eqVariants: string[], reqVariants: string[]}> => {
+  if (!apiKey) return { eqVariants: [eqK], reqVariants: [reqK] };
+  if (searchVariantCache && searchVariantCache.eqKey === eqK && searchVariantCache.reqKey === reqK) {
+    return searchVariantCache.variants;
+  }
+  
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelId = await getAutoSelectedModel(apiKey);
+    const model = genAI.getGenerativeModel({ model: modelId });
+
+    const prompt = `Translate the following two terms into English, Simplified Chinese, and Thai.
+Return ONLY a JSON object with this exact structure, ensuring all values are arrays of strings:
+{"eqVariants": ["original", "english", "simplified", "thai"], "reqVariants": ["original", "english", "simplified", "thai"]}
+
+Term 1 (eq): ${eqK || ' '}
+Term 2 (req): ${reqK || ' '}
+    `;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1 }
+    });
+    
+    const text = result.response.text();
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    
+    if (!parsed.eqVariants.includes(eqK)) parsed.eqVariants.push(eqK);
+    if (!parsed.reqVariants.includes(reqK)) parsed.reqVariants.push(reqK);
+    
+    searchVariantCache = { eqKey: eqK, reqKey: reqK, variants: parsed };
+    return parsed;
+  } catch (err) {
+    console.warn('Search query translation failed, using original.', err);
+    return { eqVariants: [eqK], reqVariants: [reqK] };
+  }
+};
+
 
 export const getHistorySuggestions = async (
   category: string, 
-  eqKeywords: string = '', 
-  reqKeywords: string = '',
+  eqKeywords: string[] = [], 
+  reqKeywords: string[] = [],
   thresholdHistory: number = 0.6,
   thresholdReg: number = 0.2
 ): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
@@ -369,11 +421,11 @@ export const getHistorySuggestions = async (
       if (docType === 'Specific') {
         // TUC 歷史資料：僅比對設備名稱
         const dbEquipmentName = (item.metadata as any)?.equipment_name || '';
-        score = calculateTokenOverlap(eqKeywords, dbEquipmentName);
+        score = calculateMaxTokenOverlap(eqKeywords, dbEquipmentName);
         return { ...item, score, threshold: thresholdHistory };
       } else {
         // 技術法令/標準：僅比對條文內容與需求說明
-        score = calculateTokenOverlap(reqKeywords, item.content);
+        score = calculateMaxTokenOverlap(reqKeywords, item.content);
         return { ...item, score, threshold: thresholdReg };
       }
     }).filter(item => item.score >= item.threshold);
@@ -579,7 +631,7 @@ export async function translateHints(
   targetLang: string, 
   apiKey: string
 ): Promise<AIHintSelection[]> {
-  if (targetLang === 'zh-TW' || hints.length === 0) return hints;
+  if (hints.length === 0) return hints;
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelId = await getAutoSelectedModel(apiKey);

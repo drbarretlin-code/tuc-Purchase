@@ -214,68 +214,76 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       targets = categoryMap[mode] || [];
     }
     
-    if (targets.length === 0) return;
+    if (targets.length === 0) {
+      setIsAnalyzing(false);
+      return;
+    }
 
     const initialStatus = { ...data.searchStatus };
     targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string}) => { 
       initialStatus[t.key as string] = 'pending';
       initialStatus[t.regKey as string] = 'pending';
     });
-    
-    let currentData = { ...data, searchStatus: initialStatus };
-    onChange(currentData);
+    onChange({ ...data, searchStatus: initialStatus });
 
-    const concurrency = 2;
     const apiKey = localStorage.getItem('tuc_gemini_key') || '';
 
-    for (let i = 0; i < targets.length; i += concurrency) {
-      const chunk = targets.slice(i, i + concurrency);
+    try {
+      // 1. One API call for expanding queries (or loaded from Local cache)
+      const transStatus = { ...initialStatus };
+      targets.forEach(t => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
+      onChange({...data, searchStatus: transStatus}); // Show translating status initially
       
-      const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
+      const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKey);
+
+      // 2. Perform all Local Supabase Database queries concurrently
+      const allResults = await Promise.all(targets.map(async (target) => {
         try {
           const res = await KP.getHistorySuggestions(
             target.category, 
-            data.equipmentName, 
-            data.requirementDesc, 
+            variants.eqVariants, 
+            variants.reqVariants, 
             data.matchThresholdHistory, 
             data.matchThresholdReg
           );
-
-          // V16: 若非繁中，執行翻譯
-          if (data.language !== 'zh-TW' && res.hints.length > 0 && apiKey) {
-            // 更新狀態為翻譯中
-            onChange({
-              ...data,
-              searchStatus: {
-                ...data.searchStatus,
-                [target.key as string]: 'translating',
-                [target.regKey as string]: 'translating'
-              }
-            });
-            
-            const translated = await KP.translateHints(res.hints, data.language, apiKey);
-            return { target, res: { ...res, hints: translated } };
-          }
-
           return { target, res };
         } catch (err) {
-          console.error(`Fetch/Translate failed for ${target.category}:`, err);
           return { target, res: { hints: [], status: 'ai_error' as const } };
         }
       }));
 
-      const nextData = { ...currentData };
-      chunkResults.forEach(({ target, res }: { target: any, res: any }) => {
-        (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
-        (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
-        nextData.searchStatus[target.key as string] = res.status === 'ai_error' ? 'ai_error' : 'success';
-        nextData.searchStatus[target.regKey as string] = res.status === 'ai_error' ? 'ai_error' : 'success';
+      // 3. Collect ALL found hints for batched translation
+      let allHintsToTranslate: AIHintSelection[] = [];
+      allResults.forEach(r => { 
+        allHintsToTranslate = allHintsToTranslate.concat(r.res.hints); 
       });
 
-      currentData = nextData;
-      onChange(currentData);
+      // 4. One API call to translate everything back to UI language
+      if (allHintsToTranslate.length > 0 && apiKey) {
+        const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKey);
+        
+        let ptr = 0;
+        allResults.forEach(r => {
+          r.res.hints = translatedAll.slice(ptr, ptr + r.res.hints.length);
+          ptr += r.res.hints.length;
+        });
+      }
+
+      // 5. Commit to state
+      const nextData = { ...data, searchStatus: { ...data.searchStatus } };
+      allResults.forEach(({ target, res }) => {
+        (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
+        (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
+        nextData.searchStatus[target.key as string] = res.status;
+        nextData.searchStatus[target.regKey as string] = res.status;
+      });
+      onChange(nextData);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAnalyzing(false);
     }
-    setIsAnalyzing(false);
   };
 
   useEffect(() => {
