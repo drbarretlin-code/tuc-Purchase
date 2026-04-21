@@ -466,19 +466,14 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.8: 究極續傳方案 - 直接從資料庫抓取最新條目數核對，不依賴緩慢的本地 state
-    console.log('[Resume] 正在核對資料庫最新狀態...');
-    const { data: dbLatest } = await supabase
-      .from('tuc_uploaded_files')
-      .select('id, original_name, equipment_name, public_url, is_parsed');
+    // V16.9: 穩定版機制 - 回歸與 UI 顯示一致的統計邏輯 (不依賴缺失的 RPC)
+    console.log('[Resume] 正在核對當前緩存狀態...');
     
-    if (!dbLatest) return;
-
-    // 交叉比對：找出那些「無知識條目」的檔案 (關鍵：即時性判定)
-    const { data: counts } = await supabase.rpc('get_knowledge_counts'); // 使用我們之前建立的 RPC
-    const countMap = new Map(counts?.map((c: any) => [c.file_name, c.count]) || []);
-
-    const targets = dbLatest.filter(f => (countMap.get(f.original_name) || 0) === 0);
+    // 獲取當前 cloudFiles 中呈現的狀態
+    const targets = cloudFiles.filter(f => {
+      const count = (f as any).knowledgeCount || 0;
+      return count === 0;
+    });
     
     if (targets.length === 0) {
       alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
