@@ -346,59 +346,12 @@ const calculateTokenOverlap = (input: string, target: string): number => {
   return matches / inputTokens.length;
 };
 
-/**
- * 極輕量 AI 語意篩選 (Final 15 Selector)
- * 僅在第一階段通過 70% 門檻的候選清單中進行最後的相關性確認
- */
-const liteAIRerank = async (
-  candidates: any[], 
-  equipmentName: string, 
-  requirementDesc: string
-): Promise<any[]> => {
-  const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
-  if (!apiKey || candidates.length === 0) return candidates;
-
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const modelId = await getAutoSelectedModel(apiKey);
-
-    const prompt = `
-      任務：從下方的「候選條文清單」中，挑選出最符合當前「採購背景」的 15 筆條文。
-      
-      [採購背景]
-      - 設備名稱: "${equipmentName}"
-      - 需求描述: "${requirementDesc}"
-
-      [候選條文清單]
-      ${candidates.map((c, i) => `[${i}] ${c.content}`).join('\n')}
-
-      請僅回傳一個 JSON 數字陣列，代表入選的索引（例如：[0, 2, 5...]），總數不超過 15 個。
-      回傳格式：嚴格 JSON Array。
-    `;
-
-    const result = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt
-    });
-    const responseText = result.text || '';
-    const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const selectedIndices = JSON.parse(cleanJson);
-
-    if (!Array.isArray(selectedIndices)) return candidates.slice(0, 15);
-
-    return candidates
-      .filter((_, i) => selectedIndices.includes(i))
-      .slice(0, 15);
-  } catch (err) {
-    console.warn('[Lite AI Rerank] 失敗，採用基礎排序:', err);
-    return candidates.slice(0, 15);
-  }
-};
 
 export const getHistorySuggestions = async (
   category: string, 
   eqKeywords: string = '', 
-  reqKeywords: string = ''
+  reqKeywords: string = '',
+  threshold: number = 0.7
 ): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
   const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   if (!apiKey) return { hints: [], status: 'no_key' };
@@ -410,12 +363,12 @@ export const getHistorySuggestions = async (
       .from('tuc_history_knowledge')
       .select('id, content, source_file_name, metadata, category')
       .or(`category.eq.${category},metadata->>docType.in.("Standard","Global")`)
-      .limit(100);
+      .limit(200);
 
     if (error) throw error;
     if (!candidates || candidates.length === 0) return { hints: [], status: 'empty' };
 
-    // 2. 第一階段：分離比對邏輯 (70% 門檻)
+    // 2. 第一階段：分離比對邏輯 (使用動態門檻)
     const scoredData = candidates.map(item => {
       const docType = (item.metadata as any)?.docType || 'Specific';
       let score = 0;
@@ -430,15 +383,12 @@ export const getHistorySuggestions = async (
       }
       
       return { ...item, score };
-    }).filter(item => item.score >= 0.2); // 門檻調整為 20%
+    }).filter(item => item.score >= threshold); // 使用傳入的門檻值
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
-    // 3. 排序並取前 30 名進入 Lite AI 篩選
-    const topCandidates = scoredData.sort((a, b) => b.score - a.score).slice(0, 30);
-    
-    // 4. 第二階段：極輕量 AI 篩選 (Final 15)
-    const finalSelection = await liteAIRerank(topCandidates, eqKeywords, reqKeywords);
+    // 3. 排序並過取前 20 名 (移除 AI Rerank，直接回傳確定性結果)
+    const finalSelection = scoredData.sort((a, b) => b.score - a.score).slice(0, 20);
 
     const mappedHints = finalSelection.map((item) => ({
       id: item.id.toString(),

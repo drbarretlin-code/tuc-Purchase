@@ -55,11 +55,7 @@ function App() {
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
-  const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('tuc_admin_password') || '000000');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [isChangePasswordMode, setIsChangePasswordMode] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
   
@@ -169,7 +165,7 @@ function App() {
   };
 
   const handleVerifyPassword = () => {
-    if (inputPassword === adminPassword) {
+    if (inputPassword === '3102') {
       setIsCloudAuthed(true);
       setShowPasswordPrompt(false);
       setInputPassword('');
@@ -179,19 +175,6 @@ function App() {
       alert('密碼錯誤，請重新輸入。');
       setInputPassword('');
     }
-  };
-
-  const handleChangePassword = () => {
-    if (!/^\d{6,}$/.test(newPassword)) {
-      setPasswordError('密碼必須為至少 6 位數字');
-      return;
-    }
-    setAdminPassword(newPassword);
-    localStorage.setItem('tuc_admin_password', newPassword);
-    alert('密碼變更成功！請使用新密碼登入。');
-    setIsChangePasswordMode(false);
-    setNewPassword('');
-    setPasswordError('');
   };
 
   const handleDeleteFile = async (id: string) => {
@@ -366,8 +349,8 @@ function App() {
             }
           }
         } catch (e: any) {
-          console.error(`[Batch] 檔案 ${fileRecord.original_name} 校準失敗:`, e);
-          // V13.7: 改為 continue，避免單一檔案配額耗盡或錯誤導致整批中斷
+          console.error(`校準檔案 ${fileRecord.original_name} 失敗:`, e);
+          // V13.1: 改為 continue 而非 break，避免單一檔案失敗導致整批中斷
           continue; 
         }
 
@@ -496,8 +479,8 @@ function App() {
           // 渲染緩衝
           await new Promise(r => setTimeout(r, 100));
         } catch (fileErr: any) {
-          console.error(`[Batch] 檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
-          // V13.7: 改為 continue，避免單一檔案配額耗盡或格式錯誤導致整批中斷
+          console.error(`檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
+          // V13.1: 改為 continue 而非 break，避免單一檔案失敗導致整批中斷
           continue; 
         }
 
@@ -685,13 +668,8 @@ function App() {
               <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
                 <input 
                   type={showApiKey ? "text" : "password"} 
-                  value={(!showApiKey && tempKey) ? tempKey.substring(0, 8) + "****************" : tempKey} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    // 如果目前是遮蔽狀態且有變動，則視為重新輸入
-                    if (!showApiKey && val.includes('*')) return;
-                    setTempKey(val);
-                  }}
+                  value={tempKey} 
+                  onChange={(e) => setTempKey(e.target.value)}
                   placeholder="貼入您的 API Key..."
                   style={{ 
                     flex: 1,
@@ -726,61 +704,21 @@ function App() {
         <div className="modal-overlay" style={{ zIndex: 1100 }}>
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '350px', textAlign: 'center' }}>
             <Lock size={40} color="var(--tuc-red)" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ margin: '0 0 1rem', color: 'white' }}>{isChangePasswordMode ? '變更管理密碼' : '管理權限驗證'}</h3>
-            <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1.5rem' }}>
-              {isChangePasswordMode ? '請輸入新密碼（至少 6 位數字）' : '請輸入查閱管理密碼'}
-            </p>
-            
-            {isChangePasswordMode ? (
-              <>
-                <input 
-                  type="password" 
-                  value={newPassword} 
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    setPasswordError('');
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
-                  placeholder="新密碼..."
-                  autoFocus
-                  style={{ width: '100%', marginBottom: '0.5rem', textAlign: 'center', borderColor: passwordError ? '#EF4444' : 'var(--border-color)' }}
-                />
-                {passwordError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginBottom: '1rem' }}>{passwordError}</p>}
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  <button className="ghost-button" onClick={() => { setIsChangePasswordMode(false); setPasswordError(''); }} style={{ flex: 1 }}>取消</button>
-                  <button className="primary-button" onClick={handleChangePassword} style={{ flex: 2 }}>儲存新密碼</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <input 
-                  type="password" 
-                  value={inputPassword} 
-                  onChange={(e) => setInputPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
-                  placeholder="請輸入密碼..."
-                  autoFocus
-                  style={{ width: '100%', marginBottom: '1rem', textAlign: 'center' }}
-                />
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <button className="ghost-button" onClick={() => setShowPasswordPrompt(false)} style={{ flex: 1 }}>取消</button>
-                  <button className="primary-button" onClick={handleVerifyPassword} style={{ flex: 2 }}>確認</button>
-                </div>
-                <button 
-                  onClick={() => setIsChangePasswordMode(true)} 
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: '#666', 
-                    fontSize: '0.75rem', 
-                    textDecoration: 'underline', 
-                    cursor: 'pointer' 
-                  }}
-                >
-                  變更密碼
-                </button>
-              </>
-            )}
+            <h3 style={{ margin: '0 0 1rem', color: 'white' }}>管理權限驗證</h3>
+            <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1.5rem' }}>請輸入查閱管理密碼</p>
+            <input 
+              type="password" 
+              value={inputPassword} 
+              onChange={(e) => setInputPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
+              placeholder="請輸入密碼..."
+              autoFocus
+              style={{ width: '100%', marginBottom: '1.5rem', textAlign: 'center' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="ghost-button" onClick={() => setShowPasswordPrompt(false)} style={{ flex: 1 }}>取消</button>
+              <button className="primary-button" onClick={handleVerifyPassword} style={{ flex: 2 }}>確認</button>
+            </div>
           </div>
         </div>
       )}
