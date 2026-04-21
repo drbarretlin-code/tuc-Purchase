@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search, Database, Clock, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { assembleJsonFromExistingEntries } from '../lib/knowledgeParser';
+import { t, Language } from '../lib/i18n';
 
 interface DatabaseImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (data: any) => void;
+  language: Language;
 }
 
-export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen, onClose, onSelect }) => {
+export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen, onClose, onSelect, language }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [documents, setDocuments] = useState<any[]>([]);
@@ -35,7 +35,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
       const mappedDocs = data?.map(item => ({
         docId: item.id,
-        equipmentName: item.display_name || item.original_name || '未命名文件',
+        equipmentName: item.display_name || item.original_name || t('unnamedDoc', language),
         createdAt: item.created_at,
         hasJson: !!item.full_json_data,
         fullJson: item.full_json_data,
@@ -65,10 +65,10 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
           onSelect(assembled);
           onClose();
         } else {
-          alert('AI 反向組裝失敗，該文件可能缺少關鍵條文。');
+          alert(t('aiAssembleFail', language));
         }
       } catch (err: any) {
-        alert(`解析過程發生錯誤: ${err.message || '未知錯誤'}`);
+        alert(`${t('parseError', language)}: ${err.message || t('unknown', language)}`);
       } finally {
         setProcessingId(null);
       }
@@ -95,7 +95,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Database className="tuc-gradient-text" size={24} />
-            <h2 style={{ fontSize: '1.5rem', color: 'white' }}>從雲端知識庫載入</h2>
+            <h2 style={{ fontSize: '1.5rem', color: 'white' }}>{t('importCloudTitle', language)}</h2>
           </div>
           <button onClick={onClose} className="icon-btn" style={{ padding: '8px' }}><X size={20} /></button>
         </div>
@@ -104,7 +104,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
           <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} size={18} />
           <input 
             type="text" 
-            placeholder="搜尋設備名稱..." 
+            placeholder={t('searchEqPlaceholder', language)} 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{ width: '100%', paddingLeft: '40px' }}
@@ -115,12 +115,12 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
           {loading ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <Loader2 className="animate-spin" style={{ margin: '0 auto 12px' }} />
-              載入雲端清單中...
+              {t('loadingCloud', language)}
             </div>
           ) : filteredDocs.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <AlertCircle style={{ margin: '0 auto 12px', opacity: 0.5 }} size={32} />
-              未發現匹配的雲端文件
+              {t('noCloudMatch', language)}
             </div>
           ) : (
             filteredDocs.map(doc => (
@@ -134,9 +134,9 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
                   <h4>{doc.equipmentName}</h4>
                   <p>
                     <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                    {new Date(doc.createdAt).toLocaleString('zh-TW')}
-                    {!doc.hasJson && !doc.equipmentName.includes('技術標準') && !doc.equipmentName.includes('共通性法規') && (
-                      <span style={{ marginLeft: '12px', color: '#F59E0B', fontWeight: 600 }}>[需 AI 組裝]</span>
+                    {new Date(doc.createdAt).toLocaleString(language === 'en-US' ? 'en-US' : 'zh-TW')}
+                    {!doc.hasJson && !doc.equipmentName.includes(t('tabHardware', language)) && !doc.equipmentName.includes(t('regReq', language)) && (
+                      <span style={{ marginLeft: '12px', color: '#F59E0B', fontWeight: 600 }}>{t('needAiAssemble', language)}</span>
                     )}
                   </p>
                 </div>
@@ -153,7 +153,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         </div>
 
         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          提示：若文件右側顯示 [需 AI 組裝]，系統將自動啟動 Gemini 反向還原編輯欄位。
+          {t('aiAssembleTip', language)}
         </div>
       </div>
     </div>

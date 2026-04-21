@@ -1,17 +1,16 @@
-import React from 'react';
-import type { SpecImage } from '../types/form';
-import { ImagePlus, X, Type } from 'lucide-react';
+import { t, Language } from '../lib/i18n';
 
 interface Props {
   images: SpecImage[];
   onChange: (images: SpecImage[]) => void;
+  language: Language;
 }
 
-const ImageUpload: React.FC<Props> = ({ images, onChange }) => {
+const ImageUpload: React.FC<Props> = ({ images, onChange, language }) => {
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (images.length + files.length > 6) {
-      alert('最多上傳 6 張圖片');
+      alert(t('maxImages', language));
       return;
     }
 
@@ -59,7 +58,7 @@ const ImageUpload: React.FC<Props> = ({ images, onChange }) => {
                 type="text" 
                 value={img.caption}
                 onChange={(e) => updateCaption(img.id, e.target.value)}
-                placeholder="輸入圖說..."
+                placeholder={t('captionPlaceholder', language)}
                 style={{ fontSize: '0.75rem', padding: '4px' }}
               />
             </div>
@@ -80,7 +79,7 @@ const ImageUpload: React.FC<Props> = ({ images, onChange }) => {
             color: 'var(--text-secondary)'
           }}>
             <ImagePlus size={32} />
-            <span style={{ fontSize: '0.875rem' }}>點擊上傳圖片 ({images.length}/6)</span>
+            <span style={{ fontSize: '0.875rem' }}>{t('clickToUpload', language)} ({images.length}/6)</span>
             <input type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
           </label>
         )}

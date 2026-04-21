@@ -1,8 +1,6 @@
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
-import { supabase } from './supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
+import { t, Language } from './i18n';
 
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
@@ -148,11 +146,14 @@ const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
   }
 };
 
-export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   const finalKey = rawKey.trim();
   
-  if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
+  // V16: 本地化錯誤訊息 (需外部傳入 language，此處暫用預設或從 metadata/傳入)
+  // 修正：將 language 作為參數傳入 processFileToKnowledge
+  const lang = (globalThis as any)._tuc_lang || 'zh-TW'; 
+  
+  if (!finalKey) throw new Error(t('aiNoKey', lang));
   
   const genAI = new GoogleGenerativeAI(finalKey);
   const modelId = await getAutoSelectedModel(finalKey);
@@ -203,7 +204,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     }
   }
 
-  if (!text && !inlineData) throw new Error('不支援的檔案格式或無法解析檔案內容。');
+  if (!text && !inlineData) throw new Error(t('parseError', lang));
 
   const prompt = `
     你是一個專業的採購規範專家。目前你正在處理一份透過「全頻段編碼掃描」從二進制遺骸中救援出的文件片段。
@@ -263,11 +264,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       contents
     });
     const responseText = result.response.text();
-    if (!responseText) throw new Error('AI 回傳內容為空');
+    if (!responseText) throw new Error(t('aiError', lang));
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
     
-    const detectedEq = parsed.detectedEquipment || equipmentName || '未命名設備';
+    const detectedEq = parsed.detectedEquipment || equipmentName || t('unnamedEq', lang);
     const indexData = parsed.specEntries || [];
 
     if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };

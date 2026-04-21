@@ -626,7 +626,7 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* V16: 語系選擇器 */}
           <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>Language:</span>
+            <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>{data.language === 'en-US' ? 'Language:' : (data.language === 'th-TH' ? 'ภาษา:' : '語言:') }</span>
             <select 
               value={data.language} 
               onChange={(e) => setData({ ...data, language: e.target.value as Language })}
@@ -650,8 +650,7 @@ function App() {
                 color: 'white'
               }}
             >
-               {showPreview ? <span className="header-btn-text">隱藏正式預覽</span> : <span className="header-btn-text">顯示正式預覽</span>}
-               {!showPreview && <><PenTool size={16} /> <span className="header-btn-text">顯示預覽</span></>}
+               {showPreview ? <span className="header-btn-text">{t('hidePreview', data.language)}</span> : <span className="header-btn-text">{t('showPreview', data.language)}</span>}
             </button>
           )}
 
@@ -696,24 +695,24 @@ function App() {
             {!isMobile && showPreview && (
               <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, padding: '0.75rem 1.5rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Eye size={16} /> 正式預覽區
+                  <Eye size={16} /> {t('officialPreview', data.language)}
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     onClick={() => setShowUploadWizard(true)} 
                     className="icon-btn" 
-                    title="智慧解析與規範歸納"
+                    title={t('wizardTitle', data.language)}
                     style={{ color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)', padding: '4px 8px' }}
                   >
-                    <CloudUpload size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>歸納工具</span>
+                    <CloudUpload size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>{t('import', data.language)}</span>
                   </button>
                   <button 
                     onClick={handleOpenInspector} 
                     className="icon-btn" 
-                    title="資料庫與歷史檔案管理"
+                    title={t('history', data.language)}
                     style={{ color: 'var(--tuc-red)', border: '1px solid rgba(230,0,18,0.3)', padding: '4px 8px' }}
                   >
-                    <Database size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>資料管理</span>
+                    <Database size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>{t('history', data.language)}</span>
                   </button>
                 </div>
               </div>
@@ -747,7 +746,7 @@ function App() {
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldAlert size={24} color="var(--tuc-red)" /> 系統設定
+                <ShieldAlert size={24} color="var(--tuc-red)" /> {t('settings', data.language)}
               </h2>
               <button onClick={() => setShowConfig(false)} className="icon-btn">
                 <X size={24} />
@@ -790,7 +789,7 @@ function App() {
             </div>
 
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
-              <Save size={18} /> 儲存設定
+              <Save size={18} /> {t('save', data.language)}
             </button>
           </div>
         </div>
@@ -1019,11 +1018,9 @@ function App() {
                           onClick={() => {
                             if (editingFileId !== f.id) {
                               setEditingFileId(f.id);
-                              setTempTags((f.equipment_tags && f.equipment_tags.length > 0) ? f.equipment_tags.join(', ') : (f.equipment_name || ''));
-                            }
-                          }}
-                          title="點擊編輯設備標籤 (可輸入多個，以逗號分隔)"
-                        >
+                             }}
+                           title={t('clickToEditTags', data.language)}
+                         >
                           {editingFileId === f.id ? (
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                               <input 
@@ -1068,9 +1065,9 @@ function App() {
                                   </span>
                                 ))
                               ) : (
-                                <span style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>
-                                  {f.equipment_name || '點擊新增標籤...'}
-                                </span>
+                                 <span style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>
+                                   {f.equipment_name || t('newTagHint', data.language)}
+                                 </span>
                               )}
                             </div>
                           )}
@@ -1086,11 +1083,11 @@ function App() {
                             fontSize: '0.75rem',
                             border: '1px solid rgba(16,185,129,0.2)',
                             display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <Zap size={10} /> 已解析 {(f as any).knowledgeCount > 0 ? `(${(f as any).knowledgeCount} 條)` : ''}
-                          </span>
+                             alignItems: 'center',
+                             gap: '4px'
+                           }}>
+                             <Zap size={10} /> {t('parsedCount', data.language)} {(f as any).knowledgeCount > 0 ? `(${(f as any).knowledgeCount} ${t('itemsSuffix', data.language)})` : ''}
+                           </span>
                         ) : (
                           <span style={{ 
                             padding: '2px 8px', 
@@ -1125,7 +1122,7 @@ function App() {
               </table>
             </div>
             <div style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
-              共計 {cloudFiles.length} 筆紀錄
+              {t('totalProgress', data.language)} {cloudFiles.length} {t('items', data.language)}
             </div>
           </div>
         </div>
@@ -1138,6 +1135,7 @@ function App() {
         isMinimized={isReparseMinimized}
         data={data} 
         onApplyData={setData}
+        language={data.language}
       />
 
       {/* V9.9: 全域任務監測膠囊 (Floating Task Capsule) */}
@@ -1167,7 +1165,7 @@ function App() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>
-              背景處理中 {reparseProgress}%
+              {t('processing', data.language)} {reparseProgress}%
             </div>
             <div style={{ fontSize: '0.6rem', color: '#888', whiteSpace: 'nowrap', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {reparseCurrentFile}

@@ -340,8 +340,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             <div style={{ padding: isSidebarCollapsed ? '0.5rem' : '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {!isSidebarCollapsed && (
                 <div>
-                  <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>編輯目錄</h2>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>TUC 採購規範產生器</p>
+                  <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>{t('sidebarTitle', data.language)}</h2>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('sidebarSubtitle', data.language)}</p>
                 </div>
               )}
               <button 
@@ -398,20 +398,20 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   style={{ gap: '8px', padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)' }}
                 >
                   <Download size={16} /> 
-                  <span className="header-btn-text">檔案選項</span>
+                  <span className="header-btn-text">{t('fileOptions', data.language)}</span>
                   <ChevronDown size={14} />
                 </button>
 
                 {isExportMenuOpen && (
                   <div className="dropdown-menu glass-panel">
                     <button className="dropdown-item" onClick={handleExportJSON}>
-                      <Download size={16} /> 下載編輯 JSON (本地)
+                      <Download size={16} /> {t('downloadJson', data.language)}
                     </button>
                     <button className="dropdown-item" onClick={() => { setIsExportMenuOpen(false); setIsDbImportModalOpen(true); }}>
-                      <Database size={16} /> 從雲端知識庫匯入
+                      <Database size={16} /> {t('importCloud', data.language)}
                     </button>
                     <label className="dropdown-item" style={{ cursor: 'pointer' }}>
-                      <Upload size={16} /> 載入本地 JSON
+                      <Upload size={16} /> {t('loadLocal', data.language)}
                       <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
                     </label>
                   </div>
@@ -431,7 +431,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 }}
               >
                 <Trash2 size={16} /> 
-                <span className="header-btn-text">重置</span>
+                <span className="header-btn-text">{t('reset', data.language)}</span>
               </button>
             </div>
           </header>
@@ -441,7 +441,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <div className="tab-pane">
                 <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Info size={20} /> 基本資訊與請購項目
+                    <Info size={20} /> {t('sectionBasicHeader', data.language)}
                   </div>
                   
                   <button 
@@ -461,7 +461,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     }}
                   >
                     <Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> 
-                    {isAnalyzing ? '重新生成中...' : 'AI 重生成'}
+                    {isAnalyzing ? t('aiGenerating', data.language) : t('regenerate', data.language)}
                   </button>
                 </h3>
                 
@@ -483,7 +483,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 </div>
 
                 <div className="doc-section-box">
-                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>一. 名稱 (請購細目)</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('docSection1', data.language)}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <SectionEditor 
                       label={t('equipName', data.language)} 
@@ -503,8 +503,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   </div>
                   <div className="input-with-label">
                     <label>{t('category', data.language)}</label>
-                    <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as 工程類別)} style={{ width: '100%' }}>
-                      {['新增', '修繕', '整改', '優化', '購置'].map(c => <option key={c} value={c}>{c}</option>)}
+                    <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as any)} style={{ width: '100%' }}>
+                      <option value="新增">{t('catNew', data.language)}</option>
+                      <option value="修繕">{t('catRepair', data.language)}</option>
+                      <option value="整改">{t('catRenovate', data.language)}</option>
+                      <option value="優化">{t('catOptimize', data.language)}</option>
+                      <option value="購置">{t('catPurchase', data.language)}</option>
                     </select>
                   </div>
                   <SectionEditor 
@@ -548,7 +552,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                         gap: '6px'
                       }}
                     >
-                      <Zap size={12} /> 重新分析本章建議
+                      <Zap size={12} /> {t('aiAnalyzeRange', data.language)}
                     </button>
                   </div>
                 </div>
@@ -559,7 +563,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               <div className="tab-pane">
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabHardware', data.language)}</h3>
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
-                  <h4 className="section-title"><Package size={16} /> 六. 設計要求</h4>
+                  <h4 className="section-title"><Package size={16} /> {t('docSection6', data.language)}</h4>
                   <SectionEditor 
                      label={t('envReq', data.language)} 
                      value={data.envRequirements} 
@@ -600,7 +604,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 </div>
 
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
-                  <h4 className="section-title"><ShieldCheck size={16} /> 七. 安全要求</h4>
+                  <h4 className="section-title"><ShieldCheck size={16} /> {t('docSection7', data.language)}</h4>
                   <SectionEditor 
                      label={t('safetyContent', data.language)} 
                      value={data.safetyRequirements} 
@@ -615,7 +619,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 </div>
 
                 <div className="doc-section-box">
-                  <h4 className="section-title"><Zap size={16} /> 8. {(data.language === 'en-US' ? 'Characteristics' : '特性要求')}</h4>
+                  <h4 className="section-title"><Zap size={16} /> {t('docSection8', data.language)}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <SectionEditor 
                        label={t('elecSpec', data.language)} 
@@ -741,7 +745,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabSignOffTitle', data.language)}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <SectionEditor label={t('requester', data.language)} value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} language={data.language} />
-                  <SectionEditor label={(data.language === 'en-US' ? 'Manager' : '單位主管')} value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} language={data.language} />
+                  <SectionEditor label={t('manager', data.language)} value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} language={data.language} />
                 </div>
                 
                 <div className="doc-section-box">
@@ -777,7 +781,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
                   <div style={{ color: 'var(--tuc-red)', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShieldAlert size={16} />
-                    ＊此規格需詳細填寫，以作為採購單位未來與廠商議價之依據
+                    {t('docBottomNote1', data.language)}
                   </div>
                   <div style={{ 
                     display: 'flex', 

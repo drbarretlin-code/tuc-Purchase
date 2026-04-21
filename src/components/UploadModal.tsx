@@ -87,7 +87,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         status: 'queued'
       });
       
-      if (queueError) throw new Error("佇列系統連線失敗: " + queueError.message);
+      if (queueError) throw new Error(`${t('queueError', language)}: ` + queueError.message);
 
       const waitForTurn = async () => {
         let isMyTurn = false;
@@ -142,15 +142,15 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         if (storageError) throw storageError;
 
         const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
-        const displayName = `${file.name} (${data.requester || '未知'})`;
+        const displayName = `${file.name} (${data.requester || t('unknown', language)})`;
 
         const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
           original_name: file.name,
           storage_path: fileName,
           public_url: publicUrl,
           display_name: displayName,
-          requester: data.requester || '未知',
-          equipment_tags: [data.equipmentName || '未命名設備'],
+          requester: data.requester || t('unknown', language),
+          equipment_tags: [data.equipmentName || t('unnamedEq', language)],
           requirement_desc: data.requirementDesc || '無需求說明',
           is_parsed: false
         }).select('id').single();
@@ -168,7 +168,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         setFilesInQueue(uploadResults.length - i);
 
         const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName, id);
-        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || '未命名設備';
+        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || t('unnamedEq', language);
  
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
@@ -211,12 +211,12 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       });
       
       localStorage.removeItem('tuc_active_upload_job');
-      alert(`檔案上傳解析完成！\n成功：${totalAdded} | 跳過：${totalSkipped}`);
+      alert(`${t('uploadComplete', language)}\n${t('successCount', language)}：${totalAdded} | ${t('skippedCount', language)}：${totalSkipped}`);
 
     } catch (err: any) {
       console.error('[佇列錯誤]', err);
       if (client && sessionId) await client.from('tuc_system_queue').update({ status: 'error' }).eq('owner_session', sessionId);
-      alert(`程序中斷: ${err.message}`);
+      alert(`${t('interrupted', language)}: ${err.message}`);
     } finally {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       setUploadingFile(false);
@@ -237,12 +237,12 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <CloudUpload size={32} color="var(--tuc-red)" />
             <div>
-              <h2 style={{ margin: 0 }}>智慧解析與規範歸納</h2>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>上傳歷史 PDF/圖片 規範，AI 將自動萃取技術要點存入知識庫</p>
+              <h2 style={{ margin: 0 }}>{t('wizardTitle', language)}</h2>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('wizardDesc', language)}</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={onMinimize} className="icon-btn" title="縮小至背景執行">
+            <button onClick={onMinimize} className="icon-btn" title={t('minimizeTip', language)}>
               <Minus size={20} />
             </button>
             <button onClick={onClose} className="icon-btn">
@@ -272,8 +272,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(230,0,18,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
                   <CloudUpload size={32} color="var(--tuc-red)" />
                 </div>
-                <h3 style={{ margin: 0 }}>選取檔案</h3>
-                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '300px' }}>支援多檔案併行解析：PDF, Word (.doc/.docx), 圖片格式</p>
+                <h3 style={{ margin: 0 }}>{t('selectFile', language)}</h3>
+                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '300px' }}>{t('supportFiles', language)}</p>
                 <input 
                   type="file" 
                   multiple 
@@ -285,14 +285,14 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             ) : (
               <div style={{ width: '100%', textAlign: 'center' }}>
                 <Loader2 size={48} className="spin" color="var(--tuc-red)" style={{ margin: '0 auto 1.5rem' }} />
-                <h3 style={{ margin: '0 0 0.5rem' }}>AI 解析中...</h3>
+                <h3 style={{ margin: '0 0 0.5rem' }}>{t('aiParsing', language)}</h3>
                 <p style={{ fontSize: '0.9rem', color: 'var(--tuc-red)', fontWeight: 'bold' }}>{currentUploadingName}</p>
-                <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.5rem' }}>隊列中剩餘：{filesInQueue} 個任務</p>
+                <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.5rem' }}>{t('queueRemaining', language)}{filesInQueue} {t('items', language)}</p>
                 
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.5rem' }}>
                   <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--tuc-red)', transition: 'width 0.3s' }} />
                 </div>
-                <p style={{ fontSize: '0.75rem', color: '#999', textAlign: 'right' }}>總體進度 {uploadProgress}%</p>
+                <p style={{ fontSize: '0.75rem', color: '#999', textAlign: 'right' }}>{t('totalProgress', language)} {uploadProgress}%</p>
               </div>
             )}
           </div>
@@ -300,11 +300,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           {/* 右側：最近上傳紀錄 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-              <History size={16} /> 最近上傳成果
+              <History size={16} /> {t('recentUploads', language)}
             </h4>
             <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {uploadedFiles.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#444', fontSize: '0.85rem' }}>暫無近期歸納紀錄</div>
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#444', fontSize: '0.85rem' }}>{t('noRecentRecords', language)}</div>
               ) : uploadedFiles.map((f, i) => (
                 <div key={i} style={{ 
                   padding: '1rem', 
@@ -319,7 +319,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
                     <CheckCircle2 size={16} color="#10B981" />
                     <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.displayName}</span>
                   </div>
-                  <a href={f.url} target="_blank" rel="noreferrer" className="icon-btn" title="查看原始檔">
+                  <a href={f.url} target="_blank" rel="noreferrer" className="icon-btn" title={t('viewOriginal', language)}>
                     <ExternalLink size={14} />
                   </a>
                 </div>
@@ -330,7 +330,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
 
         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(230,0,18,0.05)', borderRadius: '8px', border: '1px solid rgba(230,0,18,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--tuc-red)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Zap size={14} /> <b>專家提醒：</b> 系統已將檔案轉為結構化 JSON 儲存。
+            <Zap size={14} /> <b>{t('expertTip', language)}</b> {t('jsonStored', language)}
           </p>
           {lastParsedJson && onApplyData && (
             <button 
@@ -338,7 +338,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
               className="primary-button"
               style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
             >
-              🚀 載入「{lastParsedName}」的 AI 解析結果
+              {t('loadAiResultPrefix', language)}{lastParsedName}{t('loadAiResultSuffix', language)}
             </button>
           )}
         </div>
