@@ -269,8 +269,20 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     });
     const responseText = result.response.text();
     if (!responseText) throw new Error(t('aiError', lang));
-    const cleanJson = responseText.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    
+    let cleanJson = responseText.replace(/```json|```/g, '').trim();
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJson);
+    } catch (parseError) {
+      console.warn('[AI Parser] Strict JSON.parse failed, attempting aggressive sanitization:', parseError);
+      // Remove invalid control characters (0x00-0x1F)
+      cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '');
+      // Escape backslashes that are not valid JSON escape sequences (", \, /, b, f, n, r, t, u)
+      cleanJson = cleanJson.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+      parsed = JSON.parse(cleanJson);
+    }
     
     const detectedEq = parsed.detectedEquipment || equipmentName || t('unnamedEq', lang);
     const indexData = parsed.specEntries || [];

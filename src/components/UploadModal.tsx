@@ -138,30 +138,48 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       }
 
       // --- 第三階段：極速併行上傳 ---
-      const uploadResults = await Promise.all(fileList.map(async (file) => {
-        const ext = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-        const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
-        if (storageError) throw storageError;
+      const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+      
+      const rawUploadResults = await Promise.all(fileList.map(async (file) => {
+        try {
+          if (file.size > maxSizeBytes) {
+            throw new Error(`File size ${Math.round(file.size/1024/1024)}MB exceeds 50MB limit`);
+          }
 
-        const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
-        const displayName = `${file.name} (${data.requester || t('unknown', language)})`;
+          const ext = file.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+          const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
+          if (storageError) throw storageError;
 
-        const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
-          original_name: file.name,
-          storage_path: fileName,
-          public_url: publicUrl,
-          display_name: displayName,
-          requester: data.requester || t('unknown', language),
-          equipment_tags: [data.equipmentName || t('unnamedEq', language)],
-          requirement_desc: data.requirementDesc || t('noReqDesc', language),
-          is_parsed: false
-        }).select('id').single();
- 
-        if (insertError) throw insertError;
- 
-        return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
+          const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
+          const displayName = `${file.name} (${data.requester || t('unknown', language)})`;
+
+          const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
+            original_name: file.name,
+            storage_path: fileName,
+            public_url: publicUrl,
+            display_name: displayName,
+            requester: data.requester || t('unknown', language),
+            equipment_tags: [data.equipmentName || t('unnamedEq', language)],
+            requirement_desc: data.requirementDesc || t('noReqDesc', language),
+            is_parsed: false
+          }).select('id').single();
+  
+          if (insertError) throw insertError;
+  
+          return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
+        } catch (err: any) {
+          console.warn(`[Skip] File upload failed for ${file.name}: ${err.message}`);
+          return { file, error: err.message };
+        }
       }));
+
+      // 過濾出上傳成功的檔案進入解析
+      const uploadResults = rawUploadResults.filter((r): r is { file: File, url: string, displayName: string, storagePath: string, id: string } => !('error' in r));
+      const failedUploadsCount = fileList.length - uploadResults.length;
+      if (failedUploadsCount > 0) {
+        console.warn(`[Upload Warning] ${failedUploadsCount} files were skipped due to size limits or upload errors.`);
+      }
 
       // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
