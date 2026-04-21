@@ -1,3 +1,4 @@
+import type { Language } from '../lib/i18n';
 export type 工程類別 = '新增' | '修繕' | '整改' | '優化' | '購置';
 
 export interface AIHintSelection {
@@ -125,13 +126,15 @@ export interface FormState {
   applicantName: string;
   deptHeadName: string;
   signOffGrid: string[][]; // 3 rows x 6 columns
-  searchStatus: Record<string, 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none'>;
+  searchStatus: Record<string, 'pending' | 'translating' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none'>;
   matchThresholdHistory: number; // V15: 歷史資料匹配門檻 (0~1)
   matchThresholdReg: number;     // V15: 技術法令匹配門檻 (0~1)
   needsDrawing: 'YES' | 'NO' | ''; // 是否需要檢附圖面
+  language: Language; // V16: 全域語系設定
 }
 
 export const INITIAL_FORM_STATE: FormState = {
+  language: (localStorage.getItem('tuc_ui_lang') as Language) || 'zh-TW',
   docId: typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
   department: localStorage.getItem('tuc_dept') || '',
   requester: '',

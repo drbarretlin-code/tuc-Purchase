@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar, Loader2 } from 'lucide-react';
+import { t, Language } from '../lib/i18n';
 
 interface Props {
   label: string;
@@ -16,15 +17,16 @@ interface Props {
   required?: boolean;
   placeholder?: string;
   inputType?: string;
-  searchStatus?: 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
+  searchStatus?: 'pending' | 'translating' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
   addon?: React.ReactNode;
+  language: Language;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
   label, value, onChange, hints, historyHints, regHints, 
   onHintToggle, onHistoryHintToggle, onRegHintToggle, 
   isTextArea = true, required = false, placeholder, inputType = "text",
-  searchStatus = 'none', addon
+  searchStatus = 'none', addon, language
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
@@ -96,7 +98,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#60A5FA' }}>
             <Book size={14} />
-            <span>技術法令補充建議</span>
+            <span>{t('aiReg', language)}</span>
           </div>
           {regHints.length >= 2 ? (
             <select 
@@ -123,16 +125,20 @@ const SectionEditor: React.FC<Props> = ({
       )}
 
       {/* 搜尋狀態提示與導引 (V12 新增) */}
-      {searchStatus !== 'none' && searchStatus !== 'success' && (
-        <div style={{ 
+      {['pending', 'translating', 'no_key', 'ai_error', 'empty'].includes(searchStatus) && (
+        <div className="ai-status-container" style={{ 
           marginTop: '0.75rem', 
           padding: '0.75rem', 
           borderRadius: '8px',
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid var(--border-color)',
           fontSize: '0.85rem'
         }}>
           {searchStatus === 'pending' && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>🔍 AI 正併行檢索中 (佇列模式)...</p>}
+          {searchStatus === 'translating' && (
+            <div className="translating-status" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '500' }}>
+              <Loader2 size={16} className="animate-spin" />
+              <span>{t('translating', language)}</span>
+            </div>
+          )}
           {searchStatus === 'no_key' && (
             <div style={{ color: '#FBBF24' }}>
               <p style={{ margin: 0, fontWeight: 'bold' }}>⚠️ 未偵測到 API 金鑰</p>
@@ -146,7 +152,7 @@ const SectionEditor: React.FC<Props> = ({
             </div>
           )}
           {searchStatus === 'empty' && (
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ 未發現符合門檻 (20%) 的智慧建議，請嘗試增加更多需求描述內容。</p>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ {t('noHints', language)}</p>
           )}
         </div>
       )}
@@ -162,7 +168,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#10B981' }}>
             <History size={14} />
-            <span>TUC 歷史資料建議</span>
+            <span>{t('aiHistory', language)}</span>
           </div>
 
           {historyHints.length >= 2 ? (
@@ -218,7 +224,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--tuc-red)' }}>
             <HelpCircle size={14} />
-            <span>AI 建議補充</span>
+            <span>{t('aiGen', language)}</span>
           </div>
           {hints.length >= 2 ? (
             <select 

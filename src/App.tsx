@@ -7,6 +7,8 @@ import { ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Downl
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
+import { t } from './lib/i18n';
+import type { Language } from './lib/i18n';
 
 function App() {
   const [data, setData] = useState<FormState>(() => {
@@ -31,6 +33,11 @@ function App() {
     };
     localStorage.setItem('tuc_user_profile', JSON.stringify(profile));
   }, [data.department, data.requester, data.extension]);
+
+  useEffect(() => {
+    // V16: 持久化語系選擇
+    localStorage.setItem('tuc_ui_lang', data.language);
+  }, [data.language]);
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
@@ -610,11 +617,26 @@ function App() {
             TUC
           </div>
           <div>
-            {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收規範建置表 v6.1</p>}
+            {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+              {t('systemTitle', data.language)} v6.1
+            </p>}
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {/* V16: 語系選擇器 */}
+          <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
+            <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>Language:</span>
+            <select 
+              value={data.language}
+              onChange={(e) => setData({ ...data, language: e.target.value as Language })}
+            >
+              <option value="zh-TW">{t('langName', 'zh-TW')}</option>
+              <option value="zh-CN">{t('langName', 'zh-CN')}</option>
+              <option value="en-US">{t('langName', 'en-US')}</option>
+            </select>
+          </div>
+
           {!isMobile && (
             <button 
               onClick={() => setShowPreview(!showPreview)} 
@@ -827,7 +849,7 @@ function App() {
                     cursor: 'pointer' 
                   }}
                 >
-                  變更密碼
+                  {t('changePassword', data.language)}
                 </button>
               </>
             )}
@@ -840,7 +862,7 @@ function App() {
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BookOpen size={24} color="var(--tuc-red)" /> 雲端歷史檔案查閱器
+                <BookOpen size={24} color="var(--tuc-red)" /> {t('cloudInspector', data.language)}
               </h2>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {selectedFileIds.length > 0 && (
@@ -855,20 +877,19 @@ function App() {
                       marginRight: '0.5rem'
                     }}
                   >
-                    <Trash2 size={14} /> 批次刪除 ({selectedFileIds.length})
+                    <Trash2 size={14} /> {t('batchDelete', data.language)} ({selectedFileIds.length})
                   </button>
                 )}
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
-                  <Download size={16} /> 匯出 CSV
+                  <Download size={16} /> {t('exportCsv', data.language)}
                 </button>
 
                 <button 
                   className="ghost-button" 
                   onClick={handleCleanupDuplicates} 
                   style={{ fontSize: '0.8rem', color: '#FBBF24', borderColor: 'rgba(251,191,36,0.3)' }}
-                  title="一鍵清理重複檔案"
                 >
-                  <Sparkles size={16} /> <span className="header-btn-text">清理重複</span>
+                  <Sparkles size={16} /> <span className="header-btn-text">{t('cleanup', data.language)}</span>
                 </button>
                 <button 
                   className="ghost-button" 
@@ -880,9 +901,8 @@ function App() {
                     borderColor: 'rgba(96,165,250,0.3)',
                     opacity: isReparsing ? 0.5 : 1
                   }}
-                  title="補齊未解析檔案的條目"
                 >
-                  <Zap size={16} /> <span className="header-btn-text">一鍵補解析</span>
+                  <Zap size={16} /> <span className="header-btn-text">{t('reparseAll', data.language)}</span>
                 </button>
                 <button 
                   className="ghost-button" 
@@ -894,10 +914,9 @@ function App() {
                     borderColor: 'rgba(16,185,129,0.3)',
                     opacity: isReparsing ? 0.5 : 1
                   }}
-                  title="由 AI 重新掃描文件內容並校準設備標籤"
                 >
                   {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />} 
-                  <span className="header-btn-text">AI 標籤校準</span>
+                  <span className="header-btn-text">{t('labelFix', data.language)}</span>
                 </button>
                 <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title="縮小至背景執行">
                   <Minimize2 size={20} />
@@ -921,10 +940,10 @@ function App() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Loader2 size={14} className="spin" /> 正在處理: <b>{reparseCurrentFile}</b>
+                    <Loader2 size={14} className="spin" /> {t('processing', data.language)}: <b>{reparseCurrentFile}</b>
                   </span>
                   <span style={{ color: '#888' }}>
-                    進度: <b style={{ color: '#60A5FA' }}>{reparseIndex} / {reparseTotal}</b> ({reparseProgress}%)
+                    {t('progress', data.language)}: <b style={{ color: '#60A5FA' }}>{reparseIndex} / {reparseTotal}</b> ({reparseProgress}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -950,17 +969,17 @@ function App() {
                         onChange={(e) => handleSelectAllFiles(e.target.checked)}
                       />
                     </th>
-                    <th style={{ textAlign: 'left', padding: '12px', width: '60px' }}>項次</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>顯示名稱</th>
-                    <th style={{ textAlign: 'left', padding: '12px', width: '120px' }}>解析狀態</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>上傳人</th>
-                    <th style={{ textAlign: 'left', padding: '12px' }}>日期</th>
-                    <th style={{ textAlign: 'center', padding: '12px' }}>操作</th>
+                    <th style={{ textAlign: 'left', padding: '12px', width: '60px' }}>{t('num', data.language)}</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>{t('displayName', data.language)}</th>
+                    <th style={{ textAlign: 'left', padding: '12px', width: '120px' }}>{t('status', data.language)}</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>{t('uploader', data.language)}</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>{t('date', data.language)}</th>
+                    <th style={{ textAlign: 'center', padding: '12px' }}>{t('actions', data.language)}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredFiles.length === 0 ? (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>{t('noFiles', data.language)}</td></tr>
                   ) : filteredFiles.map((f, idx) => (
                     <tr 
                       key={f.id} 

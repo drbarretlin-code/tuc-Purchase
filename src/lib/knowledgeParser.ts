@@ -577,3 +577,65 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
     throw new Error(`AI 組裝模組執行失敗: ${err.message || '網路或 API 錯誤'}`);
   }
 };
+
+/**
+ * V16: 即時內容轉譯功能
+ * 將檢索到的歷史/法令內容轉譯為目標語系
+ */
+export async function translateHints(
+  hints: AIHintSelection[], 
+  targetLang: string, 
+  apiKey: string
+): Promise<AIHintSelection[]> {
+  if (targetLang === 'zh-TW' || hints.length === 0) return hints;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelId = await getAutoSelectedModel(apiKey);
+  const model = ai.getGenerativeModel({ model: modelId });
+
+  const langMap: Record<string, string> = {
+    'zh-CN': 'Simplified Chinese (简体中文)',
+    'en-US': 'English'
+  };
+
+  const targetLabel = langMap[targetLang] || targetLang;
+
+  // 組合條文以優化 API 效能
+  const combinedText = hints.map((h, idx) => `ID:${idx} CONTENT:${h.content}`).join('\n---\n');
+
+  const prompt = `You are a professional technical procurement translator. 
+Translate the following entries from Traditional Chinese into ${targetLabel}.
+Ensure technical terminology (e.g., PLC, SUS, HMI, safety standards) is accurate.
+Strictly maintain the format "ID:number CONTENT:translated_text" for each entry.
+
+DATA TO TRANSLATE:
+${combinedText}`;
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        topP: 0.8,
+        topK: 40,
+      }
+    });
+    
+    const translatedText = result.response.text();
+    const updatedHints = JSON.parse(JSON.stringify(hints)); // 深拷貝
+
+    updatedHints.forEach((h: AIHintSelection, idx: number) => {
+      // 尋找對應索引的內容
+      const regex = new RegExp(`ID:${idx}\\s*CONTENT:\\s*([\\s\\S]*?)(?=ID:${idx + 1}|$)`, 'i');
+      const match = translatedText.match(regex);
+      if (match && match[1]) {
+        h.content = match[1].trim();
+      }
+    });
+
+    return updatedHints;
+  } catch (err) {
+    console.error('[AI Translation Error]:', err);
+    return hints; // 失敗時保留原文
+  }
+}

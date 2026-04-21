@@ -182,3 +182,47 @@
     border-right-color: var(--border);
   }
 }
+
+/* V16: Multi-language & AI Translation Polish */
+.translating-status {
+  animation: translating-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes translating-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.98); }
+}
+
+.ai-status-container {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-status-container:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.lang-selector-wrapper {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.lang-selector-wrapper:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--tuc-red);
+}
+
+.lang-selector-wrapper select {
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  padding: 4px 8px;
+}
+

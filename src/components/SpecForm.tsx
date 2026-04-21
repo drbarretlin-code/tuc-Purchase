@@ -21,8 +21,10 @@ import {
   Trash2,
   Repeat,
   ShieldAlert,
-  Book
+  Book,
+  Languages
 } from 'lucide-react';
+import { t } from '../lib/i18n';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
@@ -164,12 +166,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     onChange(currentData);
 
     const concurrency = 2;
+    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+
     for (let i = 0; i < targets.length; i += concurrency) {
       const chunk = targets.slice(i, i + concurrency);
       
       const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
         try {
-          // V15: 同時傳入設備名稱、需求說明與個別門檻
           const res = await KP.getHistorySuggestions(
             target.category, 
             data.equipmentName, 
@@ -177,9 +180,26 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             data.matchThresholdHistory, 
             data.matchThresholdReg
           );
+
+          // V16: 若非繁中，執行翻譯
+          if (data.language !== 'zh-TW' && res.hints.length > 0 && apiKey) {
+            // 更新狀態為翻譯中
+            onChange(prev => ({
+              ...prev,
+              searchStatus: {
+                ...prev.searchStatus,
+                [target.key as string]: 'translating',
+                [target.regKey as string]: 'translating'
+              }
+            }));
+            
+            const translated = await KP.translateHints(res.hints, data.language, apiKey);
+            return { target, res: { ...res, hints: translated } };
+          }
+
           return { target, res };
         } catch (err) {
-          console.error(`Fetch failed for ${target.category}:`, err);
+          console.error(`Fetch/Translate failed for ${target.category}:`, err);
           return { target, res: { hints: [], status: 'ai_error' as const } };
         }
       }));
@@ -188,8 +208,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       chunkResults.forEach(({ target, res }: { target: any, res: any }) => {
         (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
         (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
-        nextData.searchStatus[target.key as string] = res.status;
-        nextData.searchStatus[target.regKey as string] = res.status;
+        nextData.searchStatus[target.key as string] = res.status === 'ai_error' ? 'ai_error' : 'success';
+        nextData.searchStatus[target.regKey as string] = res.status === 'ai_error' ? 'ai_error' : 'success';
       });
 
       currentData = nextData;
@@ -206,11 +226,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   }, [activeTab]);
 
   const tabs = [
-    { label: '基本資訊', icon: <Info size={18} /> },
-    { label: '技術規格', icon: <Settings size={18} /> },
-    { label: '施工作業', icon: <Hammer size={18} /> },
-    { label: '圖說表格', icon: <Table size={18} /> },
-    { label: '會簽確認', icon: <PenTool size={18} /> },
+    { label: t('tabBasic', data.language), icon: <Info size={18} /> },
+    { label: t('tabHardware', data.language), icon: <Settings size={18} /> },
+    { label: t('tabConstruction', data.language), icon: <Hammer size={18} /> },
+    { label: t('tabDrawings', data.language), icon: <Table size={18} /> },
+    { label: t('tabSignOff', data.language), icon: <PenTool size={18} /> },
   ];
 
   const updateField = (field: keyof FormState, value: any) => {
@@ -467,32 +487,34 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>一. 名稱 (請購細目)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <SectionEditor 
-                      label="設備名稱" 
+                      label={t('equipName', data.language)} 
                       value={data.equipmentName} 
                       onChange={(v: string) => updateField('equipmentName', v)} 
                       isTextArea={false} 
-                      addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label="歷史資料" />}
+                      addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label={t('aiHistory', data.language)} />}
+                      language={data.language}
                     />
-                    <SectionEditor label="型別" value={data.model} onChange={(v: string) => updateField('model', v)} isTextArea={false} />
+                    <SectionEditor 
+                      label={t('model', data.language)} 
+                      value={data.model} 
+                      onChange={(v: string) => updateField('model', v)} 
+                      isTextArea={false} 
+                      language={data.language}
+                    />
                   </div>
                   <div className="input-with-label">
-                    <label>工程類別</label>
+                    <label>{t('category', data.language)}</label>
                     <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as 工程類別)} style={{ width: '100%' }}>
                       {['新增', '修繕', '整改', '優化', '購置'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <SectionEditor 
-                    label="需求說明" 
+                    label={t('reqDesc', data.language)} 
                     value={data.requirementDesc} 
                     onChange={(v: string) => updateField('requirementDesc', v)} 
                     required 
-                    placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
-                    historyHints={data.requirementDescHistoryHints}
-                    regHints={data.requirementDescRegHints}
-                    searchStatus={data.searchStatus?.['requirementDescHistoryHints'] || 'none'}
-                    onHistoryHintToggle={(id: string) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
-                    onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
-                    addon={<CompactThreshold value={data.matchThresholdReg} onChange={(v) => updateField('matchThresholdReg', v)} label="技術法令" icon={<Book size={10} />} />}
+                    addon={<CompactThreshold value={data.matchThresholdReg} onChange={(v) => updateField('matchThresholdReg', v)} label={t('aiReg', data.language)} icon={<Book size={10} />} />}
+                    language={data.language}
                   />
 
 
@@ -500,26 +522,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
                 <div style={{ marginTop: '1.5rem' }}>
                   <SectionEditor 
-                    label="二. 品相" 
+                    label={t('appearance', data.language)} 
                     value={data.appearance} 
                     onChange={(v: string) => updateField('appearance', v)} 
-                    historyHints={data.appearanceHistoryHints}
-                    regHints={data.appearanceRegHints}
-                    searchStatus={data.searchStatus?.['appearanceHistoryHints'] || 'none'}
-                    onHistoryHintToggle={(id: string) => toggleHint('appearanceHistoryHints', 'appearance', id)}
-                    onRegHintToggle={(id: string) => toggleHint('appearanceRegHints', 'appearance', id)}
+                    language={data.language}
                   />
-                  <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v: string) => updateField('quantityUnit', v)} isTextArea={false} />
-                  <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentScope} onChange={(v: string) => updateField('equipmentScope', v)} />
+                  <SectionEditor label={t('quantity', data.language)} value={data.quantityUnit} onChange={(v: string) => updateField('quantityUnit', v)} isTextArea={false} language={data.language} />
+                  <SectionEditor label={t('scope', data.language)} value={data.equipmentScope} onChange={(v: string) => updateField('equipmentScope', v)} language={data.language} />
                   <SectionEditor 
-                    label="五. 工程(或設備)適用區間 (Range)" 
+                    label={t('rangeRange', data.language)} 
                     value={data.rangeRange} 
                     onChange={(v: string) => updateField('rangeRange', v)} 
-                    historyHints={data.rangeHistoryHints}
-                    regHints={data.rangeRegHints}
-                    searchStatus={data.searchStatus?.['rangeHistoryHints'] || 'none'}
-                    onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
-                    onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
+                    language={data.language}
                   />
                   <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
@@ -544,11 +558,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
             {activeTab === 1 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>技術與設計要求</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabHardware', data.language)}</h3>
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
                   <h4 className="section-title"><Package size={16} /> 六. 設計要求</h4>
                   <SectionEditor 
-                     label="1. 環保要求" 
+                     label={t('envReq', data.language)} 
                      value={data.envRequirements} 
                      onChange={(v: string) => updateField('envRequirements', v)} 
                      hints={data.envAIHints}
@@ -558,9 +572,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onHintToggle={(id: string) => toggleHint('envAIHints', 'envRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
+                     language={data.language}
                   />
                   <SectionEditor 
-                     label="2. 法規要求" 
+                     label={t('regReq', data.language)} 
                      value={data.regRequirements} 
                      onChange={(v: string) => updateField('regRequirements', v)} 
                      hints={data.regAIHints}
@@ -570,9 +585,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onHintToggle={(id: string) => toggleHint('regAIHints', 'regRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
+                     language={data.language}
                   />
                   <SectionEditor 
-                     label="3. 維護要求" 
+                     label={t('maintReq', data.language)} 
                      value={data.maintRequirements} 
                      onChange={(v: string) => updateField('maintRequirements', v)} 
                      historyHints={data.maintHistoryHints}
@@ -580,13 +596,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      searchStatus={data.searchStatus?.['maintHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('maintRegHints', 'maintRequirements', id)}
+                     language={data.language}
                   />
                 </div>
 
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
                   <h4 className="section-title"><ShieldCheck size={16} /> 七. 安全要求</h4>
                   <SectionEditor 
-                     label="安全要求內容" 
+                     label={t('safetyContent', data.language)} 
                      value={data.safetyRequirements} 
                      onChange={(v: string) => updateField('safetyRequirements', v)} 
                      historyHints={data.safetyHistoryHints}
@@ -594,14 +611,15 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      searchStatus={data.safetyHistoryHints ? data.searchStatus['safetyHistoryHints'] : 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
+                     language={data.language}
                   />
                 </div>
 
                 <div className="doc-section-box">
-                  <h4 className="section-title"><Zap size={16} /> 八. 特性要求</h4>
+                  <h4 className="section-title"><Zap size={16} /> 8. {(data.language === 'en-US' ? 'Characteristics' : '特性要求')}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <SectionEditor 
-                       label="1. 電氣特性規格" 
+                       label={t('elecSpec', data.language)} 
                        value={data.elecSpecs} 
                        onChange={(v: string) => updateField('elecSpecs', v)} 
                        historyHints={data.elecHistoryHints}
@@ -611,7 +629,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onRegHintToggle={(id: string) => toggleHint('elecRegHints', 'elecSpecs', id)}
                     />
                     <SectionEditor 
-                       label="2. 機構特性規格" 
+                       label={t('mechSpec', data.language)} 
                        value={data.mechSpecs} 
                        onChange={(v: string) => updateField('mechSpecs', v)} 
                        historyHints={data.mechHistoryHints}
@@ -621,7 +639,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onRegHintToggle={(id: string) => toggleHint('mechRegHints', 'mechSpecs', id)}
                     />
                     <SectionEditor 
-                       label="3. 物理特性規格" 
+                       label={t('physSpec', data.language)} 
                        value={data.physSpecs} 
                        onChange={(v: string) => updateField('physSpecs', v)} 
                        historyHints={data.physHistoryHints}
@@ -631,7 +649,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        onRegHintToggle={(id: string) => toggleHint('physRegHints', 'physSpecs', id)}
                     />
                     <SectionEditor 
-                       label="4. 信賴特性規格" 
+                       label={t('relySpec', data.language)} 
                        value={data.relySpecs} 
                        onChange={(v: string) => updateField('relySpecs', v)} 
                        historyHints={data.relyHistoryHints}
@@ -642,13 +660,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     />
                   </div>
                   <SectionEditor 
-                    label="適用區間 (Range)" 
+                    label={t('rangeRange', data.language)} 
                     value={data.rangeRange} 
                     onChange={(v: string) => updateField('rangeRange', v)}
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
                     onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
+                    language={data.language}
                   />
                 </div>
               </div>
@@ -656,9 +675,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
             {activeTab === 2 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>九. 安裝與遵守事項</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabConstructionTitle', data.language)}</h3>
                 <SectionEditor 
-                   label="施工標準 (九)" 
+                   label={t('installStd', data.language)} 
                     value={data.installStandard} 
                     onChange={(v: string) => updateField('installStandard', v)} 
                     hints={data.installAIHints}
@@ -668,13 +687,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onHintToggle={(id: string) => toggleHint('installAIHints', 'installStandard', id)}
                     onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
                     onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
+                    language={data.language}
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
-                  <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v: string) => updateField('workPeriod', v)} isTextArea={false} />
+                  <SectionEditor label={t('finishDate', data.language)} value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" language={data.language} />
+                  <SectionEditor label={t('workPeriodDays', data.language)} value={data.workPeriod} onChange={(v: string) => updateField('workPeriod', v)} isTextArea={false} language={data.language} />
                 </div>
                 <SectionEditor 
-                  label="驗收要求" 
+                  label={t('acceptanceDesc', data.language)} 
                   value={data.acceptanceDesc} 
                   onChange={(v: string) => updateField('acceptanceDesc', v)} 
                   hints={data.acceptanceAIHints}
@@ -684,9 +704,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   onHintToggle={(id: string) => toggleHint('acceptanceAIHints', 'acceptanceDesc', id)}
                   onHistoryHintToggle={(id: string) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                   onRegHintToggle={(id: string) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
+                  language={data.language}
                 />
                 <SectionEditor 
-                   label="十. 遵守事項" 
+                   label={t('compliance', data.language)} 
                    value={data.complianceDesc} 
                    onChange={(v: string) => updateField('complianceDesc', v)} 
                    hints={data.complianceAIHints}
@@ -696,16 +717,17 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    onHintToggle={(id: string) => toggleHint('complianceAIHints', 'complianceDesc', id)}
                    onHistoryHintToggle={(id: string) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
                    onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
+                   language={data.language}
                 />
               </div>
             )}
 
             {activeTab === 3 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabDrawingsTitle', data.language)}</h3>
                 <ImageUpload images={data.images} onChange={(imgs: any[]) => updateField('images', imgs)} />
                 <div style={{ marginTop: '2.5rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求細目</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('tableAcceptance', data.language)}</h4>
                   <SpecTable data={data.tableData} onChange={(td: any[]) => updateField('tableData', td)} />
                 </div>
               </div>
@@ -713,19 +735,19 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
             {activeTab === 4 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>規格確認及會簽</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabSignOffTitle', data.language)}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                  <SectionEditor label="申請人" value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} />
-                  <SectionEditor label="單位主管" value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} />
+                  <SectionEditor label={t('requester', data.language)} value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} language={data.language} />
+                  <SectionEditor label={(data.language === 'en-US' ? 'Manager' : '單位主管')} value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} language={data.language} />
                 </div>
                 
                 <div className="doc-section-box">
-                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>{t('signOffGrid', data.language)}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, border: '1px solid var(--border-color)' }}>
                     {data.signOffGrid.map((row: string[], ri: number) => row.map((cell: string, ci: number) => (
-                      <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', minHeight: '100px', background: 'rgba(255,255,255,0.02)' }}>
+                       <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', minHeight: '100px', background: 'rgba(255,255,255,0.02)' }}>
                         <div style={{ height: '30px', background: isDropdownCell(ri, ci) ? 'rgba(230,0,18,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                          {isDropdownCell(ri, ci) ? '單位代號' : '核決簽署'}
+                          {isDropdownCell(ri, ci) ? t('deptCode', data.language) : t('signOff', data.language)}
                         </div>
                         {isDropdownCell(ri, ci) ? (
                           <select 
@@ -733,7 +755,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateSignOff(ri, ci, e.target.value)} 
                             style={{ width: '100%', height: '70px', border: 'none', background: 'transparent', color: 'white', fontSize: '0.85rem', textAlign: 'center' }}
                           >
-                            <option value="">選擇單位</option>
+                            <option value="">{t('chooseDept', data.language)}</option>
                             {departments.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         ) : (
@@ -764,31 +786,30 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     borderRadius: '10px', 
                     border: '1px solid rgba(255,255,255,0.08)' 
                   }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>＊此項請購是否需要檢附圖面？</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{t('drawings', data.language)}</span>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                       <button 
                         onClick={() => updateField('needsDrawing', 'YES')}
                         className={data.needsDrawing === 'YES' ? 'primary-button' : 'ghost-button'}
                         style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'YES' ? 'var(--tuc-red)' : 'transparent' }}
                       >
-                        是
+                        {t('yes', data.language)}
                       </button>
                       <button 
                         onClick={() => updateField('needsDrawing', 'NO')}
                         className={data.needsDrawing === 'NO' ? 'primary-button' : 'ghost-button'}
                         style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'NO' ? 'var(--tuc-red)' : 'transparent' }}
                       >
-                        否
+                        {t('no', data.language)}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="doc-section-box" style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(59, 130, 246, 0.05)', border: '2px dashed rgba(59, 130, 246, 0.2)', marginTop: '2rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>✅ 規範編校完成</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>{data.language === 'en-US' ? '✅ Validation Complete' : '✅ 規範編校完成'}</h4>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    您可以點擊下方按鈕將此份規範同步至雲端知識庫。<br/>
-                    系統將自動執行 AI 標籤校準，並根據文件隱碼覆蓋舊有資料。
+                    {data.language === 'en-US' ? 'Click below to sync this spec to cloud knowledge. AI will auto-calibrate tags based on doc hidden codes.' : '您可以點擊下方按鈕將此份規範同步至雲端知識庫。<br/>系統將自動執行 AI 標籤校準，並根據文件隱碼覆蓋舊有資料。'}
                   </p>
                   
                   <button 
@@ -803,7 +824,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                       boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                     }}
                   >
-                    {isSyncing ? '同步中，請稍候...' : '完稿並同步至知識庫'}
+                    {isSyncing ? (data.language === 'en-US' ? 'Syncing...' : '同步中，請稍候...') : (data.language === 'en-US' ? 'Finalize & Sync' : '完稿並同步至知識庫')}
                   </button>
 
                   {syncStatus.type && (
@@ -829,10 +850,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               onClick={() => setActiveTab(prev => prev - 1)} 
               className="ghost-button"
             >
-              <ChevronLeft size={20} /> 上一步
+              <ChevronLeft size={20} /> {data.language === 'en-US' ? 'Prev' : '上一步'}
             </button>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              章節 {activeTab + 1} / {tabs.length}
+              {data.language === 'en-US' ? 'Section' : '章節'} {activeTab + 1} / {tabs.length}
             </div>
             {activeTab < tabs.length - 1 && (
               <button 
@@ -840,7 +861,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 className="primary-button"
                 style={{ width: 'auto', padding: '0.6rem 2rem' }}
               >
-                下一步 <ChevronRight size={20} />
+                {data.language === 'en-US' ? 'Next' : '下一步'} <ChevronRight size={20} />
               </button>
             )}
           </footer>
