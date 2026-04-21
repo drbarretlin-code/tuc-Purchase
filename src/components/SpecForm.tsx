@@ -43,34 +43,51 @@ const CompactThreshold: React.FC<{
   label: string,
   icon?: React.ReactNode
 }> = ({ value, onChange, label, icon }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
   
   return (
     <div 
+      ref={containerRef}
       className="compact-threshold-container"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', marginLeft: '6px' }}
     >
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '4px', 
-        padding: '1px 6px', 
-        background: 'rgba(255,255,255,0.08)', 
-        borderRadius: '6px',
-        fontSize: '0.7rem',
-        cursor: 'pointer',
-        border: '1px solid rgba(255,255,255,0.1)',
-        color: value >= 0.6 ? '#10B981' : (value >= 0.3 ? '#F59E0B' : '#EF4444'),
-        transition: 'all 0.2s',
-        fontWeight: 'bold'
-      }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '4px', 
+          padding: '1px 6px', 
+          background: isOpen ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)', 
+          borderRadius: '6px',
+          fontSize: '0.7rem',
+          cursor: 'pointer',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: value >= 0.6 ? '#10B981' : (value >= 0.3 ? '#F59E0B' : '#EF4444'),
+          transition: 'all 0.2s',
+          fontWeight: 'bold'
+        }}
+      >
         {icon || <Zap size={10} />}
         <span>{Math.round(value * 100)}%</span>
       </div>
       
-      {isHovered && (
+      {isOpen && (
         <div style={{ 
           position: 'absolute', 
           top: '100%', 
@@ -94,7 +111,7 @@ const CompactThreshold: React.FC<{
             step="0.05" 
             value={value} 
             onChange={(e) => onChange(parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--tuc-red)', height: '4px' }}
+            style={{ width: '100%', accentColor: 'var(--tuc-red)', height: '4px', cursor: 'grab' }}
           />
         </div>
       )}

@@ -362,9 +362,9 @@ export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: 
     const modelId = await getAutoSelectedModel(apiKey);
     const model = genAI.getGenerativeModel({ model: modelId });
 
-    const prompt = `Translate the following two terms into English, Simplified Chinese, and Thai.
+    const prompt = `Translate the following two terms into Traditional Chinese, English, Simplified Chinese, and Thai.
 Return ONLY a JSON object with this exact structure, ensuring all values are arrays of strings:
-{"eqVariants": ["original", "english", "simplified", "thai"], "reqVariants": ["original", "english", "simplified", "thai"]}
+{"eqVariants": ["original", "traditional", "english", "simplified", "thai"], "reqVariants": ["original", "traditional", "english", "simplified", "thai"]}
 
 Term 1 (eq): ${eqK || ' '}
 Term 2 (req): ${reqK || ' '}
