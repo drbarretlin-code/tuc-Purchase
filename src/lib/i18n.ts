@@ -267,28 +267,11 @@ export const translations: Record<string, any> = {
     'clickToUpload': '點擊上傳圖片',
     
     // Additional App labels
-    'languageLabel': '語言:',
-    'deleteRecord': '刪除紀錄',
-    'itemsSuffix': '條',
-    'apiKeyLabel': 'Gemini API Key (用於智慧建議)',
-    'apiKeyPlaceholder': '貼入您的 API Key...',
-    'changeAdminPwd': '變更管理密碼',
-    'adminAuth': '管理權限驗證',
-    'newPwdHint': '請輸入新密碼（至少 6 位數字）',
-    'enterPwdHint': '請輸入查閱管理密碼',
-    'newPwdPlaceholder': '新密碼...',
-    'pwdPlaceholder': '請輸入密碼...',
-    'saveNewPwd': '儲存新密碼',
-    'minimizeToBg': '縮小至背景執行',
     'noEntries': '未偵測到條目',
     'editTab': '編輯內容',
     'previewTab': '查看預覽',
     'clickToEditTags': '點擊編輯標籤',
     'newTagHint': '點擊新增標籤...',
-    'parsedCount': '已解析',
-    'viewFull': '開新分頁檢視',
-    'deleteRecord': '刪除紀錄',
-    'itemsSuffix': '條',
     'noReqDesc': '無需求說明',
     'systemSubtitle': 'TUC 採購規範產生器'
   },
@@ -1111,7 +1094,6 @@ export const translations: Record<string, any> = {
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
     'parsedCount': 'วิเคราะห์แล้ว',
     'viewFull': 'ดูในแท็บใหม่',
-    'itemsSuffix': 'รายการ',
   }
 };
 
