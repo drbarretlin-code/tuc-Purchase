@@ -354,14 +354,18 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         category: item.category,
         content: item.content,
         source_file_name: file.name,
-        full_json_data: fullJson,
         metadata: { 
           equipment_name: detectedEq, 
           docType: parsed.docType, 
-          docId: docId 
+          docId: docId,
+          full_json_data: fullJson
         }
       });
-      if (!error) addedCount++;
+      if (!error) {
+        addedCount++;
+      } else {
+        console.error('[AI Parser] 知識點存檔失敗 (Insert Error):', error.message);
+      }
     }
     
     return { added: addedCount, skipped: skippedCount, detectedEquipment: detectedEq, fullJson, docId };
@@ -592,9 +596,13 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
     }
 
     // 4. 同時更新檔案記錄的完整 JSON 存檔
-    await supabase.from('tuc_uploaded_files')
+    const { error: updateError } = await supabase.from('tuc_uploaded_files')
       .update({ full_json_data: data })
       .eq('id', docId);
+
+    if (updateError) {
+      console.warn('[Sync] 忽略更新 tuc_uploaded_files 的 full_json_data (可能無此欄位):', updateError.message);
+    }
 
     return { success: true, count: addedCount, docId };
   } catch (err) {

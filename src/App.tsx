@@ -525,8 +525,9 @@ function App() {
             .eq('id', fileRecord.id);
 
           if (updateError) {
-            console.error('更新解析與校準狀態失敗:', updateError);
-            throw new Error(`無法將檔案標記為已解析/校準。(${updateError.message})`);
+            console.warn(`[容錯] 雲端狀態欄位更新失敗 (資料表可能缺少 is_parsed 等欄位)。系統將略過並依賴本地防呆狀態。 錯誤訊息:`, updateError.message);
+            // 容錯機制：不拋出 Error，允許程式碼繼續將 `is_parsed` 設定到本地緩存，
+            // 從而讓本地畫面變為綠色，並且利用 `countFromStats` 防呆實現斷點續傳。
           }
 
           // 同步更新知識庫內的 metadata (標籤校準核心)
