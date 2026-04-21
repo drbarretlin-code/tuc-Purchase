@@ -466,15 +466,15 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.5: 強制轉為數字判定，解決數據類型不一致問題 (解決點擊無反應)
-    const targets = cloudFiles.filter(f => !f.is_parsed || Number((f as any).knowledgeCount || 0) === 0);
+    // V16.7: 啟用動態續傳模式 - 重新獲取最新清單，過濾出真正需要補解析的檔案
+    const targets = cloudFiles.filter(f => Number((f as any).knowledgeCount || 0) === 0);
     
     if (targets.length === 0) {
-      alert('所有檔案皆已擁有效解析條目，無須補解析。');
+      alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案尚未解析或無條目紀錄，確定要一鍵自動補解析嗎？\n(解析過程將消耗 AI 配額，請勿關閉視窗)`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案無條目紀錄 (支援斷點續傳)。\n確定要自動補足這些內容嗎？\n(過程將消耗 AI 配額，若中斷下次可從剩餘處繼續)`)) return;
 
     setIsReparsing(true);
     setReparseProgress(0);
