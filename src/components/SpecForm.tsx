@@ -292,11 +292,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           <header className="form-header-toolbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <FileText size={20} color="var(--tuc-red)" />
-              <span style={{ fontWeight: 600, color: 'white' }}>
-                {data.equipmentName || '未命名規範文件'}
-              </span>
               <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
-                {(data.docId || '--------').substring(0,8)}
+                DocID: {(data.docId || '--------').substring(0,8)}
               </span>
             </div>
             
