@@ -104,45 +104,53 @@ const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
       .map(b => b.toString(16).padStart(2, '0')).join(' ');
     console.log(`[AI Parser] .doc 格式診斷 (Hex): ${hexHeader}`);
 
-    // 定義探測策略
     const encodings = ['utf-8', 'big5', 'gbk', 'windows-1252'];
-    let soup = "";
+    let finalCleaned = "";
+    const CHUNK_SIZE = 512 * 1024; // 512KB 區塊，預防 V8 Regex 記憶體溢出
+    const targetLimit = 50000;
 
-    // 1. 標準編碼探測
-    encodings.forEach(enc => {
+    for (let offset = 0; offset < buffer.byteLength; offset += CHUNK_SIZE) {
+      const chunk = buffer.slice(offset, offset + CHUNK_SIZE);
+      let chunkSoup = "";
+
+      encodings.forEach(enc => {
+        try {
+          const decoder = new TextDecoder(enc, { fatal: false });
+          chunkSoup += decoder.decode(chunk) + " ";
+        } catch {}
+      });
+
       try {
-        const decoder = new TextDecoder(enc, { fatal: false });
-        soup += decoder.decode(buffer) + " ";
+        const decoder16 = new TextDecoder('utf-16le', { fatal: false });
+        chunkSoup += decoder16.decode(chunk) + " ";
+        if (chunk.byteLength > 1) {
+          chunkSoup += decoder16.decode(chunk.slice(1)) + " ";
+        }
       } catch {}
-    });
 
-    // 2. UTF-16LE 滑動窗口探測 (針對二進制位移偏移量 0 與 1)
-    try {
-      const decoder16 = new TextDecoder('utf-16le', { fatal: false });
-      soup += decoder16.decode(buffer) + " ";
-      // 位移 1 位元組再次解碼，捕捉被錯位的文字
-      if (buffer.byteLength > 1) {
-        soup += decoder16.decode(buffer.slice(1)) + " ";
+      const filtered = chunkSoup.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF\u2122\x20-\x7E\n]/g, ' ');
+      
+      const cleanedChunk = filtered
+        .replace(/[ ]{2,}/g, ' ')
+        .replace(/([^0-9a-zA-Z\u4E00-\u9FFF])\1{2,}/g, '$1')
+        .trim();
+
+      finalCleaned += cleanedChunk + " ";
+
+      if (finalCleaned.length > targetLimit) {
+        finalCleaned = finalCleaned.substring(0, targetLimit);
+        console.log(`[AI Parser] 提取已達上限 (${targetLimit} 字)，提早結束掃描。`);
+        break;
       }
-    } catch {}
+    }
 
-    // 3. 語意過濾與強效降噪
-    // 保留：中日韓漢字、標點、數值、英文字母
-    const filtered = soup.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF\u2122\x20-\x7E\n]/g, ' ');
+    console.log(`[AI Parser] 全頻段掃描完成，提取長度: ${finalCleaned.length}`);
     
-    // 移除過短的雜訊（寬鬆策略），保留所有中文字塊，移除 3 個連續相同不可讀字元
-    const cleaned = filtered
-      .replace(/[ ]{2,}/g, ' ')
-      .replace(/([^0-9a-zA-Z\u4E00-\u9FFF])\1{2,}/g, '$1')
-      .trim();
-
-    console.log(`[AI Parser] 全頻段掃描完成，提取長度: ${cleaned.length}`);
-    
-    if (cleaned.length < 50) {
+    if (finalCleaned.trim().length < 50) {
       console.warn('[AI Parser] 提取內容極少，建議對該檔案另存為 .docx 處理。');
     }
 
-    return cleaned;
+    return finalCleaned.trim();
   } catch (err) {
     console.error('[AI Parser] V14.5 解析崩潰:', err);
     return "";
