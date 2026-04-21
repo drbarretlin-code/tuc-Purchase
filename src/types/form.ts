@@ -235,38 +235,4 @@ export const INITIAL_FORM_STATE: FormState = {
   signOffGrid: Array(3).fill(null).map(() => Array(6).fill('')),
   searchStatus: {},
   matchThreshold: 0.7
-};IHints: [],
-  acceptanceHistoryHints: [],
-  acceptanceRegHints: [],
-  acceptanceExtra: '補充說明',
-  complianceDesc: `1. 工程設施驗收後保固一年，工程費用含萬分之7工程保險
-2. 施工配合本公司安排日期((不含例假日))，施工期間遇有臨時問題需停工配合本公司安排
-3. 有動火,高架,吊掛,危險管路，等特殊作業須作業表單流程核准後方可施工，作業時需有tuc監工人員在場，tuc監工人員未在場施作特殊作業，依規定罰款
-4. 施工區域有安全疑慮時，圍出管制作業區域，防止人員車輛進入
-5. 液體管路拆卸須使用盛盤承接，造成危害及損壞依價賠償
-6. 危害性化學物質作業，須配戴個人防護器具
-7. 廠區禁攜帶打火機、砂輪切割機(廠內現場)，廠區內切割使用線鋸機
-8. 施工區域標示及警示(以警示帶或圍籬)，區分隔開，夜間裝警示閃光燈
-9. 廠內天花板動手過需擦拭乾淨或更新
-10. 危險管路拆卸備護目鏡(罩)、膠手套、防護衣、氣密式防毒口罩
-11. 施工臨時電線跨走道地面，使用斑馬膠帶黏貼警示
-12. 施工當日收工清潔環境並將垃圾載走，違反開單罰款
-13. 施工人員進廠全程戴工程帽作業，禁止外籍勞工入廠作業(有內政部核准文件:外籍勞工可移動工作場所，檢覆文件辦理)
-14. 進廠人員不得有宿醉或酒氣情況，違者人員須離廠禁止作業
-15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
-16. 電力/電控盤與旋轉/傳動機構張貼警告標語
-17. 因本工程造成設施(備)損(傷)壞須賠償。`,
-  complianceAIHints: [],
-  complianceHistoryHints: [],
-  complianceRegHints: [],
-  images: [],
-  tableData: [
-    { category: '功能', item: '運轉測試', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-    { category: '品質', item: '外觀檢驗', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-    { category: '產能', item: '出力測速', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
-  ],
-  applicantName: '',
-  deptHeadName: '',
-  signOffGrid: Array(3).fill(null).map(() => Array(6).fill('')),
-  searchStatus: {}
 };
