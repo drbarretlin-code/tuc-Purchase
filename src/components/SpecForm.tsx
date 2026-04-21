@@ -19,7 +19,8 @@ import {
   Building2,
   PenTool,
   Trash2,
-  Repeat
+  Repeat,
+  ShieldAlert
 } from 'lucide-react';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
