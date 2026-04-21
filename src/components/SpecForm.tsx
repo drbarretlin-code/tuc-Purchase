@@ -111,11 +111,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       }));
 
       const nextData = { ...currentData };
-      chunkResults.forEach(({ target, res }: { target: {key: keyof FormState, regKey: keyof FormState}, res: any }) => {
-        nextData[target.key as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific') as any;
-        nextData[target.regKey as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific') as any;
-        nextData.searchStatus[target.key as string] = res.status as any;
-        nextData.searchStatus[target.regKey as string] = res.status as any;
+      chunkResults.forEach(({ target, res }: { target: any, res: any }) => {
+        (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
+        (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
+        nextData.searchStatus[target.key as string] = res.status;
+        nextData.searchStatus[target.regKey as string] = res.status;
       });
 
       currentData = nextData;
