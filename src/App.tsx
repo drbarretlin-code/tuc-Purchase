@@ -466,10 +466,11 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    const targets = cloudFiles.filter(f => !f.is_parsed);
+    // V16.3: 擴大重新解析範圍，將 knowledgeCount = 0 (有過紀錄但擷取失敗) 的檔案也納入目標
+    const targets = cloudFiles.filter(f => !f.is_parsed || (f as any).knowledgeCount === 0);
     
     if (targets.length === 0) {
-      alert('所有檔案都已經解析完成，無須補解析。');
+      alert('所有檔案皆已擁有效解析條目，無須補解析。');
       return;
     }
 
