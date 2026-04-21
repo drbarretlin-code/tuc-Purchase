@@ -628,12 +628,14 @@ function App() {
           <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
             <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>Language:</span>
             <select 
-              value={data.language}
+              value={data.language} 
               onChange={(e) => setData({ ...data, language: e.target.value as Language })}
+              className="lang-select"
             >
-              <option value="zh-TW">{t('langName', 'zh-TW')}</option>
-              <option value="zh-CN">{t('langName', 'zh-CN')}</option>
-              <option value="en-US">{t('langName', 'en-US')}</option>
+              <option value="zh-TW">🇹🇼 繁體中文</option>
+              <option value="zh-CN">🇨🇳 简体中文</option>
+              <option value="en-US">🇺🇸 English</option>
+              <option value="th-TH">🇹🇭 ภาษาไทย</option>
             </select>
           </div>
 

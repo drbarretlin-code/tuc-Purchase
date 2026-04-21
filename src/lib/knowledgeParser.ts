@@ -582,7 +582,8 @@ export async function translateHints(
 
   const langMap: Record<string, string> = {
     'zh-CN': 'Simplified Chinese (简体中文)',
-    'en-US': 'English'
+    'en-US': 'English',
+    'th-TH': 'Thai (ภาษาไทย)'
   };
 
   const targetLabel = langMap[targetLang] || targetLang;
