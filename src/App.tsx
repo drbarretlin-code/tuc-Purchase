@@ -796,9 +796,7 @@ function App() {
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
                   <Download size={16} /> 匯出 CSV
                 </button>
-                <button className="ghost-button" onClick={handleShareAll} style={{ fontSize: '0.8rem' }}>
-                  <Share2 size={16} /> 分享清單
-                </button>
+
                 <button 
                   className="ghost-button" 
                   onClick={handleCleanupDuplicates} 

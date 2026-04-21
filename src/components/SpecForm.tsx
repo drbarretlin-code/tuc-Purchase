@@ -296,7 +296,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 {data.equipmentName || '未命名規範文件'}
               </span>
               <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
-                DocID: {(data.docId || '--------').substring(0,8)}
+                {(data.docId || '--------').substring(0,8)}
               </span>
             </div>
             
@@ -341,7 +341,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 }}
               >
                 <Trash2 size={16} /> 
-                <span className="header-btn-text">清除歸零</span>
+                <span className="header-btn-text">重置</span>
               </button>
 
             </div>
