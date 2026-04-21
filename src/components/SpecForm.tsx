@@ -624,23 +624,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onChange={(v: string) => updateField('rangeRange', v)} 
                     language={data.language}
                   />
-                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button 
-                      onClick={() => loadHistoryHints('all')}
-                      className="primary-button"
-                      style={{ 
-                        padding: '6px 12px', 
-                        fontSize: '0.75rem',
-                        opacity: 0.8,
-                        background: 'linear-gradient(135deg, #4B5563, #1F2937)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <Zap size={12} /> {t('aiAnalyzeRange', data.language)}
-                    </button>
-                  </div>
+
                 </div>
               </div>
             )}
