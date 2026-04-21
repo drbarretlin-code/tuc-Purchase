@@ -148,17 +148,15 @@ function App() {
         countMap[name] = (countMap[name] || 0) + 1;
       });
 
-      // 3. 合併資料 (V8.10: 權威化 is_parsed 標籤，解決狀態回滾問題)
+      // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
-        // 優先讀取資料庫顯式標記，再看背景統計
-        const dbIsParsed = f.is_parsed === true;
         const countFromStats = countMap[f.original_name] || 0;
         
         return {
           ...f,
           knowledgeCount: countFromStats,
-          // 只要資料庫標記為 true，或統計大於 0，且不允許被舊資料覆寫為 false (若本地目前已是 true)
-          is_parsed: dbIsParsed || (countFromStats > 0)
+          // 若 db 有 is_parsed 則信任，若無但有條目產出，便強制作為 true (因為 V17 確保 100% 產出，這表示該檔已成功解析)
+          is_parsed: f.is_parsed === true || countFromStats > 0
         };
       });
 
@@ -207,10 +205,19 @@ function App() {
   };
 
   const handleDeleteFile = async (id: string) => {
-    if (!supabase || !confirm('確定要永久刪除此上傳紀錄嗎？')) return;
+    if (!supabase || !confirm('確定要永久刪除此上傳紀錄（包含實體檔案與解析資料）嗎？')) return;
     try {
+      const targetFile = cloudFiles.find(f => f.id === id);
+      if (targetFile) {
+        // 1. 清除關聯的知識解析紀錄
+        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', targetFile.original_name);
+        // 2. 清除 Storage 實體檔案
+        await supabase.storage.from('spec-files').remove([targetFile.storage_path]);
+      }
+      
       const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
+      
       setCloudFiles(prev => prev.filter(f => f.id !== id));
       setSelectedFileIds(prev => prev.filter(x => x !== id));
       alert('刪除成功');
@@ -359,7 +366,8 @@ function App() {
       type: typeof f.is_calibrated
     })));
 
-    // V9.7: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
+    // V16.10: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
+    // 斷點續傳機制：僅選取尚未完成校準的檔案
     const targets = cloudFiles.filter(f => f.is_calibrated !== true);
     
     console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
@@ -466,21 +474,20 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.9: 穩定版機制 - 回歸與 UI 顯示一致的統計邏輯 (不依賴缺失的 RPC)
-    console.log('[Resume] 正在核對當前緩存狀態...');
+    // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
+    console.log('[Resume] 正在核對當前解析狀態...');
     
-    // 獲取當前 cloudFiles 中呈現的狀態
-    const targets = cloudFiles.filter(f => {
-      const count = (f as any).knowledgeCount || 0;
-      return count === 0;
-    });
+    // 僅過濾出尚未標記為已解析的檔案，或雖然標記已解析但條目數為 0 的幽靈檔案 (V17.1)
+    const targets = cloudFiles.filter(f => 
+      f.is_parsed !== true || (f as any).knowledgeCount === 0
+    );
     
     if (targets.length === 0) {
-      alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
+      alert('所有檔案皆已完成解析，無須重複執行。');
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案需補足條目 (支援斷點續傳)。\n確定要開始執行嗎？\n(過程若中斷，下次僅會處理剩餘檔案)`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案需處理。系統支援「斷點續傳」，已解析檔案將自動跳過。\n確定要開始執行嗎？`)) return;
 
     setIsReparsing(true);
     setReparseProgress(0);
@@ -504,7 +511,10 @@ function App() {
 
           // 2. V16.6: 強製清理舊有無效紀錄 (關鍵修復：確保 AI 認定為新檔案從而補足條目)
           console.log(`[Reparse] 正在強制清理檔案 ${fileRecord.original_name} 的舊有紀錄...`);
-          await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+          const { error: deleteError } = await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+          if (deleteError) {
+            throw new Error(`清除舊紀錄失敗，請至 Supabase 確認 DELETE 權限 (RLS): ${deleteError.message}`);
+          }
 
           // 3. 驅動 AI 解析引擎
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
@@ -527,8 +537,7 @@ function App() {
             .eq('id', fileRecord.id);
 
           if (updateError) {
-            console.error('更新解析與校準狀態失敗:', updateError);
-            throw new Error(`無法將檔案標記為已解析/校準。(${updateError.message})`);
+            throw new Error(`檔案狀態更新失敗，請至 Supabase 確認 UPDATE 權限 (RLS): ${updateError.message}`);
           }
 
           // 同步更新知識庫內的 metadata (標籤校準核心)
@@ -565,6 +574,8 @@ function App() {
           await new Promise(r => setTimeout(r, 100));
         } catch (fileErr: any) {
           console.error(`[Batch] 檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
+          if (fileErr.message && fileErr.message.includes('RLS')) Object.assign(fileErr, { isRls: true });
+          if ((fileErr as any).isRls) alert(fileErr.message); // 明確卡住提示 RLS 問題
           // V13.7: 改為 continue，避免單一檔案配額耗盡或格式錯誤導致整批中斷
           continue; 
         }
@@ -586,6 +597,117 @@ function App() {
       setReparseCurrentFile('');
     }
   };
+
+  const handleForceReparseFiles = async (ids: string[]) => {
+    if (!supabase) return;
+    const targets = cloudFiles.filter(f => ids.includes(f.id));
+    if (targets.length === 0) return;
+    
+    if (!confirm(`確定要強制重新解析這 ${targets.length} 筆檔案嗎？\n此操作將清空該檔的舊有知識並重新擷取，不會略過已解析之檔案。`)) return;
+
+    setIsReparsing(true);
+    setReparseProgress(0);
+    setReparseTotal(targets.length);
+    setReparseIndex(0);
+    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+
+    try {
+      const totalCount = targets.length;
+      for (let i = 0; i < totalCount; i++) {
+        const fileRecord = targets[i];
+        setReparseIndex(i + 1);
+        setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
+        setReparseCurrentFile(fileRecord.original_name);
+        
+        try {
+          // 1. Download
+          const response = await fetch(fileRecord.public_url);
+          const blob = await response.blob();
+          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
+
+          // 2. Force delete
+          console.log(`[Force Reparse] 正在強制清理檔案 ${fileRecord.original_name} 的舊有紀錄...`);
+          const { error: deleteError } = await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+          if (deleteError) {
+            throw new Error(`清除舊紀錄失敗，請檢查 DELETE 權限 (RLS): ${deleteError.message}`);
+          }
+
+          // 3. AI Parse
+          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
+          const newAdded = parseResult?.added || 0;
+          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
+          
+          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
+          const updateData: any = { 
+            is_parsed: true, 
+            is_calibrated: true,
+            parsed_at: new Date().toISOString(),
+            equipment_name: currentDetectedLabel,
+            equipment_tags: [currentDetectedLabel],
+            display_name: newDisplayName
+          };
+
+          const { error: updateError } = await supabase.from('tuc_uploaded_files')
+            .update(updateData)
+            .eq('id', fileRecord.id);
+
+          if (updateError) {
+            throw new Error(`狀態更新失敗，請檢查 UPDATE 權限 (RLS): ${updateError.message}`);
+          }
+
+          if (currentDetectedLabel !== fileRecord.equipment_name) {
+            const { data: entries } = await supabase
+              .from('tuc_history_knowledge')
+              .select('id, metadata')
+              .eq('source_file_name', fileRecord.original_name);
+            
+            if (entries) {
+              for (const entry of entries) {
+                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
+                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
+              }
+            }
+          }
+
+          setCloudFiles(prev => prev.map(f => {
+            if (f.id === fileRecord.id) {
+              return { 
+                ...f, 
+                knowledgeCount: newAdded, // 覆寫成新的總數
+                is_parsed: true,
+                is_calibrated: true,
+                equipment_name: currentDetectedLabel,
+                equipment_tags: [currentDetectedLabel]
+              };
+            }
+            return f;
+          }));
+
+          await new Promise(r => setTimeout(r, 100));
+        } catch (fileErr: any) {
+          console.error(`[Force Reparse] 檔案 ${fileRecord.original_name} 強制解析失敗:`, fileErr);
+          if (fileErr.message && fileErr.message.includes('RLS')) alert(fileErr.message);
+          continue; 
+        }
+
+        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+      await fetchCloudFiles(); 
+      setSelectedFileIds([]);
+      alert('強制多檔再解析任務已完成！');
+    } catch (err: any) {
+      alert('處理出錯: ' + err.message);
+    } finally {
+      setIsReparsing(false);
+      setReparseProgress(0);
+      setReparseTotal(0);
+      setReparseIndex(0);
+      setReparseCurrentFile('');
+    }
+  };
+
   const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
@@ -744,6 +866,22 @@ function App() {
             {t('editTab', data.language)}
           </button>
           <button 
+            className="nav-tab"
+            onClick={() => setShowUploadWizard(true)}
+            style={{ color: '#60A5FA' }}
+          >
+            <CloudUpload size={22} />
+            {t('import', data.language)}
+          </button>
+          <button 
+            className="nav-tab"
+            onClick={handleOpenInspector}
+            style={{ color: 'var(--tuc-red)' }}
+          >
+            <Database size={22} />
+            {t('history', data.language)}
+          </button>
+          <button 
             className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
             onClick={() => setMobileAppTab('preview')}
           >
@@ -879,19 +1017,35 @@ function App() {
               </h2>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {selectedFileIds.length > 0 && (
-                  <button 
-                    className="primary-button" 
-                    onClick={handleBatchDeleteFiles}
-                    style={{ 
-                      fontSize: '0.8rem', 
-                      padding: '6px 12px', 
-                      background: '#EF4444', 
-                      borderColor: '#EF4444',
-                      marginRight: '0.5rem'
-                    }}
-                  >
-                    <Trash2 size={14} /> {t('batchDelete', data.language)} ({selectedFileIds.length})
-                  </button>
+                  <>
+                    <button 
+                      className="primary-button" 
+                      onClick={() => handleForceReparseFiles(selectedFileIds)}
+                      disabled={isReparsing}
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '6px 12px', 
+                        background: '#60A5FA', 
+                        borderColor: '#60A5FA',
+                        opacity: isReparsing ? 0.5 : 1
+                      }}
+                    >
+                      <Repeat size={14} /> 強制再解析 ({selectedFileIds.length})
+                    </button>
+                    <button 
+                      className="primary-button" 
+                      onClick={handleBatchDeleteFiles}
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '6px 12px', 
+                        background: '#EF4444', 
+                        borderColor: '#EF4444',
+                        marginRight: '0.5rem'
+                      }}
+                    >
+                      <Trash2 size={14} /> {t('batchDelete', data.language)} ({selectedFileIds.length})
+                    </button>
+                  </>
                 )}
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
                   <Download size={16} /> {t('exportCsv', data.language)}
@@ -1124,6 +1278,9 @@ function App() {
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                           <button className="icon-btn" onClick={() => window.open(f.public_url)} title={t('viewFull', data.language)}>
                             <Eye size={16} />
+                          </button>
+                          <button className="icon-btn" onClick={() => handleForceReparseFiles([f.id])} style={{ color: '#60A5FA' }} title={t('forceReparse', data.language)} disabled={isReparsing}>
+                            <Repeat size={16} className={isReparsing && reparseCurrentFile === f.original_name ? "spin" : ""} />
                           </button>
                           <button className="icon-btn" onClick={() => handleDeleteFile(f.id)} style={{ color: '#EF4444' }} title={t('deleteRecord', data.language)}>
                             <Trash2 size={16} />

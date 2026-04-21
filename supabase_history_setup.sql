@@ -14,3 +14,5 @@ CREATE TABLE IF NOT EXISTS tuc_history_knowledge (
 ALTER TABLE tuc_history_knowledge ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all public insert" ON tuc_history_knowledge FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow all public select" ON tuc_history_knowledge FOR SELECT USING (true);
+CREATE POLICY "Allow all public update" ON tuc_history_knowledge FOR UPDATE USING (true);
+CREATE POLICY "Allow all public delete" ON tuc_history_knowledge FOR DELETE USING (true);
