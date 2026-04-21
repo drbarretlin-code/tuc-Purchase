@@ -63,6 +63,9 @@ function App() {
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
   
+  // V10.3: 批次刪除狀態
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  
   // V9.0: 行內標籤編輯狀態
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [tempTags, setTempTags] = useState<string>('');
@@ -160,6 +163,7 @@ function App() {
   };
 
   const handleOpenInspector = () => {
+    setSelectedFileIds([]); // 開啟時重置選擇
     if (isCloudAuthed) {
       fetchCloudFiles();
       setShowCloudInspector(true);
@@ -200,9 +204,54 @@ function App() {
       const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
       setCloudFiles(prev => prev.filter(f => f.id !== id));
+      setSelectedFileIds(prev => prev.filter(x => x !== id));
       alert('刪除成功');
     } catch (err) {
       alert('刪除失敗');
+    }
+  };
+
+  const handleToggleSelectFile = (id: string) => {
+    setSelectedFileIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFiles = (select: boolean) => {
+    if (select) {
+      const allIds = filteredFiles.map(f => f.id);
+      setSelectedFileIds(allIds);
+    } else {
+      setSelectedFileIds([]);
+    }
+  };
+
+  const handleBatchDeleteFiles = async () => {
+    if (!supabase || selectedFileIds.length === 0) return;
+    if (!confirm(`確定要永久刪除這 ${selectedFileIds.length} 筆上傳紀錄（包含關聯解析資料）嗎？\n此操作無法復原。`)) return;
+
+    try {
+      const filesToDelete = cloudFiles.filter(f => selectedFileIds.includes(f.id));
+      const pathsToDelete = filesToDelete.map(f => f.storage_path);
+      const namesToDelete = Array.from(new Set(filesToDelete.map(f => f.original_name)));
+
+      // 1. 清理關聯知識庫 (以檔名為準)
+      for (const name of namesToDelete) {
+        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', name);
+      }
+      // 2. 清理 Storage 實體
+      await supabase.storage.from('spec-files').remove(pathsToDelete);
+      // 3. 清理資料庫紀錄
+      const { error } = await supabase.from('tuc_uploaded_files').delete().in('id', selectedFileIds);
+      
+      if (error) throw error;
+
+      setCloudFiles(prev => prev.filter(f => !selectedFileIds.includes(f.id)));
+      setSelectedFileIds([]);
+      alert(`已成功刪除 ${selectedFileIds.length} 筆紀錄`);
+    } catch (err: any) {
+      console.error('批次刪除失敗:', err);
+      alert('批次刪除失敗: ' + err.message);
     }
   };
 
@@ -561,7 +610,6 @@ function App() {
             TUC
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>TUC PRAS</h1>
             {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>採購驗收規範建置表 v6.1</p>}
           </div>
         </div>
@@ -794,7 +842,22 @@ function App() {
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <BookOpen size={24} color="var(--tuc-red)" /> 雲端歷史檔案查閱器
               </h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {selectedFileIds.length > 0 && (
+                  <button 
+                    className="primary-button" 
+                    onClick={handleBatchDeleteFiles}
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      padding: '6px 12px', 
+                      background: '#EF4444', 
+                      borderColor: '#EF4444',
+                      marginRight: '0.5rem'
+                    }}
+                  >
+                    <Trash2 size={14} /> 批次刪除 ({selectedFileIds.length})
+                  </button>
+                )}
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
                   <Download size={16} /> 匯出 CSV
                 </button>
@@ -880,6 +943,13 @@ function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
+                    <th style={{ textAlign: 'center', padding: '12px', width: '40px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={filteredFiles.length > 0 && selectedFileIds.length === filteredFiles.length}
+                        onChange={(e) => handleSelectAllFiles(e.target.checked)}
+                      />
+                    </th>
                     <th style={{ textAlign: 'left', padding: '12px', width: '60px' }}>項次</th>
                     <th style={{ textAlign: 'left', padding: '12px' }}>顯示名稱</th>
                     <th style={{ textAlign: 'left', padding: '12px', width: '120px' }}>解析狀態</th>
@@ -890,9 +960,27 @@ function App() {
                 </thead>
                 <tbody>
                   {filteredFiles.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>目前無任何歷史上傳檔案</td></tr>
                   ) : filteredFiles.map((f, idx) => (
-                    <tr key={f.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }} className="hover-row">
+                    <tr 
+                      key={f.id} 
+                      style={{ 
+                        borderTop: '1px solid rgba(255,255,255,0.05)', 
+                        transition: 'background 0.2s',
+                        background: selectedFileIds.includes(f.id) ? 'rgba(230,0,18,0.05)' : 'transparent',
+                        cursor: 'pointer'
+                      }} 
+                      className="hover-row"
+                      onClick={() => handleToggleSelectFile(f.id)}
+                    >
+                      <td style={{ textAlign: 'center', padding: '12px' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedFileIds.includes(f.id)}
+                          onChange={() => handleToggleSelectFile(f.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
                       <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
                       <td style={{ padding: '12px' }}>
                         <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name}</div>
@@ -1000,7 +1088,7 @@ function App() {
                       </td>
                       <td style={{ padding: '12px', color: '#bbb' }}>{f.requester}</td>
                       <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString()}</td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                           <button className="icon-btn" onClick={() => window.open(f.public_url)} title="開新分頁檢視">
                             <Eye size={16} />
