@@ -351,7 +351,8 @@ export const getHistorySuggestions = async (
   category: string, 
   eqKeywords: string = '', 
   reqKeywords: string = '',
-  threshold: number = 0.7
+  thresholdHistory: number = 0.6,
+  thresholdReg: number = 0.2
 ): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
   const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   if (!apiKey) return { hints: [], status: 'no_key' };
@@ -377,13 +378,13 @@ export const getHistorySuggestions = async (
         // TUC 歷史資料：僅比對設備名稱
         const dbEquipmentName = (item.metadata as any)?.equipment_name || '';
         score = calculateTokenOverlap(eqKeywords, dbEquipmentName);
+        return { ...item, score, threshold: thresholdHistory };
       } else {
         // 技術法令/標準：僅比對條文內容與需求說明
         score = calculateTokenOverlap(reqKeywords, item.content);
+        return { ...item, score, threshold: thresholdReg };
       }
-      
-      return { ...item, score };
-    }).filter(item => item.score >= threshold); // 使用傳入的門檻值
+    }).filter(item => item.score >= item.threshold);
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 

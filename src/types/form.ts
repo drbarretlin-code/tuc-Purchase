@@ -126,7 +126,8 @@ export interface FormState {
   deptHeadName: string;
   signOffGrid: string[][]; // 3 rows x 6 columns
   searchStatus: Record<string, 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none'>;
-  matchThreshold: number; // V15: 智慧建議匹配門檻 (0~1)
+  matchThresholdHistory: number; // V15: 歷史資料匹配門檻 (0~1)
+  matchThresholdReg: number;     // V15: 技術法令匹配門檻 (0~1)
   needsDrawing: 'YES' | 'NO' | ''; // 是否需要檢附圖面
 }
 
@@ -235,6 +236,7 @@ export const INITIAL_FORM_STATE: FormState = {
   deptHeadName: '',
   signOffGrid: Array(3).fill(null).map(() => Array(6).fill('')),
   searchStatus: {},
-  matchThreshold: 0.7,
+  matchThresholdHistory: 0.6,
+  matchThresholdReg: 0.2,
   needsDrawing: ''
 };

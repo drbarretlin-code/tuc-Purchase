@@ -35,6 +35,71 @@ interface Props {
   onChange: (newData: FormState) => void;
 }
 
+const CompactThreshold: React.FC<{ 
+  value: number, 
+  onChange: (val: number) => void,
+  label: string,
+  icon?: React.ReactNode
+}> = ({ value, onChange, label, icon }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div 
+      className="compact-threshold-container"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', marginLeft: '6px' }}
+    >
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '4px', 
+        padding: '1px 6px', 
+        background: 'rgba(255,255,255,0.08)', 
+        borderRadius: '6px',
+        fontSize: '0.7rem',
+        cursor: 'pointer',
+        border: '1px solid rgba(255,255,255,0.1)',
+        color: value >= 0.6 ? '#10B981' : (value >= 0.3 ? '#F59E0B' : '#EF4444'),
+        transition: 'all 0.2s',
+        fontWeight: 'bold'
+      }}>
+        {icon || <Zap size={10} />}
+        <span>{Math.round(value * 100)}%</span>
+      </div>
+      
+      {isHovered && (
+        <div style={{ 
+          position: 'absolute', 
+          top: '100%', 
+          left: 0, 
+          zIndex: 1000, 
+          background: '#1F2937', 
+          padding: '12px', 
+          borderRadius: '8px', 
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          minWidth: '200px',
+          marginTop: '6px'
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginBottom: '8px', fontWeight: 'bold' }}>
+            {label}
+          </div>
+          <input 
+            type="range" 
+            min="0.1" 
+            max="1.0" 
+            step="0.05" 
+            value={value} 
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--tuc-red)', height: '4px' }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -103,8 +168,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       
       const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
         try {
-          // V15: 同時傳入設備名稱、需求說明與動態門檻
-          const res = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc, data.matchThreshold);
+          // V15: 同時傳入設備名稱、需求說明與個別門檻
+          const res = await KP.getHistorySuggestions(
+            target.category, 
+            data.equipmentName, 
+            data.requirementDesc, 
+            data.matchThresholdHistory, 
+            data.matchThresholdReg
+          );
           return { target, res };
         } catch (err) {
           console.error(`Fetch failed for ${target.category}:`, err);
@@ -342,52 +413,15 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <Trash2 size={16} /> 
                 <span className="header-btn-text">重置</span>
               </button>
-
             </div>
           </header>
 
           <div className="form-content-wrap">
             {activeTab === 0 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Info size={20} /> 基本資訊與請購項目
-                </h3>
-
-                {/* V15-Refactor: 智慧匹配控制工具列 */}
-                <div style={{ 
-                  marginBottom: '1.5rem', 
-                  padding: '0.75rem 1.25rem', 
-                  background: 'rgba(255,255,255,0.03)', 
-                  borderRadius: '12px', 
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '2rem',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                }}>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '140px' }}>
-                      <Zap size={16} color="var(--tuc-red)" />
-                      <span style={{ fontSize: '0.85rem', color: '#ccc' }}>智慧匹配門檻</span>
-                      <span style={{ 
-                        fontSize: '0.9rem', 
-                        fontWeight: 'bold', 
-                        color: data.matchThreshold >= 0.7 ? '#10B981' : (data.matchThreshold >= 0.4 ? '#F59E0B' : '#EF4444'),
-                        paddingLeft: '4px'
-                      }}>
-                        {Math.round(data.matchThreshold * 100)}%
-                      </span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0.1" 
-                      max="1.0" 
-                      step="0.05" 
-                      value={data.matchThreshold} 
-                      onChange={(e) => updateField('matchThreshold', parseFloat(e.target.value))}
-                      style={{ flex: 1, accentColor: 'var(--tuc-red)', height: '4px' }}
-                    />
+                <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Info size={20} /> 基本資訊與請購項目
                   </div>
                   
                   <button 
@@ -395,21 +429,21 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     disabled={isAnalyzing}
                     className="primary-button"
                     style={{ 
-                      padding: '8px 16px', 
-                      fontSize: '0.8rem',
+                      padding: '6px 12px', 
+                      fontSize: '0.75rem',
                       borderRadius: '8px',
                       background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
+                      gap: '6px',
                       whiteSpace: 'nowrap',
-                      flexShrink: 0
+                      width: 'auto'
                     }}
                   >
                     <Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> 
                     {isAnalyzing ? '重新生成中...' : 'AI 重生成'}
                   </button>
-                </div>
+                </h3>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div className="input-with-label">
@@ -431,7 +465,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 <div className="doc-section-box">
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>一. 名稱 (請購細目)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <SectionEditor label="設備名稱" value={data.equipmentName} onChange={(v: string) => updateField('equipmentName', v)} isTextArea={false} />
+                    <SectionEditor 
+                      label="設備名稱" 
+                      value={data.equipmentName} 
+                      onChange={(v: string) => updateField('equipmentName', v)} 
+                      isTextArea={false} 
+                      addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label="歷史資料" />}
+                    />
                     <SectionEditor label="型別" value={data.model} onChange={(v: string) => updateField('model', v)} isTextArea={false} />
                   </div>
                   <div className="input-with-label">
@@ -451,6 +491,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     searchStatus={data.searchStatus?.['requirementDescHistoryHints'] || 'none'}
                     onHistoryHintToggle={(id: string) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
                     onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
+                    addon={<CompactThreshold value={data.matchThresholdReg} onChange={(v) => updateField('matchThresholdReg', v)} label="技術法令" icon={<Book size={10} />} />}
                   />
 
 

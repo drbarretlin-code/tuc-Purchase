@@ -17,24 +17,28 @@ interface Props {
   placeholder?: string;
   inputType?: string;
   searchStatus?: 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
+  addon?: React.ReactNode;
 }
 
 const SectionEditor: React.FC<Props> = ({ 
   label, value, onChange, hints, historyHints, regHints, 
   onHintToggle, onHistoryHintToggle, onRegHintToggle, 
   isTextArea = true, required = false, placeholder, inputType = "text",
-  searchStatus = 'none'
+  searchStatus = 'none', addon
 }) => {
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
       <label style={{ 
-        display: 'block', 
+        display: 'flex', 
+        alignItems: 'center',
+        flexWrap: 'wrap',
         fontSize: '0.9rem', 
         fontWeight: '600', 
         marginBottom: '0.5rem',
         color: 'var(--text-secondary)'
       }}>
-        {label} {required && <span style={{ color: 'var(--tuc-red)' }}>*</span>}
+        <span>{label} {required && <span style={{ color: 'var(--tuc-red)' }}>*</span>}</span>
+        {addon}
       </label>
       
       {isTextArea ? (
