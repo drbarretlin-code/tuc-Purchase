@@ -281,6 +281,8 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
             <div className="doc-section" style={{ marginTop: '20px', pageBreakInside: 'avoid' }}>
               <div style={{ color: '#E60012', fontSize: '9pt', marginBottom: '8px', fontWeight: 'bold' }}>
                 ＊此規格需詳細填寫，以作為採購單位未來與廠商議價之依據
