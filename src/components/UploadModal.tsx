@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as KP from '../lib/knowledgeParser';
-import { t, Language } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 import type { FormState } from '../types/form';
 
 interface Props {

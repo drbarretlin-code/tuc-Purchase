@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, ZoomIn, FileJson, Download } from 'lucide-react';
 import { t } from '../lib/i18n';
-import type { Language } from '../lib/i18n';
 import type { FormState } from '../types/form';
 import { exportToWord, exportToPDF } from '../logic/exporter';
 import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';

@@ -28,7 +28,7 @@ import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
-import type { FormState, AIHintSelection, 工程類別 } from '../types/form';
+import type { FormState, AIHintSelection } from '../types/form';
 import { INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
@@ -117,6 +117,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
 
   const loadHistoryHints = async (mode: number | 'all') => {
     if (isAnalyzing) return;
@@ -769,7 +771,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                             style={{ width: '100%', height: '70px', border: 'none', background: 'transparent', color: 'white', fontSize: '0.85rem', textAlign: 'center' }}
                           >
                             <option value="">{t('chooseDept', data.language)}</option>
-                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                            {departments.map((d: string) => <option key={d} value={d}>{d}</option>)}
                           </select>
                         ) : (
                           <textarea 

@@ -13,7 +13,8 @@ import {
   VerticalAlign 
 } from 'docx';
 import type { FormState } from '../types/form';
-import { t, Language } from './i18n';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
 export const exportToPDF = async (_elementId: string, _data: FormState) => {
