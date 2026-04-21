@@ -18,7 +18,8 @@ import {
   Table,
   Building2,
   PenTool,
-  Trash2
+  Trash2,
+  Repeat
 } from 'lucide-react';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
