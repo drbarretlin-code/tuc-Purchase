@@ -148,17 +148,15 @@ function App() {
         countMap[name] = (countMap[name] || 0) + 1;
       });
 
-      // 3. 合併資料 (V8.10: 權威化 is_parsed 標籤，解決狀態回滾問題)
+      // 3. 合併資料 (V16.10: 修正邏輯，完全信任資料庫 is_parsed 狀態，僅由背景補解析任務驅動狀態變更)
       const enrichedList = (list || []).map(f => {
-        // 優先讀取資料庫顯式標記，再看背景統計
-        const dbIsParsed = f.is_parsed === true;
         const countFromStats = countMap[f.original_name] || 0;
         
         return {
           ...f,
           knowledgeCount: countFromStats,
-          // 只要資料庫標記為 true，或統計大於 0，且不允許被舊資料覆寫為 false (若本地目前已是 true)
-          is_parsed: dbIsParsed || (countFromStats > 0)
+          // 移除 (countFromStats > 0) 的自動轉正邏輯，確保中斷的檔案能被重新偵測
+          is_parsed: f.is_parsed === true
         };
       });
 
@@ -359,7 +357,8 @@ function App() {
       type: typeof f.is_calibrated
     })));
 
-    // V9.7: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
+    // V16.10: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
+    // 斷點續傳機制：僅選取尚未完成校準的檔案
     const targets = cloudFiles.filter(f => f.is_calibrated !== true);
     
     console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
@@ -466,21 +465,18 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.9: 穩定版機制 - 回歸與 UI 顯示一致的統計邏輯 (不依賴缺失的 RPC)
-    console.log('[Resume] 正在核對當前緩存狀態...');
+    // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
+    console.log('[Resume] 正在核對當前解析狀態...');
     
-    // 獲取當前 cloudFiles 中呈現的狀態
-    const targets = cloudFiles.filter(f => {
-      const count = (f as any).knowledgeCount || 0;
-      return count === 0;
-    });
+    // 僅過濾出尚未標記為已解析的檔案
+    const targets = cloudFiles.filter(f => f.is_parsed !== true);
     
     if (targets.length === 0) {
-      alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
+      alert('所有檔案皆已完成解析，無須重複執行。');
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案需補足條目 (支援斷點續傳)。\n確定要開始執行嗎？\n(過程若中斷，下次僅會處理剩餘檔案)`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案需處理。系統支援「斷點續傳」，已解析檔案將自動跳過。\n確定要開始執行嗎？`)) return;
 
     setIsReparsing(true);
     setReparseProgress(0);
