@@ -1,8 +1,6 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
-import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar, Loader2 } from 'lucide-react';
-import { t } from '../lib/i18n';
-import type { Language } from '../lib/i18n';
+import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -18,52 +16,42 @@ interface Props {
   required?: boolean;
   placeholder?: string;
   inputType?: string;
-  searchStatus?: 'pending' | 'translating' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
-  addon?: React.ReactNode;
-  language: Language;
+  searchStatus?: 'pending' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
 }
 
 const SectionEditor: React.FC<Props> = ({ 
   label, value, onChange, hints, historyHints, regHints, 
   onHintToggle, onHistoryHintToggle, onRegHintToggle, 
   isTextArea = true, required = false, placeholder, inputType = "text",
-  searchStatus = 'none', addon, language
+  searchStatus = 'none'
 }) => {
-  const [isFocused, setIsFocused] = React.useState(false);
-  const displayValue = (value && value.startsWith('default')) ? t(value, language) : value;
-
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
       <label style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        flexWrap: 'wrap',
+        display: 'block', 
         fontSize: '0.9rem', 
         fontWeight: '600', 
         marginBottom: '0.5rem',
         color: 'var(--text-secondary)'
       }}>
-        <span>{label} {required && <span style={{ color: 'var(--tuc-red)' }}>*</span>}</span>
-        {addon}
+        {label} {required && <span style={{ color: 'var(--tuc-red)' }}>*</span>}
       </label>
       
       {isTextArea ? (
         <textarea
           style={{ width: '100%', minHeight: '100px' }}
-          value={displayValue}
+          value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder || `${t('inputPlaceholder', language)}${label}...`}
+          placeholder={placeholder || `請輸入${label}...`}
         />
       ) : (
         <div style={{ position: 'relative' }}>
           <input
-            type={inputType === 'date' && !displayValue && !isFocused ? 'text' : inputType}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            type={inputType}
             style={{ width: '100%', paddingRight: inputType === 'date' ? '40px' : '10px' }}
-            value={displayValue}
+            value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder || `${t('inputPlaceholder', language)}${label}...`}
+            placeholder={placeholder || `請輸入${label}...`}
           />
           {inputType === 'date' && (
             <div 
@@ -104,7 +92,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#60A5FA' }}>
             <Book size={14} />
-            <span>{t('aiReg', language)}</span>
+            <span>技術法令補充建議</span>
           </div>
           {regHints.length >= 2 ? (
             <select 
@@ -112,7 +100,7 @@ const SectionEditor: React.FC<Props> = ({
               onChange={(e) => e.target.value && onRegHintToggle?.(e.target.value)}
               style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}
             >
-              <option value="" disabled>{t('hintSelectReg', language)}</option>
+              <option value="" disabled>點擊選擇法令建議...</option>
               {regHints.map(hint => (
                 <option key={hint.id} value={hint.id}>
                   {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...
@@ -131,34 +119,30 @@ const SectionEditor: React.FC<Props> = ({
       )}
 
       {/* 搜尋狀態提示與導引 (V12 新增) */}
-      {['pending', 'translating', 'no_key', 'ai_error', 'empty'].includes(searchStatus) && (
-        <div className="ai-status-container" style={{ 
+      {searchStatus !== 'none' && searchStatus !== 'success' && (
+        <div style={{ 
           marginTop: '0.75rem', 
           padding: '0.75rem', 
           borderRadius: '8px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--border-color)',
           fontSize: '0.85rem'
         }}>
-          {searchStatus === 'pending' && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('aiSearchPending', language)}</p>}
-          {searchStatus === 'translating' && (
-            <div className="translating-status" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '500' }}>
-              <Loader2 size={16} className="animate-spin" />
-              <span>{t('translating', language)}</span>
-            </div>
-          )}
+          {searchStatus === 'pending' && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>🔍 AI 正併行檢索中 (佇列模式)...</p>}
           {searchStatus === 'no_key' && (
             <div style={{ color: '#FBBF24' }}>
-              <p style={{ margin: 0, fontWeight: 'bold' }}>{t('aiNoKey', language)}</p>
-              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.8 }}>{t('aiNoKeyDesc', language)}</p>
+              <p style={{ margin: 0, fontWeight: 'bold' }}>⚠️ 未偵測到 API 金鑰</p>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.8 }}>請至系統設定輸入 VITE_GEMINI_KEY 以啟用智慧語意分析與重排序功能。</p>
             </div>
           )}
           {searchStatus === 'ai_error' && (
             <div style={{ color: '#F87171' }}>
-              <p style={{ margin: 0, fontWeight: 'bold' }}>{t('aiError', language)}</p>
-              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.8 }}>{t('aiErrorDesc', language)}</p>
+              <p style={{ margin: 0, fontWeight: 'bold' }}>❌ AI 語意分析異常</p>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.8 }}>可能是 API 配額已達上限或網路連線問題，系統目前無法提供高準確度建議。</p>
             </div>
           )}
           {searchStatus === 'empty' && (
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ {t('noHints', language)}</p>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ 未發現符合門檻 (20%) 的智慧建議，請嘗試增加更多需求描述內容。</p>
           )}
         </div>
       )}
@@ -174,7 +158,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#10B981' }}>
             <History size={14} />
-            <span>{t('aiHistory', language)}</span>
+            <span>TUC 歷史資料建議</span>
           </div>
 
           {historyHints.length >= 2 ? (
@@ -185,10 +169,10 @@ const SectionEditor: React.FC<Props> = ({
               }}
               style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '4px' }}
             >
-              <option value="" disabled>{t('hintSelectHistory', language)}</option>
+              <option value="" disabled>點擊選擇歷史條文以導入...</option>
               {historyHints.map(hint => (
                 <option key={hint.id} value={hint.id}>
-                  {hint.selected ? '✅ ' : ''}[{t('source', language)}:{ (hint as any).source || t('unknown', language) }] {hint.content.substring(0, 50)}...
+                  {hint.selected ? '✅ ' : ''}[來源:{ (hint as any).source || '未知' }] {hint.content.substring(0, 50)}...
                 </option>
               ))}
             </select>
@@ -211,7 +195,7 @@ const SectionEditor: React.FC<Props> = ({
                 {hint.selected ? <CheckCircle2 size={16} color="#10B981" /> : <Circle size={16} color="#4B5563" />}
                 <div style={{ fontSize: '0.875rem' }}>
                   <p style={{ margin: 0 }}>{hint.content}</p>
-                  <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{t('source', language)}: {(hint as any).source || t('unknown', language)}</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>來源: {(hint as any).source || '未知'}</span>
                 </div>
               </div>
             ))
@@ -230,7 +214,7 @@ const SectionEditor: React.FC<Props> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--tuc-red)' }}>
             <HelpCircle size={14} />
-            <span>{t('aiGen', language)}</span>
+            <span>AI 建議補充</span>
           </div>
           {hints.length >= 2 ? (
             <select 
@@ -240,7 +224,7 @@ const SectionEditor: React.FC<Props> = ({
               }}
               style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(230, 0, 18, 0.2)', borderRadius: '4px' }}
             >
-              <option value="" disabled>{t('hintSelectGen', language)}</option>
+              <option value="" disabled>點擊選擇建議以導入...</option>
               {hints.map(hint => (
                 <option key={hint.id} value={hint.id}>
                   {hint.selected ? '✅ ' : ''}{hint.content.substring(0, 50)}...

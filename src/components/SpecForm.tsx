@@ -18,17 +18,13 @@ import {
   Table,
   Building2,
   PenTool,
-  Trash2,
-  Repeat,
-  ShieldAlert,
-  Book
+  Trash2
 } from 'lucide-react';
-import { t } from '../lib/i18n';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
-import type { FormState, AIHintSelection } from '../types/form';
+import type { FormState, AIHintSelection, 工程類別 } from '../types/form';
 import { INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
@@ -37,157 +33,14 @@ interface Props {
   onChange: (newData: FormState) => void;
 }
 
-const CompactThreshold: React.FC<{ 
-  value: number, 
-  onChange: (val: number) => void,
-  label: string,
-  icon?: React.ReactNode
-}> = ({ value, onChange, label, icon }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-  
-  return (
-    <div 
-      ref={containerRef}
-      className="compact-threshold-container"
-      style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', marginLeft: '6px' }}
-    >
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '4px', 
-          padding: '1px 6px', 
-          background: isOpen ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)', 
-          borderRadius: '6px',
-          fontSize: '0.7rem',
-          cursor: 'pointer',
-          border: '1px solid rgba(255,255,255,0.1)',
-          color: value >= 0.6 ? '#10B981' : (value >= 0.3 ? '#F59E0B' : '#EF4444'),
-          transition: 'all 0.2s',
-          fontWeight: 'bold'
-        }}
-      >
-        {icon || <Zap size={10} />}
-        <span>{Math.round(value * 100)}%</span>
-      </div>
-      
-      {isOpen && (
-        <div style={{ 
-          position: 'absolute', 
-          top: '100%', 
-          left: 0, 
-          zIndex: 1000, 
-          background: '#1F2937', 
-          padding: '12px', 
-          borderRadius: '8px', 
-          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          minWidth: '200px',
-          marginTop: '6px'
-        }}>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginBottom: '8px', fontWeight: 'bold' }}>
-            {label}
-          </div>
-          <input 
-            type="range" 
-            min="0.1" 
-            max="1.0" 
-            step="0.05" 
-            value={value} 
-            onChange={(e) => onChange(parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--tuc-red)', height: '4px', cursor: 'grab' }}
-          />
-        </div>
-      )}
-    </div>
-  );
-};
-
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
-  const [activeTab, setActiveTab] = React.useState(0);
-  const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
-
-  // V14: 遷移舊有硬編碼中文至 i18n 標籤 (Migration Logic)
-  React.useEffect(() => {
-    const MIGRATION_MAP: Record<string, string> = {
-      '依請購內容而定': 'defaultDependingOnProcurement',
-      '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)': 'defaultAccordingToTuc',
-      '依台燿規定': 'defaultAccordingToTucShort',
-      '符合國家法規': 'defaultNationalRegs',
-      '設計與安裝符合職業安全衛生法令規範': 'defaultSafetyRegs',
-      '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收': 'defaultAcceptance',
-      '補充說明': 'defaultAcceptanceExtra',
-      '功能': 'defaultTblFunctional',
-      '品質': 'defaultTblQuality',
-      '產能': 'defaultTblCapacity',
-      '運轉測試': 'defaultTblRuntest',
-      '外觀檢驗': 'defaultTblAppearance',
-      '出力測速': 'defaultTblOutput'
-    };
-
-    let needsUpdate = false;
-    const newData = { ...data };
-
-    // 檢查主要文字欄位
-    const textFields: (keyof FormState)[] = [
-      'equipmentScope', 'rangeRange', 'envRequirements', 'regRequirements', 
-      'maintRequirements', 'safetyRequirements', 'elecSpecs', 'mechSpecs', 
-      'physSpecs', 'relySpecs', 'installStandard', 'acceptanceDesc', 
-      'acceptanceExtra', 'complianceDesc'
-    ];
-
-    textFields.forEach(field => {
-      const val = data[field] as string;
-      if (val && MIGRATION_MAP[val]) {
-        (newData as any)[field] = MIGRATION_MAP[val];
-        needsUpdate = true;
-      } else if (field === 'installStandard' && val && val.includes('PLC以及人機程式修改')) {
-        // 特別處理多行字串
-        newData.installStandard = 'defaultInstallStd';
-        needsUpdate = true;
-      } else if (field === 'complianceDesc' && val && val.includes('工程設施驗收後保固一年')) {
-        newData.complianceDesc = 'defaultCompliance';
-        needsUpdate = true;
-      }
-    });
-
-    // 檢查表格資料
-    if (newData.tableData) {
-      newData.tableData = newData.tableData.map(row => {
-        let rowUpdated = false;
-        const newRow = { ...row };
-        if (MIGRATION_MAP[row.category]) { newRow.category = MIGRATION_MAP[row.category]; rowUpdated = true; }
-        if (MIGRATION_MAP[row.item]) { newRow.item = MIGRATION_MAP[row.item]; rowUpdated = true; }
-        if (rowUpdated) needsUpdate = true;
-        return newRow;
-      });
-    }
-
-    if (needsUpdate) {
-      onChange(newData);
-    }
-  }, []); // 只在載入時執行一次
+  const [activeTab, setActiveTab] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isDbImportModalOpen, setIsDbImportModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
@@ -231,76 +84,44 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       targets = categoryMap[mode] || [];
     }
     
-    if (targets.length === 0) {
-      setIsAnalyzing(false);
-      return;
-    }
+    if (targets.length === 0) return;
 
     const initialStatus = { ...data.searchStatus };
     targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string}) => { 
       initialStatus[t.key as string] = 'pending';
       initialStatus[t.regKey as string] = 'pending';
     });
-    onChange({ ...data, searchStatus: initialStatus });
+    
+    let currentData = { ...data, searchStatus: initialStatus };
+    onChange(currentData);
 
-    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
-
-    try {
-      // 1. One API call for expanding queries (or loaded from Local cache)
-      const transStatus = { ...initialStatus };
-      targets.forEach(t => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
-      onChange({...data, searchStatus: transStatus}); // Show translating status initially
+    const concurrency = 2;
+    for (let i = 0; i < targets.length; i += concurrency) {
+      const chunk = targets.slice(i, i + concurrency);
       
-      const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKey);
-
-      // 2. Perform all Local Supabase Database queries concurrently
-      const allResults = await Promise.all(targets.map(async (target) => {
+      const chunkResults = await Promise.all(chunk.map(async (target: {category: string, key: keyof FormState, regKey: keyof FormState}) => {
         try {
-          const res = await KP.getHistorySuggestions(
-            target.category, 
-            variants.eqVariants, 
-            variants.reqVariants, 
-            data.matchThresholdHistory, 
-            data.matchThresholdReg
-          );
+          // V12: 同時傳入設備名稱與需求說明作為比對關鍵字
+          const res = await KP.getHistorySuggestions(target.category, data.equipmentName, data.requirementDesc);
           return { target, res };
         } catch (err) {
+          console.error(`Fetch failed for ${target.category}:`, err);
           return { target, res: { hints: [], status: 'ai_error' as const } };
         }
       }));
 
-      // 3. Collect ALL found hints for batched translation
-      let allHintsToTranslate: AIHintSelection[] = [];
-      allResults.forEach(r => { 
-        allHintsToTranslate = allHintsToTranslate.concat(r.res.hints); 
+      const nextData = { ...currentData };
+      chunkResults.forEach(({ target, res }: { target: {key: keyof FormState, regKey: keyof FormState}, res: any }) => {
+        nextData[target.key as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific') as any;
+        nextData[target.regKey as keyof FormState] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific') as any;
+        nextData.searchStatus[target.key as string] = res.status as any;
+        nextData.searchStatus[target.regKey as string] = res.status as any;
       });
 
-      // 4. One API call to translate everything back to UI language
-      if (allHintsToTranslate.length > 0 && apiKey) {
-        const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKey);
-        
-        let ptr = 0;
-        allResults.forEach(r => {
-          r.res.hints = translatedAll.slice(ptr, ptr + r.res.hints.length);
-          ptr += r.res.hints.length;
-        });
-      }
-
-      // 5. Commit to state
-      const nextData = { ...data, searchStatus: { ...data.searchStatus } };
-      allResults.forEach(({ target, res }) => {
-        (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
-        (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
-        nextData.searchStatus[target.key as string] = res.status;
-        nextData.searchStatus[target.regKey as string] = res.status;
-      });
-      onChange(nextData);
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsAnalyzing(false);
+      currentData = nextData;
+      onChange(currentData);
     }
+    setIsAnalyzing(false);
   };
 
   useEffect(() => {
@@ -311,11 +132,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   }, [activeTab]);
 
   const tabs = [
-    { label: t('tabBasic', data.language), icon: <Info size={18} /> },
-    { label: t('tabHardware', data.language), icon: <Settings size={18} /> },
-    { label: t('tabConstruction', data.language), icon: <Hammer size={18} /> },
-    { label: t('tabDrawings', data.language), icon: <Table size={18} /> },
-    { label: t('tabSignOff', data.language), icon: <PenTool size={18} /> },
+    { label: '基本資訊', icon: <Info size={18} /> },
+    { label: '技術規格', icon: <Settings size={18} /> },
+    { label: '施工作業', icon: <Hammer size={18} /> },
+    { label: '圖說表格', icon: <Table size={18} /> },
+    { label: '會簽確認', icon: <PenTool size={18} /> },
   ];
 
   const updateField = (field: keyof FormState, value: any) => {
@@ -426,8 +247,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             <div style={{ padding: isSidebarCollapsed ? '0.5rem' : '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {!isSidebarCollapsed && (
                 <div>
-                  <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>{t('sidebarTitle', data.language)}</h2>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('sidebarSubtitle', data.language)}</p>
+                  <h2 style={{ fontSize: '1.2rem', color: 'var(--tuc-red)', margin: 0 }}>編輯目錄</h2>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>TUC 採購規範產生器</p>
                 </div>
               )}
               <button 
@@ -471,6 +292,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           <header className="form-header-toolbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <FileText size={20} color="var(--tuc-red)" />
+              <span style={{ fontWeight: 600, color: 'white' }}>
+                {data.equipmentName || '未命名規範文件'}
+              </span>
               <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
                 DocID: {(data.docId || '--------').substring(0,8)}
               </span>
@@ -484,20 +308,20 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   style={{ gap: '8px', padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)' }}
                 >
                   <Download size={16} /> 
-                  <span className="header-btn-text">{t('fileOptions', data.language)}</span>
+                  <span className="header-btn-text">檔案選項</span>
                   <ChevronDown size={14} />
                 </button>
 
                 {isExportMenuOpen && (
                   <div className="dropdown-menu glass-panel">
                     <button className="dropdown-item" onClick={handleExportJSON}>
-                      <Download size={16} /> {t('downloadJson', data.language)}
+                      <Download size={16} /> 下載編輯 JSON (本地)
                     </button>
                     <button className="dropdown-item" onClick={() => { setIsExportMenuOpen(false); setIsDbImportModalOpen(true); }}>
-                      <Database size={16} /> {t('importCloud', data.language)}
+                      <Database size={16} /> 從雲端知識庫匯入
                     </button>
                     <label className="dropdown-item" style={{ cursor: 'pointer' }}>
-                      <Upload size={16} /> {t('loadLocal', data.language)}
+                      <Upload size={16} /> 載入本地 JSON
                       <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
                     </label>
                   </div>
@@ -517,125 +341,134 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 }}
               >
                 <Trash2 size={16} /> 
-                <span className="header-btn-text">{t('reset', data.language)}</span>
+                <span className="header-btn-text">清除歸零</span>
               </button>
+
             </div>
           </header>
 
           <div className="form-content-wrap">
             {activeTab === 0 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Info size={20} /> {t('sectionBasicHeader', data.language)}
-                  </div>
-                  
-                  <button 
-                    onClick={() => loadHistoryHints('all')}
-                    disabled={isAnalyzing}
-                    className="primary-button"
-                    style={{ 
-                      padding: '6px 12px', 
-                      fontSize: '0.75rem',
-                      borderRadius: '8px',
-                      background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      whiteSpace: 'nowrap',
-                      width: 'auto'
-                    }}
-                  >
-                    <Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> 
-                    {isAnalyzing ? t('aiGenerating', data.language) : t('regenerate', data.language)}
-                  </button>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Info size={20} /> 基本資訊與請購項目
                 </h3>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div className="input-with-label">
-                    <label><Building2 size={14} /> {t('deptLabel', data.language)}</label>
+                    <label><Building2 size={14} /> 申請單位</label>
                     <input type="text" value={data.department} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('department', e.target.value)} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
                     <div className="input-with-label">
-                      <label><User size={14} /> {t('applicantLabel', data.language)}</label>
+                      <label><User size={14} /> 申請人員</label>
                       <input type="text" value={data.requester} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('requester', e.target.value)} />
                     </div>
                     <div className="input-with-label">
-                      <label><Hash size={14} /> {t('extLabel', data.language)}</label>
+                      <label><Hash size={14} /> 分機</label>
                       <input type="text" value={data.extension} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('extension', e.target.value)} />
                     </div>
                   </div>
                 </div>
 
                 <div className="doc-section-box">
-                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('docSection1', data.language)}</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>一. 名稱 (請購細目)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <SectionEditor 
-                      label={t('equipName', data.language)} 
-                      value={data.equipmentName} 
-                      onChange={(v: string) => updateField('equipmentName', v)} 
-                      isTextArea={false} 
-                      addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label={t('aiHistory', data.language)} />}
-                      language={data.language}
-                    />
-                    <SectionEditor 
-                      label={t('model', data.language)} 
-                      value={data.model} 
-                      onChange={(v: string) => updateField('model', v)} 
-                      isTextArea={false} 
-                      language={data.language}
-                    />
+                    <SectionEditor label="設備名稱" value={data.equipmentName} onChange={(v: string) => updateField('equipmentName', v)} isTextArea={false} />
+                    <SectionEditor label="型別" value={data.model} onChange={(v: string) => updateField('model', v)} isTextArea={false} />
                   </div>
                   <div className="input-with-label">
-                    <label>{t('category', data.language)}</label>
-                    <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as any)} style={{ width: '100%' }}>
-                      <option value="新增">{t('catNew', data.language)}</option>
-                      <option value="修繕">{t('catRepair', data.language)}</option>
-                      <option value="整改">{t('catRenovate', data.language)}</option>
-                      <option value="優化">{t('catOptimize', data.language)}</option>
-                      <option value="購置">{t('catPurchase', data.language)}</option>
+                    <label>工程類別</label>
+                    <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as 工程類別)} style={{ width: '100%' }}>
+                      {['新增', '修繕', '整改', '優化', '購置'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <SectionEditor 
-                    label={t('reqDesc', data.language)} 
+                    label="需求說明" 
                     value={data.requirementDesc} 
                     onChange={(v: string) => updateField('requirementDesc', v)} 
                     required 
-                    addon={<CompactThreshold value={data.matchThresholdReg} onChange={(v) => updateField('matchThresholdReg', v)} label={t('aiReg', data.language)} icon={<Book size={10} />} />}
-                    language={data.language}
+                    placeholder="描述技術關鍵字（如：配電、安全、環保、防爆、化學品、特殊作業等）"
+                    historyHints={data.requirementDescHistoryHints}
+                    regHints={data.requirementDescRegHints}
+                    searchStatus={data.searchStatus?.['requirementDescHistoryHints'] || 'none'}
+                    onHistoryHintToggle={(id: string) => toggleHint('requirementDescHistoryHints', 'requirementDesc', id)}
+                    onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
 
-
+                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => loadHistoryHints('all')}
+                      disabled={isAnalyzing}
+                      className="primary-button"
+                      style={{ 
+                        padding: '8px 16px', 
+                        fontSize: '0.85rem',
+                        background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                        opacity: isAnalyzing ? 0.7 : 1
+                      }}
+                    >
+                      <Zap size={14} className={isAnalyzing ? 'animate-pulse' : ''} /> 
+                      {isAnalyzing ? '智慧建議生成中...' : '點此生成智慧建議 (AI 重分析)'}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '1.5rem' }}>
                   <SectionEditor 
-                    label={t('appearance', data.language)} 
+                    label="二. 品相" 
                     value={data.appearance} 
                     onChange={(v: string) => updateField('appearance', v)} 
-                    language={data.language}
+                    historyHints={data.appearanceHistoryHints}
+                    regHints={data.appearanceRegHints}
+                    searchStatus={data.searchStatus?.['appearanceHistoryHints'] || 'none'}
+                    onHistoryHintToggle={(id: string) => toggleHint('appearanceHistoryHints', 'appearance', id)}
+                    onRegHintToggle={(id: string) => toggleHint('appearanceRegHints', 'appearance', id)}
                   />
-                  <SectionEditor label={t('quantity', data.language)} value={data.quantityUnit} onChange={(v: string) => updateField('quantityUnit', v)} isTextArea={false} language={data.language} />
-                  <SectionEditor label={t('scope', data.language)} value={data.equipmentScope} onChange={(v: string) => updateField('equipmentScope', v)} language={data.language} />
+                  <SectionEditor label="三. 數量、單位" value={data.quantityUnit} onChange={(v: string) => updateField('quantityUnit', v)} isTextArea={false} />
+                  <SectionEditor label="四. 工程適用範圍 (Scope)" value={data.equipmentScope} onChange={(v: string) => updateField('equipmentScope', v)} />
                   <SectionEditor 
-                    label={t('rangeRange', data.language)} 
+                    label="五. 工程(或設備)適用區間 (Range)" 
                     value={data.rangeRange} 
                     onChange={(v: string) => updateField('rangeRange', v)} 
-                    language={data.language}
+                    historyHints={data.rangeHistoryHints}
+                    regHints={data.rangeRegHints}
+                    searchStatus={data.searchStatus?.['rangeHistoryHints'] || 'none'}
+                    onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
+                    onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
                   />
-
+                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => loadHistoryHints('all')}
+                      className="primary-button"
+                      style={{ 
+                        padding: '6px 12px', 
+                        fontSize: '0.75rem',
+                        opacity: 0.8,
+                        background: 'linear-gradient(135deg, #4B5563, #1F2937)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Zap size={12} /> 重新分析本章建議
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 1 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabHardware', data.language)}</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>技術與設計要求</h3>
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
-                  <h4 className="section-title"><Package size={16} /> {t('docSection6', data.language)}</h4>
+                  <h4 className="section-title"><Package size={16} /> 六. 設計要求</h4>
                   <SectionEditor 
-                     label={t('envReq', data.language)} 
+                     label="1. 環保要求" 
                      value={data.envRequirements} 
                      onChange={(v: string) => updateField('envRequirements', v)} 
                      hints={data.envAIHints}
@@ -645,10 +478,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onHintToggle={(id: string) => toggleHint('envAIHints', 'envRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
-                     language={data.language}
                   />
                   <SectionEditor 
-                     label={t('regReq', data.language)} 
+                     label="2. 法規要求" 
                      value={data.regRequirements} 
                      onChange={(v: string) => updateField('regRequirements', v)} 
                      hints={data.regAIHints}
@@ -658,10 +490,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      onHintToggle={(id: string) => toggleHint('regAIHints', 'regRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
-                     language={data.language}
                   />
                   <SectionEditor 
-                     label={t('maintReq', data.language)} 
+                     label="3. 維護要求" 
                      value={data.maintRequirements} 
                      onChange={(v: string) => updateField('maintRequirements', v)} 
                      historyHints={data.maintHistoryHints}
@@ -669,14 +500,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      searchStatus={data.searchStatus?.['maintHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('maintRegHints', 'maintRequirements', id)}
-                     language={data.language}
                   />
                 </div>
 
                 <div className="doc-section-box" style={{ marginBottom: '2rem' }}>
-                  <h4 className="section-title"><ShieldCheck size={16} /> {t('docSection7', data.language)}</h4>
+                  <h4 className="section-title"><ShieldCheck size={16} /> 七. 安全要求</h4>
                   <SectionEditor 
-                     label={t('safetyContent', data.language)} 
+                     label="安全要求內容" 
                      value={data.safetyRequirements} 
                      onChange={(v: string) => updateField('safetyRequirements', v)} 
                      historyHints={data.safetyHistoryHints}
@@ -684,15 +514,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                      searchStatus={data.safetyHistoryHints ? data.searchStatus['safetyHistoryHints'] : 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
-                     language={data.language}
                   />
                 </div>
 
                 <div className="doc-section-box">
-                  <h4 className="section-title"><Zap size={16} /> {t('docSection8', data.language)}</h4>
+                  <h4 className="section-title"><Zap size={16} /> 八. 特性要求</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <SectionEditor 
-                       label={t('elecSpec', data.language)} 
+                       label="1. 電氣特性規格" 
                        value={data.elecSpecs} 
                        onChange={(v: string) => updateField('elecSpecs', v)} 
                        historyHints={data.elecHistoryHints}
@@ -700,10 +529,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['elecHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('elecRegHints', 'elecSpecs', id)}
-                       language={data.language}
                     />
                     <SectionEditor 
-                       label={t('mechSpec', data.language)} 
+                       label="2. 機構特性規格" 
                        value={data.mechSpecs} 
                        onChange={(v: string) => updateField('mechSpecs', v)} 
                        historyHints={data.mechHistoryHints}
@@ -711,10 +539,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['mechHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('mechRegHints', 'mechSpecs', id)}
-                       language={data.language}
                     />
                     <SectionEditor 
-                       label={t('physSpec', data.language)} 
+                       label="3. 物理特性規格" 
                        value={data.physSpecs} 
                        onChange={(v: string) => updateField('physSpecs', v)} 
                        historyHints={data.physHistoryHints}
@@ -722,10 +549,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['physHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('physHistoryHints', 'physSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('physRegHints', 'physSpecs', id)}
-                       language={data.language}
                     />
                     <SectionEditor 
-                       label={t('relySpec', data.language)} 
+                       label="4. 信賴特性規格" 
                        value={data.relySpecs} 
                        onChange={(v: string) => updateField('relySpecs', v)} 
                        historyHints={data.relyHistoryHints}
@@ -733,18 +559,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['relyHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('relyHistoryHints', 'relySpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('relyRegHints', 'relySpecs', id)}
-                       language={data.language}
                     />
                   </div>
                   <SectionEditor 
-                    label={t('rangeRange', data.language)} 
+                    label="適用區間 (Range)" 
                     value={data.rangeRange} 
                     onChange={(v: string) => updateField('rangeRange', v)}
                     historyHints={data.rangeHistoryHints}
                     regHints={data.rangeRegHints}
                     onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
-                    language={data.language}
                   />
                 </div>
               </div>
@@ -752,9 +576,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
             {activeTab === 2 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabConstructionTitle', data.language)}</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>九. 安裝與遵守事項</h3>
                 <SectionEditor 
-                   label={t('installStd', data.language)} 
+                   label="施工標準 (九)" 
                     value={data.installStandard} 
                     onChange={(v: string) => updateField('installStandard', v)} 
                     hints={data.installAIHints}
@@ -764,14 +588,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onHintToggle={(id: string) => toggleHint('installAIHints', 'installStandard', id)}
                     onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
                     onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
-                    language={data.language}
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <SectionEditor label={t('finishDate', data.language)} value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" language={data.language} />
-                  <SectionEditor label={t('workPeriodDays', data.language)} value={data.workPeriod} onChange={(v: string) => updateField('workPeriod', v)} isTextArea={false} language={data.language} />
+                  <SectionEditor label="完工日期" value={data.deliveryDate} onChange={(v: string) => updateField('deliveryDate', v)} isTextArea={false} inputType="date" />
+                  <SectionEditor label="工期（天）" value={data.workPeriod} onChange={(v: string) => updateField('workPeriod', v)} isTextArea={false} />
                 </div>
                 <SectionEditor 
-                  label={t('acceptanceDesc', data.language)} 
+                  label="驗收要求" 
                   value={data.acceptanceDesc} 
                   onChange={(v: string) => updateField('acceptanceDesc', v)} 
                   hints={data.acceptanceAIHints}
@@ -781,10 +604,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   onHintToggle={(id: string) => toggleHint('acceptanceAIHints', 'acceptanceDesc', id)}
                   onHistoryHintToggle={(id: string) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                   onRegHintToggle={(id: string) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
-                  language={data.language}
                 />
                 <SectionEditor 
-                   label={t('compliance', data.language)} 
+                   label="十. 遵守事項" 
                    value={data.complianceDesc} 
                    onChange={(v: string) => updateField('complianceDesc', v)} 
                    hints={data.complianceAIHints}
@@ -794,45 +616,36 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                    onHintToggle={(id: string) => toggleHint('complianceAIHints', 'complianceDesc', id)}
                    onHistoryHintToggle={(id: string) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
                    onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
-                   language={data.language}
                 />
               </div>
             )}
 
             {activeTab === 3 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabDrawingsTitle', data.language)}</h3>
-                <ImageUpload 
-                  images={data.images} 
-                  onChange={(imgs) => onChange({ ...data, images: imgs })}
-                  language={data.language}
-                />
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>十一. 圖說與十二. 表格</h3>
+                <ImageUpload images={data.images} onChange={(imgs: any[]) => updateField('images', imgs)} />
                 <div style={{ marginTop: '2.5rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('tableAcceptance', data.language)}</h4>
-                  <SpecTable 
-                    data={data.tableData} 
-                    onChange={(td) => onChange({ ...data, tableData: td })}
-                    language={data.language}
-                  />
+                  <h4 style={{ color: 'white', marginBottom: '1rem' }}>十二. 驗收要求細目</h4>
+                  <SpecTable data={data.tableData} onChange={(td: any[]) => updateField('tableData', td)} />
                 </div>
               </div>
             )}
 
             {activeTab === 4 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabSignOffTitle', data.language)}</h3>
+                <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>規格確認及會簽</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                  <SectionEditor label={t('requester', data.language)} value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} language={data.language} />
-                  <SectionEditor label={t('manager', data.language)} value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} language={data.language} />
+                  <SectionEditor label="申請人" value={data.applicantName} onChange={(v: string) => updateField('applicantName', v)} isTextArea={false} />
+                  <SectionEditor label="單位主管" value={data.deptHeadName} onChange={(v: string) => updateField('deptHeadName', v)} isTextArea={false} />
                 </div>
                 
                 <div className="doc-section-box">
-                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>{t('signOffGrid', data.language)}</h4>
+                  <h4 style={{ color: 'white', marginBottom: '1rem', textAlign: 'center' }}>會簽矩陣</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, border: '1px solid var(--border-color)' }}>
                     {data.signOffGrid.map((row: string[], ri: number) => row.map((cell: string, ci: number) => (
-                       <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', minHeight: '100px', background: 'rgba(255,255,255,0.02)' }}>
+                      <div key={`${ri}-${ci}`} style={{ border: '0.5px solid var(--border-color)', minHeight: '100px', background: 'rgba(255,255,255,0.02)' }}>
                         <div style={{ height: '30px', background: isDropdownCell(ri, ci) ? 'rgba(230,0,18,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                          {isDropdownCell(ri, ci) ? t('deptCode', data.language) : t('signOff', data.language)}
+                          {isDropdownCell(ri, ci) ? '單位代號' : '核決簽署'}
                         </div>
                         {isDropdownCell(ri, ci) ? (
                           <select 
@@ -840,8 +653,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateSignOff(ri, ci, e.target.value)} 
                             style={{ width: '100%', height: '70px', border: 'none', background: 'transparent', color: 'white', fontSize: '0.85rem', textAlign: 'center' }}
                           >
-                            <option value="">{t('chooseDept', data.language)}</option>
-                            {departments.map((d: string) => <option key={d} value={d}>{d}</option>)}
+                            <option value="">選擇單位</option>
+                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         ) : (
                           <textarea 
@@ -855,48 +668,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   </div>
                 </div>
 
-                {/* Footer Information Labels */}
-                <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
-                  <div style={{ color: 'var(--tuc-red)', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShieldAlert size={16} />
-                    {t('docBottomNote1', data.language)}
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '1.5rem', 
-                    color: 'white', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    padding: '0.75rem 1.25rem', 
-                    borderRadius: '10px', 
-                    border: '1px solid rgba(255,255,255,0.08)' 
-                  }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{t('drawings', data.language)}</span>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <button 
-                        onClick={() => updateField('needsDrawing', 'YES')}
-                        className={data.needsDrawing === 'YES' ? 'primary-button' : 'ghost-button'}
-                        style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'YES' ? 'var(--tuc-red)' : 'transparent' }}
-                      >
-                        {t('yes', data.language)}
-                      </button>
-                      <button 
-                        onClick={() => updateField('needsDrawing', 'NO')}
-                        className={data.needsDrawing === 'NO' ? 'primary-button' : 'ghost-button'}
-                        style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'NO' ? 'var(--tuc-red)' : 'transparent' }}
-                      >
-                        {t('no', data.language)}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="doc-section-box" style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(59, 130, 246, 0.05)', border: '2px dashed rgba(59, 130, 246, 0.2)', marginTop: '2rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>{t('validationComplete', data.language)}</h4>
-                  <p 
-                    style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}
-                    dangerouslySetInnerHTML={{ __html: t('syncDescription', data.language) }}
-                  />
+                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>✅ 規範編校完成</h4>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+                    您可以點擊下方按鈕將此份規範同步至雲端知識庫。<br/>
+                    系統將自動執行 AI 標籤校準，並根據文件隱碼覆蓋舊有資料。
+                  </p>
                   
                   <button 
                     onClick={handleSyncToKnowledge}
@@ -910,7 +687,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                       boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                     }}
                   >
-                    {isSyncing ? t('syncing', data.language) : t('finalizeSync', data.language)}
+                    {isSyncing ? '同步中，請稍候...' : '完稿並同步至知識庫'}
                   </button>
 
                   {syncStatus.type && (
@@ -936,10 +713,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               onClick={() => setActiveTab(prev => prev - 1)} 
               className="ghost-button"
             >
-              <ChevronLeft size={20} /> {t('prev', data.language)}
+              <ChevronLeft size={20} /> 上一步
             </button>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {t('section', data.language)} {activeTab + 1} / {tabs.length}
+              章節 {activeTab + 1} / {tabs.length}
             </div>
             {activeTab < tabs.length - 1 && (
               <button 
@@ -947,7 +724,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 className="primary-button"
                 style={{ width: 'auto', padding: '0.6rem 2rem' }}
               >
-                {t('next', data.language)} <ChevronRight size={20} />
+                下一步 <ChevronRight size={20} />
               </button>
             )}
           </footer>
@@ -976,7 +753,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           };
           onChange(merged);
         }}
-        language={data.language}
       />
 
       <style>{`
