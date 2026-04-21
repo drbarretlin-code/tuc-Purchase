@@ -293,14 +293,46 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     }
     
     const detectedEq = parsed.detectedEquipment || equipmentName || t('unnamedEq', lang);
-    const indexData = parsed.specEntries || [];
+    let indexData = parsed.specEntries || [];
+    const fullJson = parsed.fullJsonData || {};
+
+    // V16.2: 強制轉譯 (Auto-Mapping Fallback)
+    // 若 AI 漏寫 specEntries 但有寫出 fullJsonData，我們強制將其轉譯並塞入知識庫，確保可被碎片搜索
+    if (indexData.length === 0 && Object.keys(fullJson).length > 0) {
+      console.warn(`[AI Parser] specEntries 遺失，啟動強制 JSON 轉譯映射...`);
+      const categoryMap: Record<string, string> = {
+        requirementDesc: '需求說明',
+        appearance: '品相與材質',
+        quantityUnit: '數量/單位',
+        equipmentScope: '適用範圍',
+        scopeScope: '適用範圍',
+        rangeRange: '適用區間',
+        envRequirements: '環保要求',
+        regRequirements: '法規要求',
+        maintRequirements: '維護與保固',
+        safetyRequirements: '工安要求',
+        elecSpecs: '電氣與控制',
+        mechSpecs: '機構',
+        physSpecs: '物理',
+        relySpecs: '信賴',
+        installStandard: '施工裝機標準',
+        workPeriod: '工期',
+        acceptanceDesc: '驗收標準',
+        complianceDesc: '遵守事項'
+      };
+
+      for (const [key, val] of Object.entries(fullJson)) {
+        if (val && typeof val === 'string' && val.trim().length > 0 && categoryMap[key]) {
+          indexData.push({ category: categoryMap[key], content: val.trim() });
+        }
+      }
+    }
 
     if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
 
     let addedCount = 0;
     let skippedCount = 0;
     
-    const fullJson = parsed.fullJsonData || {};
     const docId = overrideDocId || crypto.randomUUID();
 
     for (const item of indexData) {
