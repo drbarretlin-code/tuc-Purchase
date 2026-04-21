@@ -281,6 +281,21 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                   </tr>
                 </tbody>
               </table>
+            <div className="doc-section" style={{ marginTop: '20px', pageBreakInside: 'avoid' }}>
+              <div style={{ color: '#E60012', fontSize: '9pt', marginBottom: '8px', fontWeight: 'bold' }}>
+                ＊此規格需詳細填寫，以作為採購單位未來與廠商議價之依據
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '10pt' }}>
+                <span>＊此項請購是否需要檢附圖面？</span>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'YES' ? 'black' : 'transparent', display: 'inline-block' }} /> 是
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'NO' ? 'black' : 'transparent', display: 'inline-block' }} /> 否
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

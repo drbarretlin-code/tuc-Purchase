@@ -705,6 +705,42 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                   </div>
                 </div>
 
+                {/* Footer Information Labels */}
+                <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                  <div style={{ color: 'var(--tuc-red)', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldAlert size={16} />
+                    ＊此規格需詳細填寫，以作為採購單位未來與廠商議價之依據
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '1.5rem', 
+                    color: 'white', 
+                    background: 'rgba(255,255,255,0.03)', 
+                    padding: '0.75rem 1.25rem', 
+                    borderRadius: '10px', 
+                    border: '1px solid rgba(255,255,255,0.08)' 
+                  }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>＊此項請購是否需要檢附圖面？</span>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <button 
+                        onClick={() => updateField('needsDrawing', 'YES')}
+                        className={data.needsDrawing === 'YES' ? 'primary-button' : 'ghost-button'}
+                        style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'YES' ? 'var(--tuc-red)' : 'transparent' }}
+                      >
+                        是
+                      </button>
+                      <button 
+                        onClick={() => updateField('needsDrawing', 'NO')}
+                        className={data.needsDrawing === 'NO' ? 'primary-button' : 'ghost-button'}
+                        style={{ padding: '0.4rem 1.5rem', fontSize: '0.85rem', minWidth: '80px', background: data.needsDrawing === 'NO' ? 'var(--tuc-red)' : 'transparent' }}
+                      >
+                        否
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="doc-section-box" style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(59, 130, 246, 0.05)', border: '2px dashed rgba(59, 130, 246, 0.2)', marginTop: '2rem' }}>
                   <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>✅ 規範編校完成</h4>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>

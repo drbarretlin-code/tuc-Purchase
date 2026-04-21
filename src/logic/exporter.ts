@@ -213,7 +213,20 @@ export const exportToWord = async (data: FormState) => {
           style: "TUCCenter", 
           spacing: { before: 400, after: 200 } 
         }),
-        signOffTable
+        signOffTable,
+        new Paragraph({ 
+          children: [new TextRun({ text: "＊此規格需詳細填寫，以作為採購單位未來與廠商議價之依據", color: "E60012", size: 18, bold: true })], 
+          spacing: { before: 400, after: 100 } 
+        }),
+        new Paragraph({ 
+          children: [
+            new TextRun({ text: "＊此項請購是否需要檢附圖面？  ", size: 22 }),
+            new TextRun({ text: data.needsDrawing === 'YES' ? "☑是" : "□是", size: 22 }),
+            new TextRun({ text: "    ", size: 22 }),
+            new TextRun({ text: data.needsDrawing === 'NO' ? "☑否" : "□否", size: 22 })
+          ], 
+          spacing: { after: 200 } 
+        })
       ]
     }]
   });
