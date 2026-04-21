@@ -37,6 +37,7 @@ function App() {
   useEffect(() => {
     // V16: 持久化語系選擇
     localStorage.setItem('tuc_ui_lang', data.language);
+    document.documentElement.lang = data.language;
   }, [data.language]);
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');

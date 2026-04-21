@@ -1,4 +1,5 @@
 import type { FormState } from '../types/form';
+import { t } from '../lib/i18n';
 
 export const processAutoNumbering = (text: string): string => {
   if (!text) return '';
@@ -10,7 +11,15 @@ export const processAutoNumbering = (text: string): string => {
 };
 
 export const getFullSpecName = (data: FormState): string => {
-  return `${data.equipmentName}${data.model ? ` ${data.model}` : ''} (${data.category})`;
+  const catMap: Record<string, string> = {
+    '新增': 'catNew',
+    '修繕': 'catRepair',
+    '整改': 'catRenovate',
+    '優化': 'catOptimize',
+    '購置': 'catPurchase'
+  };
+  const categoryTranslation = catMap[data.category] ? t(catMap[data.category], data.language) : data.category;
+  return `${data.equipmentName}${data.model ? ` ${data.model}` : ''} (${categoryTranslation})`;
 };
 
 // 此函式提供純文字版的草稿生成，用於複製或簡易預覽
