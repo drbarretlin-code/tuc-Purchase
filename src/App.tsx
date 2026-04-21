@@ -1142,7 +1142,7 @@ function App() {
       />
 
       {/* V9.9: 全域任務監測膠囊 (Floating Task Capsule) */}
-      {isReparsing && isReparseMinimized && (
+      {isReparseMinimized && (
         <div 
           onClick={() => setIsReparseMinimized(false)}
           style={{ 
@@ -1152,27 +1152,36 @@ function App() {
             zIndex: 2000,
             background: 'rgba(20,20,20,0.9)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid var(--tuc-red)',
+            border: `1px solid ${isReparsing ? 'var(--tuc-red)' : 'var(--border-color)'}`,
             borderRadius: '50px',
             padding: '8px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             cursor: 'pointer',
-            boxShadow: '0 8px 32px rgba(230,0,18,0.3)',
-            animation: 'pulse 2s infinite ease-in-out'
+            boxShadow: `0 8px 32px ${isReparsing ? 'rgba(230,0,18,0.3)' : 'rgba(0,0,0,0.5)'}`,
+            animation: isReparsing ? 'pulse 2s infinite ease-in-out' : 'none'
           }}
         >
-          <div className="spin" style={{ color: 'var(--tuc-red)', display: 'flex' }}>
-            <Repeat size={16} />
-          </div>
+          {isReparsing ? (
+            <div className="spin" style={{ color: 'var(--tuc-red)', display: 'flex' }}>
+              <Repeat size={16} />
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-secondary)', display: 'flex' }}>
+              <Database size={16} color="var(--tuc-red)" />
+            </div>
+          )}
+          
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>
-              {t('processing', data.language)} {reparseProgress}%
+              {isReparsing ? `${t('processing', data.language)} ${reparseProgress}%` : t('cloudInspector', data.language)}
             </div>
-            <div style={{ fontSize: '0.6rem', color: '#888', whiteSpace: 'nowrap', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {reparseCurrentFile}
-            </div>
+            {isReparsing && (
+              <div style={{ fontSize: '0.6rem', color: '#888', whiteSpace: 'nowrap', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {reparseCurrentFile}
+              </div>
+            )}
           </div>
           <div style={{ marginLeft: '8px', color: '#60A5FA' }}>
             <Maximize2 size={16} />
