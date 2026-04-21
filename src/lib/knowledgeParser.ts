@@ -219,50 +219,33 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   if (!text && !inlineData) throw new Error(t('parseError', lang));
 
   const prompt = `
-    你是一個專業的採購規範專家。目前你正在處理一份透過「全頻段編碼掃描」從二進制遺骸中救援出的文件片段。
-    請分析${inlineData ? '「附件檔案」' : '「以下殘缺文字」'}，完成以下任務：
-    (重要提示：內容中混雜了多種編碼探測出的重複片段與殘缺字元，請利用你的語意邏輯進行「去重」與「重組」，精確尋找技術要求、材料規格、設備名稱與驗收標準)。
+    你是一個「全方位知識挖掘與解構」專家。目前你正在處理一份從原始二進制檔案中救援出的、可能高度混亂的文件片段。
+    你的終極任務是：**完整利用並解構每一條知識資訊**，絕對不允許漏掉任何具備參考價值的文字。
 
-    1. 辨別這份文件的知識層級 (docType)：
-       - Specific: 特定機台序號、型號或廠牌所需的「專屬規範」。
-       - Standard: 跨設備通用之「工程技術標準」(如配電、零件、材質標準)。
-       - Global: 政府法規、勞安或環境保護「共通法規」(如職安法、環保規章)。
-    2. 辨別設備主體名稱 (detectedEquipment)：
-       - 若為 Specific，請辨識設備名 (如：大明剪床、RTO)。
-       - 若為 Standard，請統一回傳「技術標準」。
-       - 若為 Global，請統一回傳「共通性法規」。
-    3. 從內容中提取「技術要求」條目並分類為 specEntries。
-    4. **同時轉成結構化 JSON (fullJsonData)**：
-       請根據內容填充以下欄位，若無資訊請留空：
-       - equipmentName: 設備名稱
-       - requirementDesc: 需求描述
-       - appearance: 品相描述
-       - quantityUnit: 數量與單位
-       - scopeScope: 工程適用範圍
-       - rangeRange: 工程適用區間
-       - envRequirements: 環保要求
-       - regRequirements: 法規要求
-       - maintRequirements: 維護要求
-       - safetyRequirements: 安全要求
-       - elecSpecs: 電氣規格
-       - mechSpecs: 機構規格
-       - physSpecs: 物理規格
-       - relySpecs: 信賴規格
-       - installStandard: 施工標準
-       - workPeriod: 工期
-       - acceptanceDesc: 驗收要求
-       - complianceDesc: 遵守事項
-       - tableData: 數組對象，包含 {item, requirement, method} (對應十二. 驗收要求細目)
+    請針對${inlineData ? '「附件檔案」' : '「以下殘缺文字」'}，執行深度挖掘（Deep Mining）：
+    1. **語意切片 (Semantic Chunking)**：
+       請利用語意邏輯將內容切分為獨立的「知識點」。即使該段落不屬於硬性的技術指標，只要其涉及設備描述、操作備註、環境要求、合約細項或文件背景，皆必須被視為一條 specEntry。
+    2. **去重與重組**：
+       內容中可能混雜了重複片段與殘缺字元，請協助進行語意復原。
+    3. **知識層級 (docType)**：
+       - Specific: 專屬機台、型號、廠牌。
+       - Standard: 跨設備技術標準。
+       - Global: 政府、環境、勞安法規。
+    4. **設備主體 (detectedEquipment)**：精確辨識或根據上下文推斷。
+    5. **強制條列化 (Mandatory Extraction)**：
+       請將所有挖掘到的內容轉化為 specEntries。**嚴禁回傳空陣列**。若內容確實貧乏，請以「文檔段落總結」或「背景描述」的形式至少提供 3 筆以上條目。
 
-    回傳格式：嚴格純 JSON 物件。
+    同時，將最關鍵的核心數據填充至結構化 JSON (fullJsonData) 中（若無明確數據請留空，但 specEntries 不可為空）。
+
+    回傳格式：嚴格純 JSON。
     {
       "docType": "Specific | Standard | Global",
       "detectedEquipment": "辨識出的設備名稱",
-      "specEntries": [{"category": "類別", "content": "規範文字"}],
-      "fullJsonData": { ...上述欄位... }
+      "specEntries": [{"category": "知識類別", "content": "詳細內容"}],
+      "fullJsonData": { ...設備名稱、需求描述、規格等... }
     }
     
-    ${text ? `內容文字：\n${text.substring(0, 15000)}` : '請直接分析附件二進制檔案。'}
+    ${text ? `分析內容：\n${text.substring(0, 15000)}` : '請直接分析附件檔案內容並徹底挖掘所有隱含知識。'}
   `;
 
   try {
@@ -285,9 +268,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       parsed = JSON.parse(cleanJson);
     } catch (parseError) {
       console.warn('[AI Parser] Strict JSON.parse failed, attempting aggressive sanitization:', parseError);
-      // Remove invalid control characters (0x00-0x1F)
       cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '');
-      // Escape backslashes that are not valid JSON escape sequences (", \, /, b, f, n, r, t, u)
       cleanJson = cleanJson.replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
       parsed = JSON.parse(cleanJson);
     }
@@ -296,36 +277,56 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     let indexData = parsed.specEntries || [];
     const fullJson = parsed.fullJsonData || {};
 
-    // V16.2: 強制轉譯 (Auto-Mapping Fallback)
-    // 若 AI 漏寫 specEntries 但有寫出 fullJsonData，我們強制將其轉譯並塞入知識庫，確保可被碎片搜索
+    // V17.0: 深度挖掘 Fallback (全方位保障機制)
+    // 策略 A: 若 AI 漏寫 specEntries 但有寫出 fullJsonData，我們強制轉譯
     if (indexData.length === 0 && Object.keys(fullJson).length > 0) {
-      console.warn(`[AI Parser] specEntries 遺失，啟動強制 JSON 轉譯映射...`);
+      console.warn(`[AI Parser] specEntries 為空，啟動全欄位轉譯映射 (Quantity-First)...`);
       const categoryMap: Record<string, string> = {
-        requirementDesc: '需求說明',
+        equipmentName: '設備主體',
+        requirementDesc: '採購需求說明',
         appearance: '品相與材質',
         quantityUnit: '數量/單位',
-        equipmentScope: '適用範圍',
         scopeScope: '適用範圍',
         rangeRange: '適用區間',
-        envRequirements: '環保要求',
-        regRequirements: '法規要求',
-        maintRequirements: '維護與保固',
-        safetyRequirements: '工安要求',
-        elecSpecs: '電氣與控制',
-        mechSpecs: '機構',
-        physSpecs: '物理',
-        relySpecs: '信賴',
+        envRequirements: '環保與場域要求',
+        regRequirements: '政府法規與合規',
+        maintRequirements: '維護保固與售後',
+        safetyRequirements: '勞安與安全規範',
+        elecSpecs: '電氣與控制系統',
+        mechSpecs: '機構與物理參數',
+        physSpecs: '物理規格',
+        relySpecs: '信賴性要求',
         installStandard: '施工裝機標準',
-        workPeriod: '工期',
-        acceptanceDesc: '驗收標準',
-        complianceDesc: '遵守事項'
+        workPeriod: '施作工期',
+        acceptanceDesc: '驗收與測量標準',
+        complianceDesc: '一般遵守事項',
+        tableData: '關鍵數據列表'
       };
 
       for (const [key, val] of Object.entries(fullJson)) {
-        if (val && typeof val === 'string' && val.trim().length > 0 && categoryMap[key]) {
-          indexData.push({ category: categoryMap[key], content: val.trim() });
+        if (val) {
+          let contentStr = '';
+          if (typeof val === 'string' && val.trim().length > 0) {
+            contentStr = val.trim();
+          } else if (Array.isArray(val) && val.length > 0) {
+            // 處理 tableData 或是 Array 欄位
+            contentStr = val.map(v => typeof v === 'object' ? JSON.stringify(v) : v).join('; ');
+          }
+
+          if (contentStr && categoryMap[key]) {
+            indexData.push({ category: categoryMap[key], content: contentStr });
+          }
         }
       }
+    }
+
+    // 策略 B: 若依然為 0 (極度貧乏)，則將全文摘要作為條目 (最後防線)
+    if (indexData.length === 0) {
+      console.warn(`[AI Parser] 深度挖掘失敗，啟動最後防線：文檔摘要條目化`);
+      indexData.push({ 
+        category: '文檔核心摘要', 
+        content: text.substring(0, 500) || '此檔案內容較為簡略或為純圖像/殘缺二進制，建議查閱原始附件。' 
+      });
     }
 
     if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
