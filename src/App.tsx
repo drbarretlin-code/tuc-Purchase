@@ -468,8 +468,10 @@ function App() {
     // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
     console.log('[Resume] 正在核對當前解析狀態...');
     
-    // 僅過濾出尚未標記為已解析的檔案
-    const targets = cloudFiles.filter(f => f.is_parsed !== true);
+    // 僅過濾出尚未標記為已解析的檔案，或雖然標記已解析但條目數為 0 的幽靈檔案 (V17.1)
+    const targets = cloudFiles.filter(f => 
+      f.is_parsed !== true || (f as any).knowledgeCount === 0
+    );
     
     if (targets.length === 0) {
       alert('所有檔案皆已完成解析，無須重複執行。');
