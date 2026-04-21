@@ -347,9 +347,67 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           <div className="form-content-wrap">
             {activeTab === 0 && (
               <div className="tab-pane">
-                <h3 style={{ marginBottom: '1.5rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h3 style={{ marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Info size={20} /> 基本資訊與請購項目
                 </h3>
+
+                {/* V15-Refactor: 智慧匹配控制工具列 */}
+                <div style={{ 
+                  marginBottom: '1.5rem', 
+                  padding: '0.75rem 1.25rem', 
+                  background: 'rgba(255,255,255,0.03)', 
+                  borderRadius: '12px', 
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '2rem',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '140px' }}>
+                      <Zap size={16} color="var(--tuc-red)" />
+                      <span style={{ fontSize: '0.85rem', color: '#ccc' }}>智慧匹配門檻</span>
+                      <span style={{ 
+                        fontSize: '0.9rem', 
+                        fontWeight: 'bold', 
+                        color: data.matchThreshold >= 0.7 ? '#10B981' : (data.matchThreshold >= 0.4 ? '#F59E0B' : '#EF4444'),
+                        paddingLeft: '4px'
+                      }}>
+                        {Math.round(data.matchThreshold * 100)}%
+                      </span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0.1" 
+                      max="1.0" 
+                      step="0.05" 
+                      value={data.matchThreshold} 
+                      onChange={(e) => updateField('matchThreshold', parseFloat(e.target.value))}
+                      style={{ flex: 1, accentColor: 'var(--tuc-red)', height: '4px' }}
+                    />
+                  </div>
+                  
+                  <button 
+                    onClick={() => loadHistoryHints('all')}
+                    disabled={isAnalyzing}
+                    className="primary-button"
+                    style={{ 
+                      padding: '8px 16px', 
+                      fontSize: '0.8rem',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> 
+                    {isAnalyzing ? '重新生成中...' : 'AI 重生成'}
+                  </button>
+                </div>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div className="input-with-label">
@@ -393,70 +451,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     onRegHintToggle={(id: string) => toggleHint('requirementDescRegHints', 'requirementDesc', id)}
                   />
 
-                  {/* V15: 智慧匹配門檻調整器 */}
-                  <div style={{ 
-                    marginTop: '1rem', 
-                    padding: '1rem', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '8px', 
-                    border: '1px solid rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '0.85rem', color: '#bbb', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Zap size={14} color="var(--tuc-red)" /> 智慧匹配門檻（精準度控制）
-                      </label>
-                      <span style={{ 
-                        fontSize: '0.9rem', 
-                        fontWeight: 'bold', 
-                        color: data.matchThreshold >= 0.7 ? '#10B981' : (data.matchThreshold >= 0.4 ? '#F59E0B' : '#EF4444'),
-                        background: 'rgba(0,0,0,0.3)',
-                        padding: '2px 8px',
-                        borderRadius: '4px'
-                      }}>
-                        {Math.round(data.matchThreshold * 100)}%
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      <input 
-                        type="range" 
-                        min="0.1" 
-                        max="1.0" 
-                        step="0.05" 
-                        value={data.matchThreshold} 
-                        onChange={(e) => updateField('matchThreshold', parseFloat(e.target.value))}
-                        style={{ flex: 1, accentColor: 'var(--tuc-red)', height: '6px' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#666' }}>
-                      <span>廣泛 (10%)</span>
-                      <span>標準 (70%)</span>
-                      <span>嚴謹 (100%)</span>
-                    </div>
-                  </div>
 
-                  <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button 
-                      onClick={() => loadHistoryHints('all')}
-                      disabled={isAnalyzing}
-                      className="primary-button"
-                      style={{ 
-                        padding: '8px 16px', 
-                        fontSize: '0.85rem',
-                        background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-                        opacity: isAnalyzing ? 0.7 : 1
-                      }}
-                    >
-                      <Zap size={14} className={isAnalyzing ? 'animate-pulse' : ''} /> 
-                      {isAnalyzing ? '智慧建議生成中...' : '點此生成智慧建議 (AI 重分析)'}
-                    </button>
-                  </div>
                 </div>
 
                 <div style={{ marginTop: '1.5rem' }}>
