@@ -466,15 +466,26 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.7: 啟用動態續傳模式 - 重新獲取最新清單，過濾出真正需要補解析的檔案
-    const targets = cloudFiles.filter(f => Number((f as any).knowledgeCount || 0) === 0);
+    // V16.8: 究極續傳方案 - 直接從資料庫抓取最新條目數核對，不依賴緩慢的本地 state
+    console.log('[Resume] 正在核對資料庫最新狀態...');
+    const { data: dbLatest } = await supabase
+      .from('tuc_uploaded_files')
+      .select('id, original_name, equipment_name, public_url, is_parsed');
+    
+    if (!dbLatest) return;
+
+    // 交叉比對：找出那些「無知識條目」的檔案 (關鍵：即時性判定)
+    const { data: counts } = await supabase.rpc('get_knowledge_counts'); // 使用我們之前建立的 RPC
+    const countMap = new Map(counts?.map((c: any) => [c.file_name, c.count]) || []);
+
+    const targets = dbLatest.filter(f => (countMap.get(f.original_name) || 0) === 0);
     
     if (targets.length === 0) {
       alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案無條目紀錄 (支援斷點續傳)。\n確定要自動補足這些內容嗎？\n(過程將消耗 AI 配額，若中斷下次可從剩餘處繼續)`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案需補足條目 (支援斷點續傳)。\n確定要開始執行嗎？\n(過程若中斷，下次僅會處理剩餘檔案)`)) return;
 
     setIsReparsing(true);
     setReparseProgress(0);
