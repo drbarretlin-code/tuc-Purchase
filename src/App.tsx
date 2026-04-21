@@ -148,15 +148,17 @@ function App() {
         countMap[name] = (countMap[name] || 0) + 1;
       });
 
-      // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
+      // 3. 合併資料 (V8.10: 權威化 is_parsed 標籤，解決狀態回滾問題)
       const enrichedList = (list || []).map(f => {
+        // 優先讀取資料庫顯式標記，再看背景統計
+        const dbIsParsed = f.is_parsed === true;
         const countFromStats = countMap[f.original_name] || 0;
         
         return {
           ...f,
           knowledgeCount: countFromStats,
-          // 若 db 有 is_parsed 則信任，若無但有條目產出，便強制作為 true (因為 V17 確保 100% 產出，這表示該檔已成功解析)
-          is_parsed: f.is_parsed === true || countFromStats > 0
+          // 只要資料庫標記為 true，或統計大於 0，且不允許被舊資料覆寫為 false (若本地目前已是 true)
+          is_parsed: dbIsParsed || (countFromStats > 0)
         };
       });
 
@@ -205,19 +207,10 @@ function App() {
   };
 
   const handleDeleteFile = async (id: string) => {
-    if (!supabase || !confirm('確定要永久刪除此上傳紀錄（包含實體檔案與解析資料）嗎？')) return;
+    if (!supabase || !confirm('確定要永久刪除此上傳紀錄嗎？')) return;
     try {
-      const targetFile = cloudFiles.find(f => f.id === id);
-      if (targetFile) {
-        // 1. 清除關聯的知識解析紀錄
-        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', targetFile.original_name);
-        // 2. 清除 Storage 實體檔案
-        await supabase.storage.from('spec-files').remove([targetFile.storage_path]);
-      }
-      
       const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
-      
       setCloudFiles(prev => prev.filter(f => f.id !== id));
       setSelectedFileIds(prev => prev.filter(x => x !== id));
       alert('刪除成功');
@@ -366,8 +359,7 @@ function App() {
       type: typeof f.is_calibrated
     })));
 
-    // V16.10: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
-    // 斷點續傳機制：僅選取尚未完成校準的檔案
+    // V9.7: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
     const targets = cloudFiles.filter(f => f.is_calibrated !== true);
     
     console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
@@ -474,20 +466,21 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
-    console.log('[Resume] 正在核對當前解析狀態...');
+    // V16.9: 穩定版機制 - 回歸與 UI 顯示一致的統計邏輯 (不依賴缺失的 RPC)
+    console.log('[Resume] 正在核對當前緩存狀態...');
     
-    // 僅過濾出尚未標記為已解析的檔案，或雖然標記已解析但條目數為 0 的幽靈檔案 (V17.1)
-    const targets = cloudFiles.filter(f => 
-      f.is_parsed !== true || (f as any).knowledgeCount === 0
-    );
+    // 獲取當前 cloudFiles 中呈現的狀態
+    const targets = cloudFiles.filter(f => {
+      const count = (f as any).knowledgeCount || 0;
+      return count === 0;
+    });
     
     if (targets.length === 0) {
-      alert('所有檔案皆已完成解析，無須重複執行。');
+      alert('所有檔案皆已擁有效解析條目，無須重複補解析。');
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案需處理。系統支援「斷點續傳」，已解析檔案將自動跳過。\n確定要開始執行嗎？`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案需補足條目 (支援斷點續傳)。\n確定要開始執行嗎？\n(過程若中斷，下次僅會處理剩餘檔案)`)) return;
 
     setIsReparsing(true);
     setReparseProgress(0);
@@ -534,9 +527,8 @@ function App() {
             .eq('id', fileRecord.id);
 
           if (updateError) {
-            console.warn(`[容錯] 雲端狀態欄位更新失敗 (資料表可能缺少 is_parsed 等欄位)。系統將略過並依賴本地防呆狀態。 錯誤訊息:`, updateError.message);
-            // 容錯機制：不拋出 Error，允許程式碼繼續將 `is_parsed` 設定到本地緩存，
-            // 從而讓本地畫面變為綠色，並且利用 `countFromStats` 防呆實現斷點續傳。
+            console.error('更新解析與校準狀態失敗:', updateError);
+            throw new Error(`無法將檔案標記為已解析/校準。(${updateError.message})`);
           }
 
           // 同步更新知識庫內的 metadata (標籤校準核心)
@@ -750,22 +742,6 @@ function App() {
           >
             <PenTool size={22} />
             {t('editTab', data.language)}
-          </button>
-          <button 
-            className="nav-tab"
-            onClick={() => setShowUploadWizard(true)}
-            style={{ color: '#60A5FA' }}
-          >
-            <CloudUpload size={22} />
-            {t('import', data.language)}
-          </button>
-          <button 
-            className="nav-tab"
-            onClick={handleOpenInspector}
-            style={{ color: 'var(--tuc-red)' }}
-          >
-            <Database size={22} />
-            {t('history', data.language)}
           </button>
           <button 
             className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
