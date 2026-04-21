@@ -1,4 +1,19 @@
-import { t, Language } from '../lib/i18n';
+import { 
+  Document, 
+  Packer, 
+  Paragraph, 
+  TextRun, 
+  Table, 
+  TableCell, 
+  TableRow, 
+  WidthType, 
+  HeadingLevel, 
+  AlignmentType, 
+  BorderStyle, 
+  VerticalAlign 
+} from 'docx';
+import type { FormState } from '../types/form';
+import { t, Language } from './i18n';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
 export const exportToPDF = async (_elementId: string, _data: FormState) => {

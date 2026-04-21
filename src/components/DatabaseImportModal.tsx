@@ -1,6 +1,9 @@
+import React, { useState, useEffect } from 'react';
+import { Database, X, Search, Loader2, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { assembleJsonFromExistingEntries } from '../lib/knowledgeParser';
-import { t, Language } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 
 interface DatabaseImportModalProps {
   isOpen: boolean;

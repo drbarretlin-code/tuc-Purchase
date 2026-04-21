@@ -1,4 +1,8 @@
-import { t, Language } from '../lib/i18n';
+import React from 'react';
+import { Trash2, Plus } from 'lucide-react';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
+import type { TableRowData } from '../types/form';
 
 interface Props {
   data: TableRowData[];

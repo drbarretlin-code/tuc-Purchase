@@ -118,8 +118,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
-
   const loadHistoryHints = async (mode: number | 'all') => {
     if (isAnalyzing) return;
     setIsAnalyzing(true);
@@ -732,10 +730,18 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             {activeTab === 3 && (
               <div className="tab-pane">
                 <h3 style={{ marginBottom: '1.5rem', color: 'white' }}>{t('tabDrawingsTitle', data.language)}</h3>
-                <ImageUpload images={data.images} onChange={(imgs: any[]) => updateField('images', imgs)} />
+                <ImageUpload 
+                  images={data.images} 
+                  onChange={(imgs) => onChange({ ...data, images: imgs })}
+                  language={data.language}
+                />
                 <div style={{ marginTop: '2.5rem' }}>
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('tableAcceptance', data.language)}</h4>
-                  <SpecTable data={data.tableData} onChange={(td: any[]) => updateField('tableData', td)} />
+                  <SpecTable 
+                    data={data.tableData} 
+                    onChange={(td) => onChange({ ...data, tableData: td })}
+                    language={data.language}
+                  />
                 </div>
               </div>
             )}
@@ -897,6 +903,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           };
           onChange(merged);
         }}
+        language={data.language}
       />
 
       <style>{`

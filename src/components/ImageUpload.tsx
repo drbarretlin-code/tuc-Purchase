@@ -1,4 +1,8 @@
-import { t, Language } from '../lib/i18n';
+import React from 'react';
+import { X, Type, ImagePlus } from 'lucide-react';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
+import type { SpecImage } from '../types/form';
 
 interface Props {
   images: SpecImage[];

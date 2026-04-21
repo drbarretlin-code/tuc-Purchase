@@ -3,7 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
-import { t, Language } from './i18n';
+import { t } from './i18n';
+import type { Language } from './i18n';
 
 // 設定 PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
