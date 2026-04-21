@@ -1,7 +1,8 @@
 import React from 'react';
 import type { AIHintSelection } from '../types/form';
 import { HelpCircle, CheckCircle2, Circle, Book, History, Calendar, Loader2 } from 'lucide-react';
-import { t, Language } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 
 interface Props {
   label: string;

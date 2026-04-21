@@ -1,7 +1,7 @@
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
 
 // 設定 PDF.js Worker
@@ -16,22 +16,9 @@ let cachedModelId: string | null = null;
 async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
-  const ai = new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
   
-  // 嘗試列出所有可用模型供開發診斷 (嘗試多種可能的 API 命名)
-  try {
-    const listMethods = ['list', 'listModels', 'list_models'];
-    for (const methodName of listMethods) {
-      if (typeof (ai.models as any)[methodName] === 'function') {
-        const listResponse = await (ai.models as any)[methodName]();
-        console.log(`[AI Discovery] 透過 ${methodName}() 獲取完整模型列表:`, listResponse);
-        break;
-      }
-    }
-  } catch (diagErr) {
-    console.warn('[AI Discovery] 嘗試列出模型失敗 (診斷用):', diagErr);
-  }
-
+  // V16: 模型搜尋機制
   // 優先順序策略 (由 2026 最新至穩定版)
   // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
@@ -47,10 +34,10 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   for (const mId of priorityList) {
     try {
       // 必須使用 generateContent 進行試驗，因為 countTokens 可能在已禁用模型上仍然成功
-      await ai.models.generateContent({
-        model: mId,
+      const model = genAI.getGenerativeModel({ model: mId });
+      await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        config: { maxOutputTokens: 1 } // 極小消耗
+        generationConfig: { maxOutputTokens: 1 } // 極小消耗
       });
       cachedModelId = mId;
       console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
@@ -167,8 +154,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   if (!finalKey) throw new Error('缺少 Gemini API Key，請在系統設定中輸入。');
   
-  const ai = new GoogleGenAI({ apiKey: finalKey });
+  const genAI = new GoogleGenerativeAI(finalKey);
   const modelId = await getAutoSelectedModel(finalKey);
+  const model = genAI.getGenerativeModel({ model: modelId });
 
   let inlineData: { data: string, mimeType: string } | null = null;
   let text = '';
@@ -271,11 +259,10 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       contents[0].parts.push({ inlineData });
     }
 
-    const result = await ai.models.generateContent({
-      model: modelId,
+    const result = await model.generateContent({
       contents
     });
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error('AI 回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
@@ -454,14 +441,14 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
   `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: finalKey });
+    const genAI = new GoogleGenerativeAI(finalKey);
     const modelId = await getAutoSelectedModel(finalKey);
+    const model = genAI.getGenerativeModel({ model: modelId });
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error('AI 同步回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
@@ -548,14 +535,14 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: rawKey });
+    const genAI = new GoogleGenerativeAI(rawKey);
     const modelId = await getAutoSelectedModel(rawKey);
+    const model = genAI.getGenerativeModel({ model: modelId });
 
-    const result = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
-    const responseText = result.text;
+    const responseText = result.response.text();
     if (!responseText) throw new Error('AI 反向組裝回傳內容為空');
     const cleanJson = responseText.replace(/```json|```/g, '').trim();
     const fullJson = JSON.parse(cleanJson);
@@ -589,9 +576,9 @@ export async function translateHints(
 ): Promise<AIHintSelection[]> {
   if (targetLang === 'zh-TW' || hints.length === 0) return hints;
 
-  const ai = new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
   const modelId = await getAutoSelectedModel(apiKey);
-  const model = ai.getGenerativeModel({ model: modelId });
+  const model = genAI.getGenerativeModel({ model: modelId });
 
   const langMap: Record<string, string> = {
     'zh-CN': 'Simplified Chinese (简体中文)',

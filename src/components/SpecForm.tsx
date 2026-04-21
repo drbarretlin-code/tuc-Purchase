@@ -21,8 +21,7 @@ import {
   Trash2,
   Repeat,
   ShieldAlert,
-  Book,
-  Languages
+  Book
 } from 'lucide-react';
 import { t } from '../lib/i18n';
 import SectionEditor from './SectionEditor';
@@ -184,14 +183,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
           // V16: 若非繁中，執行翻譯
           if (data.language !== 'zh-TW' && res.hints.length > 0 && apiKey) {
             // 更新狀態為翻譯中
-            onChange(prev => ({
-              ...prev,
+            onChange({
+              ...data,
               searchStatus: {
-                ...prev.searchStatus,
+                ...data.searchStatus,
                 [target.key as string]: 'translating',
                 [target.regKey as string]: 'translating'
               }
-            }));
+            });
             
             const translated = await KP.translateHints(res.hints, data.language, apiKey);
             return { target, res: { ...res, hints: translated } };
@@ -627,6 +626,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['elecHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('elecRegHints', 'elecSpecs', id)}
+                       language={data.language}
                     />
                     <SectionEditor 
                        label={t('mechSpec', data.language)} 
@@ -637,6 +637,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['mechHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('mechRegHints', 'mechSpecs', id)}
+                       language={data.language}
                     />
                     <SectionEditor 
                        label={t('physSpec', data.language)} 
@@ -647,6 +648,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['physHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('physHistoryHints', 'physSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('physRegHints', 'physSpecs', id)}
+                       language={data.language}
                     />
                     <SectionEditor 
                        label={t('relySpec', data.language)} 
@@ -657,6 +659,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                        searchStatus={data.searchStatus['relyHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('relyHistoryHints', 'relySpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('relyRegHints', 'relySpecs', id)}
+                       language={data.language}
                     />
                   </div>
                   <SectionEditor 
