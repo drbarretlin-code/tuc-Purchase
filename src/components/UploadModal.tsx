@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as KP from '../lib/knowledgeParser';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 import type { FormState } from '../types/form';
 
 interface Props {
@@ -11,9 +13,10 @@ interface Props {
   isMinimized?: boolean;
   data: FormState;
   onApplyData?: (data: FormState) => void;
+  language: Language;
 }
 
-const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data, onApplyData }) => {
+const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data, onApplyData, language }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesInQueue, setFilesInQueue] = useState(0);
@@ -40,7 +43,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             })));
           }
         } catch (err) {
-          console.error('無法讀取檔案歷史:', err);
+          console.error('Fetch file history failed:', err);
         }
       };
       fetchFileHistory();
@@ -87,7 +90,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         status: 'queued'
       });
       
-      if (queueError) throw new Error("佇列系統連線失敗: " + queueError.message);
+      if (queueError) throw new Error(`${t('queueError', language)}: ` + queueError.message);
 
       const waitForTurn = async () => {
         let isMyTurn = false;
@@ -102,7 +105,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             isMyTurn = true;
             await client.from('tuc_system_queue').update({ status: 'processing' }).eq('owner_session', sessionId);
           } else {
-            console.log('[佇列等待] 前方尚有任務，5秒後重試...');
+            console.log('[Queue Waiting] Jobs ahead, retrying in 5s...');
             await new Promise(r => setTimeout(r, 5000));
           }
         }
@@ -110,20 +113,20 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       await waitForTurn();
 
       // --- 第二階段：重複檢查與清空 (去重機制) ---
-      console.log('[去重運算] 偵測並清理歷史重複檔案...');
+      console.log('[Deduplication] Checking and cleaning duplicates...');
       for (const file of fileList) {
         // 1. 執行批次查詢，找出所有「同檔名 + 同設備」的舊資料 (不論需求說明是否嚴格匹配)
         const { data: dups } = await client
           .from('tuc_uploaded_files')
           .select('id, storage_path')
           .eq('original_name', file.name)
-          .contains('equipment_tags', [data.equipmentName || '未命名設備']);
+          .contains('equipment_tags', [data.equipmentName || t('unnamedEq', language)]);
 
         if (dups && dups.length > 0) {
           const idsToRemove = dups.map(d => d.id);
           const pathsToRemove = dups.map(d => d.storage_path);
           
-          console.log(`[去重] 發現 ${dups.length} 筆重複檔案，正在進行取代作業...`);
+          console.log(`[Deduplication] Found ${dups.length} duplicates, replacing...`);
           
           // 批次刪除知識條目
           await client.from('tuc_history_knowledge').delete().eq('source_file_name', file.name);
@@ -135,30 +138,48 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       }
 
       // --- 第三階段：極速併行上傳 ---
-      const uploadResults = await Promise.all(fileList.map(async (file) => {
-        const ext = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-        const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
-        if (storageError) throw storageError;
+      const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+      
+      const rawUploadResults = await Promise.all(fileList.map(async (file) => {
+        try {
+          if (file.size > maxSizeBytes) {
+            throw new Error(`File size ${Math.round(file.size/1024/1024)}MB exceeds 50MB limit`);
+          }
 
-        const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
-        const displayName = `${file.name} (${data.requester || '未知'})`;
+          const ext = file.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+          const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
+          if (storageError) throw storageError;
 
-        const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
-          original_name: file.name,
-          storage_path: fileName,
-          public_url: publicUrl,
-          display_name: displayName,
-          requester: data.requester || '未知',
-          equipment_tags: [data.equipmentName || '未命名設備'],
-          requirement_desc: data.requirementDesc || '無需求說明',
-          is_parsed: false
-        }).select('id').single();
- 
-        if (insertError) throw insertError;
- 
-        return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
+          const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
+          const displayName = `${file.name} (${data.requester || t('unknown', language)})`;
+
+          const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
+            original_name: file.name,
+            storage_path: fileName,
+            public_url: publicUrl,
+            display_name: displayName,
+            requester: data.requester || t('unknown', language),
+            equipment_tags: [data.equipmentName || t('unnamedEq', language)],
+            requirement_desc: data.requirementDesc || t('noReqDesc', language),
+            is_parsed: false
+          }).select('id').single();
+  
+          if (insertError) throw insertError;
+  
+          return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
+        } catch (err: any) {
+          console.warn(`[Skip] File upload failed for ${file.name}: ${err.message}`);
+          return { file, error: err.message };
+        }
       }));
+
+      // 過濾出上傳成功的檔案進入解析
+      const uploadResults = rawUploadResults.filter((r): r is { file: File, url: string, displayName: string, storagePath: string, id: string } => !('error' in r));
+      const failedUploadsCount = fileList.length - uploadResults.length;
+      if (failedUploadsCount > 0) {
+        console.warn(`[Upload Warning] ${failedUploadsCount} files were skipped due to size limits or upload errors.`);
+      }
 
       // --- 第四階段：智慧解析 ---
       const completedNames: string[] = [];
@@ -168,7 +189,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         setFilesInQueue(uploadResults.length - i);
 
         const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName, id);
-        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || '未命名設備';
+        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || t('unnamedEq', language);
  
         totalAdded += result?.added || 0;
         totalSkipped += result?.skipped || 0;
@@ -186,7 +207,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           })
           .eq('id', id);
 
-        console.log(`[同步] 檔案 ${file.name} 解析狀態與標籤 (${finalDetectedEq}) 已寫入雲端。`);
+        console.log(`[Sync] File ${file.name} status and tag (${finalDetectedEq}) synced to cloud.`);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
@@ -211,12 +232,12 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       });
       
       localStorage.removeItem('tuc_active_upload_job');
-      alert(`檔案上傳解析完成！\n成功：${totalAdded} | 跳過：${totalSkipped}`);
+      alert(`${t('uploadComplete', language)}\n${t('successCount', language)}：${totalAdded} | ${t('skippedCount', language)}：${totalSkipped}`);
 
     } catch (err: any) {
       console.error('[佇列錯誤]', err);
       if (client && sessionId) await client.from('tuc_system_queue').update({ status: 'error' }).eq('owner_session', sessionId);
-      alert(`程序中斷: ${err.message}`);
+      alert(`${t('interrupted', language)}: ${err.message}`);
     } finally {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       setUploadingFile(false);
@@ -237,12 +258,12 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <CloudUpload size={32} color="var(--tuc-red)" />
             <div>
-              <h2 style={{ margin: 0 }}>智慧解析與規範歸納</h2>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>上傳歷史 PDF/圖片 規範，AI 將自動萃取技術要點存入知識庫</p>
+              <h2 style={{ margin: 0 }}>{t('wizardTitle', language)}</h2>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('wizardDesc', language)}</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={onMinimize} className="icon-btn" title="縮小至背景執行">
+            <button onClick={onMinimize} className="icon-btn" title={t('minimizeTip', language)}>
               <Minus size={20} />
             </button>
             <button onClick={onClose} className="icon-btn">
@@ -272,8 +293,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(230,0,18,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
                   <CloudUpload size={32} color="var(--tuc-red)" />
                 </div>
-                <h3 style={{ margin: 0 }}>選取檔案</h3>
-                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '300px' }}>支援多檔案併行解析：PDF, Word (.doc/.docx), 圖片格式</p>
+                <h3 style={{ margin: 0 }}>{t('selectFile', language)}</h3>
+                <p style={{ fontSize: '0.85rem', color: '#666', maxWidth: '300px' }}>{t('supportFiles', language)}</p>
                 <input 
                   type="file" 
                   multiple 
@@ -285,14 +306,14 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             ) : (
               <div style={{ width: '100%', textAlign: 'center' }}>
                 <Loader2 size={48} className="spin" color="var(--tuc-red)" style={{ margin: '0 auto 1.5rem' }} />
-                <h3 style={{ margin: '0 0 0.5rem' }}>AI 解析中...</h3>
+                <h3 style={{ margin: '0 0 0.5rem' }}>{t('aiParsing', language)}</h3>
                 <p style={{ fontSize: '0.9rem', color: 'var(--tuc-red)', fontWeight: 'bold' }}>{currentUploadingName}</p>
-                <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.5rem' }}>隊列中剩餘：{filesInQueue} 個任務</p>
+                <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.5rem' }}>{t('queueRemaining', language)}{filesInQueue} {t('items', language)}</p>
                 
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.5rem' }}>
                   <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--tuc-red)', transition: 'width 0.3s' }} />
                 </div>
-                <p style={{ fontSize: '0.75rem', color: '#999', textAlign: 'right' }}>總體進度 {uploadProgress}%</p>
+                <p style={{ fontSize: '0.75rem', color: '#999', textAlign: 'right' }}>{t('totalProgress', language)} {uploadProgress}%</p>
               </div>
             )}
           </div>
@@ -300,11 +321,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           {/* 右側：最近上傳紀錄 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-              <History size={16} /> 最近上傳成果
+              <History size={16} /> {t('recentUploads', language)}
             </h4>
             <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {uploadedFiles.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#444', fontSize: '0.85rem' }}>暫無近期歸納紀錄</div>
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#444', fontSize: '0.85rem' }}>{t('noRecentRecords', language)}</div>
               ) : uploadedFiles.map((f, i) => (
                 <div key={i} style={{ 
                   padding: '1rem', 
@@ -319,7 +340,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
                     <CheckCircle2 size={16} color="#10B981" />
                     <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.displayName}</span>
                   </div>
-                  <a href={f.url} target="_blank" rel="noreferrer" className="icon-btn" title="查看原始檔">
+                  <a href={f.url} target="_blank" rel="noreferrer" className="icon-btn" title={t('viewOriginal', language)}>
                     <ExternalLink size={14} />
                   </a>
                 </div>
@@ -330,7 +351,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
 
         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(230,0,18,0.05)', borderRadius: '8px', border: '1px solid rgba(230,0,18,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--tuc-red)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Zap size={14} /> <b>專家提醒：</b> 系統已將檔案轉為結構化 JSON 儲存。
+            <Zap size={14} /> <b>{t('expertTip', language)}</b> {t('jsonStored', language)}
           </p>
           {lastParsedJson && onApplyData && (
             <button 
@@ -338,7 +359,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
               className="primary-button"
               style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
             >
-              🚀 載入「{lastParsedName}」的 AI 解析結果
+              {t('loadAiResultPrefix', language)}{lastParsedName}{t('loadAiResultSuffix', language)}
             </button>
           )}
         </div>
