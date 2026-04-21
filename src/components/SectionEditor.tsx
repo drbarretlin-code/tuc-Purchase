@@ -29,6 +29,7 @@ const SectionEditor: React.FC<Props> = ({
   isTextArea = true, required = false, placeholder, inputType = "text",
   searchStatus = 'none', addon, language
 }) => {
+  const [isFocused, setIsFocused] = React.useState(false);
   const displayValue = (value && value.startsWith('default')) ? t(value, language) : value;
 
   return (
@@ -56,7 +57,9 @@ const SectionEditor: React.FC<Props> = ({
       ) : (
         <div style={{ position: 'relative' }}>
           <input
-            type={inputType}
+            type={inputType === 'date' && !displayValue && !isFocused ? 'text' : inputType}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             style={{ width: '100%', paddingRight: inputType === 'date' ? '40px' : '10px' }}
             value={displayValue}
             onChange={(e) => onChange(e.target.value)}
