@@ -148,15 +148,15 @@ function App() {
         countMap[name] = (countMap[name] || 0) + 1;
       });
 
-      // 3. 合併資料 (V16.10: 修正邏輯，完全信任資料庫 is_parsed 狀態，僅由背景補解析任務驅動狀態變更)
+      // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
         const countFromStats = countMap[f.original_name] || 0;
         
         return {
           ...f,
           knowledgeCount: countFromStats,
-          // 移除 (countFromStats > 0) 的自動轉正邏輯，確保中斷的檔案能被重新偵測
-          is_parsed: f.is_parsed === true
+          // 若 db 有 is_parsed 則信任，若無但有條目產出，便強制作為 true (因為 V17 確保 100% 產出，這表示該檔已成功解析)
+          is_parsed: f.is_parsed === true || countFromStats > 0
         };
       });
 
