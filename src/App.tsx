@@ -466,8 +466,8 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.3: 擴大重新解析範圍，將 knowledgeCount = 0 (有過紀錄但擷取失敗) 的檔案也納入目標
-    const targets = cloudFiles.filter(f => !f.is_parsed || (f as any).knowledgeCount === 0);
+    // V16.5: 強制轉為數字判定，解決數據類型不一致問題 (解決點擊無反應)
+    const targets = cloudFiles.filter(f => !f.is_parsed || Number((f as any).knowledgeCount || 0) === 0);
     
     if (targets.length === 0) {
       alert('所有檔案皆已擁有效解析條目，無須補解析。');
@@ -496,7 +496,11 @@ function App() {
           const blob = await response.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
-          // 2. 驅動 AI 解析引擎
+          // 2. V16.6: 強製清理舊有無效紀錄 (關鍵修復：確保 AI 認定為新檔案從而補足條目)
+          console.log(`[Reparse] 正在強制清理檔案 ${fileRecord.original_name} 的舊有紀錄...`);
+          await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+
+          // 3. 驅動 AI 解析引擎
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
           const newAdded = parseResult?.added || 0;
           const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
@@ -1090,7 +1094,7 @@ function App() {
                              alignItems: 'center',
                              gap: '4px'
                            }}>
-                             <Zap size={10} /> {t('parsedCount', data.language)} {(f as any).knowledgeCount > 0 ? `(${(f as any).knowledgeCount} ${t('itemsSuffix', data.language)})` : ''}
+                             <Zap size={10} /> {t('parsedCount', data.language)} {((f as any).knowledgeCount > 0 || f.is_parsed) ? `(${(f as any).knowledgeCount || 0} ${t('itemsSuffix', data.language)})` : ''}
                            </span>
                         ) : (
                           <span style={{ 

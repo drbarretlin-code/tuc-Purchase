@@ -96,6 +96,10 @@ export const translations: Record<string, any> = {
     'next': '下一步',
     'page': '頁數',
     'section': '章節',
+    'parsedCount': '已解析',
+    'viewFull': '開新分頁檢視',
+    'deleteRecord': '刪除紀錄',
+    'itemsSuffix': '條',
 
     // Boilerplate Defaults
     'defaultDependingOnProcurement': '依請購內容而定',
@@ -281,6 +285,10 @@ export const translations: Record<string, any> = {
     'previewTab': '查看預覽',
     'clickToEditTags': '點擊編輯標籤',
     'newTagHint': '點擊新增標籤...',
+    'parsedCount': '已解析',
+    'viewFull': '開新分頁檢視',
+    'deleteRecord': '刪除紀錄',
+    'itemsSuffix': '條',
     'noReqDesc': '無需求說明',
     'systemSubtitle': 'TUC 採購規範產生器'
   },
@@ -551,7 +559,7 @@ export const translations: Record<string, any> = {
     'parsedCount': '已解析',
     'viewFull': '在新标签页查看',
     'deleteRecord': '删除纪录',
-    'itemsSuffix': '條'
+    'itemsSuffix': '条'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -816,6 +824,8 @@ export const translations: Record<string, any> = {
     'clickToUpload': 'Click to upload image',
     
     'languageLabel': 'Language:',
+    'parsedCount': 'Parsed',
+    'viewFull': 'View in new tab',
     'deleteRecord': 'Delete Record',
     'itemsSuffix': 'entries',
     'apiKeyLabel': 'Gemini API Key (for AI hints)',
@@ -1099,6 +1109,9 @@ export const translations: Record<string, any> = {
     'itemsSuffix': 'รายการ',
     'noReqDesc': 'ไม่มีรายละเอียดความต้องการ',
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
+    'parsedCount': 'วิเคราะห์แล้ว',
+    'viewFull': 'ดูในแท็บใหม่',
+    'itemsSuffix': 'รายการ',
   }
 };
 
