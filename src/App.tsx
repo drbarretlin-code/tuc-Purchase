@@ -618,7 +618,7 @@ function App() {
           </div>
           <div>
             {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
-              {t('systemTitle', data.language)} v6.1
+              {t('systemSubtitle', data.language)} v6.1
             </p>}
           </div>
         </div>
@@ -626,7 +626,7 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* V16: 語系選擇器 */}
           <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>{data.language === 'en-US' ? 'Language:' : (data.language === 'th-TH' ? 'ภาษา:' : '語言:') }</span>
+            <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>{t('languageLabel', data.language)}</span>
             <select 
               value={data.language} 
               onChange={(e) => setData({ ...data, language: e.target.value as Language })}
@@ -729,14 +729,14 @@ function App() {
             onClick={() => setMobileAppTab('edit')}
           >
             <PenTool size={22} />
-            編輯內容
+            {t('editTab', data.language)}
           </button>
           <button 
             className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
             onClick={() => setMobileAppTab('preview')}
           >
             <BookOpen size={22} />
-            查看預覽
+            {t('previewTab', data.language)}
           </button>
         </nav>
       )}
@@ -754,7 +754,7 @@ function App() {
             </div>
             
             <div className="input-with-label">
-              <label>Gemini API Key (用於智慧建議)</label>
+              <label>{t('apiKeyLabel', data.language)}</label>
               <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
                 <input 
                   type={showApiKey ? "text" : "password"} 
@@ -765,7 +765,7 @@ function App() {
                     if (!showApiKey && val.includes('*')) return;
                     setTempKey(val);
                   }}
-                  placeholder="貼入您的 API Key..."
+                  placeholder={t('apiKeyPlaceholder', data.language)}
                   style={{ 
                     flex: 1,
                     borderColor: (tempKey && (!tempKey.startsWith('AIza') || tempKey.length < 30)) ? '#EF4444' : 'var(--border-color)'
@@ -799,9 +799,9 @@ function App() {
         <div className="modal-overlay" style={{ zIndex: 1100 }}>
           <div className="glass-panel modal-content" style={{ padding: '2rem', width: '350px', textAlign: 'center' }}>
             <Lock size={40} color="var(--tuc-red)" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ margin: '0 0 1rem', color: 'white' }}>{isChangePasswordMode ? '變更管理密碼' : '管理權限驗證'}</h3>
+            <h3 style={{ margin: '0 0 1rem', color: 'white' }}>{isChangePasswordMode ? t('changeAdminPwd', data.language) : t('adminAuth', data.language)}</h3>
             <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1.5rem' }}>
-              {isChangePasswordMode ? '請輸入新密碼（至少 6 位數字）' : '請輸入查閱管理密碼'}
+              {isChangePasswordMode ? t('newPwdHint', data.language) : t('enterPwdHint', data.language)}
             </p>
             
             {isChangePasswordMode ? (
@@ -814,14 +814,14 @@ function App() {
                     setPasswordError('');
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
-                  placeholder="新密碼..."
+                  placeholder={t('newPwdPlaceholder', data.language)}
                   autoFocus
                   style={{ width: '100%', marginBottom: '0.5rem', textAlign: 'center', borderColor: passwordError ? '#EF4444' : 'var(--border-color)' }}
                 />
                 {passwordError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginBottom: '1rem' }}>{passwordError}</p>}
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  <button className="ghost-button" onClick={() => { setIsChangePasswordMode(false); setPasswordError(''); }} style={{ flex: 1 }}>取消</button>
-                  <button className="primary-button" onClick={handleChangePassword} style={{ flex: 2 }}>儲存新密碼</button>
+                  <button className="ghost-button" onClick={() => { setIsChangePasswordMode(false); setPasswordError(''); }} style={{ flex: 1 }}>{t('cancel', data.language)}</button>
+                  <button className="primary-button" onClick={handleChangePassword} style={{ flex: 2 }}>{t('saveNewPwd', data.language)}</button>
                 </div>
               </>
             ) : (
@@ -831,13 +831,13 @@ function App() {
                   value={inputPassword} 
                   onChange={(e) => setInputPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
-                  placeholder="請輸入密碼..."
+                  placeholder={t('pwdPlaceholder', data.language)}
                   autoFocus
                   style={{ width: '100%', marginBottom: '1rem', textAlign: 'center' }}
                 />
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <button className="ghost-button" onClick={() => setShowPasswordPrompt(false)} style={{ flex: 1 }}>取消</button>
-                  <button className="primary-button" onClick={handleVerifyPassword} style={{ flex: 2 }}>確認</button>
+                  <button className="ghost-button" onClick={() => setShowPasswordPrompt(false)} style={{ flex: 1 }}>{t('cancel', data.language)}</button>
+                  <button className="primary-button" onClick={handleVerifyPassword} style={{ flex: 2 }}>{t('confirm', data.language)}</button>
                 </div>
                 <button 
                   onClick={() => setIsChangePasswordMode(true)} 
@@ -919,7 +919,7 @@ function App() {
                   {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />} 
                   <span className="header-btn-text">{t('labelFix', data.language)}</span>
                 </button>
-                <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title="縮小至背景執行">
+                <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title={t('minimizeToBg', data.language)}>
                   <Minimize2 size={20} />
                 </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
@@ -1102,18 +1102,18 @@ function App() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            <Loader2 size={10} className="spin" /> 未偵測到條目
+                            <Loader2 size={10} className="spin" /> {t('noEntries', data.language)}
                           </span>
                         )}
                       </td>
                       <td style={{ padding: '12px', color: '#bbb' }}>{f.requester}</td>
-                      <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString()}</td>
+                      <td style={{ padding: '12px', color: '#888', fontSize: '0.8rem' }}>{new Date(f.created_at).toLocaleString(data.language)}</td>
                       <td style={{ padding: '12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button className="icon-btn" onClick={() => window.open(f.public_url)} title="開新分頁檢視">
+                          <button className="icon-btn" onClick={() => window.open(f.public_url)} title={t('viewFull', data.language)}>
                             <Eye size={16} />
                           </button>
-                          <button className="icon-btn" onClick={() => handleDeleteFile(f.id)} style={{ color: '#EF4444' }} title="刪除紀錄">
+                          <button className="icon-btn" onClick={() => handleDeleteFile(f.id)} style={{ color: '#EF4444' }} title={t('deleteRecord', data.language)}>
                             <Trash2 size={16} />
                           </button>
                         </div>

@@ -137,7 +137,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
                   <h4>{doc.equipmentName}</h4>
                   <p>
                     <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                    {new Date(doc.createdAt).toLocaleString(language === 'en-US' ? 'en-US' : 'zh-TW')}
+                    {new Date(doc.createdAt).toLocaleString(language)}
                     {!doc.hasJson && !doc.equipmentName.includes(t('tabHardware', language)) && !doc.equipmentName.includes(t('regReq', language)) && (
                       <span style={{ marginLeft: '12px', color: '#F59E0B', fontWeight: 600 }}>{t('needAiAssemble', language)}</span>
                     )}

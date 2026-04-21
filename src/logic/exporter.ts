@@ -41,34 +41,36 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   const now = new Date();
   const dateStr = now.toLocaleDateString(lang === 'en-US' ? 'en-US' : (lang === 'th-TH' ? 'th-TH' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
 
+  const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
+
   const bodyContent = [
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection1', lang)}${getFullSpecName(data)}`, bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: `${t('reqDesc', lang)}：`, bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: data.requirementDesc || 'NA' })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection2', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.appearance || 'NA' })], spacing: { after: 200 } }),
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection3', lang)}${data.quantityUnit || 'NA'}`, bold: true })], spacing: { after: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: v(data.appearance, lang) })], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection3', lang)}${v(data.quantityUnit, lang)}`, bold: true })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection4', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.equipmentName || 'NA' })], spacing: { after: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: v(data.equipmentName, lang) })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection5', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.equipmentScope || 'NA' })], spacing: { after: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: v(data.equipmentScope, lang) })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection6', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_1', lang), bold: true }), new TextRun({ text: data.envRequirements })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_2', lang), bold: true }), new TextRun({ text: data.regRequirements })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_3', lang), bold: true }), new TextRun({ text: data.maintRequirements })], spacing: { after: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: t('docSub6_1', lang), bold: true }), new TextRun({ text: v(data.envRequirements, lang) })] }),
+    new Paragraph({ children: [new TextRun({ text: t('docSub6_2', lang), bold: true }), new TextRun({ text: v(data.regRequirements, lang) })] }),
+    new Paragraph({ children: [new TextRun({ text: t('docSub6_3', lang), bold: true }), new TextRun({ text: v(data.maintRequirements, lang) })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection7', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.safetyRequirements })], spacing: { after: 200 } }),
+    new Paragraph({ children: [new TextRun({ text: v(data.safetyRequirements, lang) })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection8', lang), bold: true })], spacing: { after: 100 } }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_1', lang)} ${data.elecSpecs}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_2', lang)} ${data.mechSpecs}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_3', lang)} ${data.physSpecs}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_4', lang)} ${data.relySpecs}` })] }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_1', lang)} ${v(data.elecSpecs, lang)}` })] }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_2', lang)} ${v(data.mechSpecs, lang)}` })] }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_3', lang)} ${v(data.physSpecs, lang)}` })] }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_4', lang)} ${v(data.relySpecs, lang)}` })] }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection9', lang), bold: true })], spacing: { before: 200 } }),
-    ...processAutoNumbering(data.installStandard).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
+    ...processAutoNumbering(v(data.installStandard, lang)).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
     new Paragraph({ children: [new TextRun({ text: `${t('docSub9_date', lang)} ${data.deliveryDate || 'NA'} | ${t('docSub9_period', lang)} ${data.workPeriod || 'NA'}`, bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: data.acceptanceDesc })] }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: v(data.acceptanceDesc, lang) })] }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200 } }),
-    ...processAutoNumbering(data.complianceDesc).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
+    ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
   ];
 
   const optionalSections: (Paragraph | Table)[] = [];
@@ -92,8 +94,8 @@ export const exportToWord = async (data: FormState, lang: Language) => {
           }),
           ...data.tableData.map(row => new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ text: row.category })] }),
-              new TableCell({ children: [new Paragraph({ text: row.item })] }),
+              new TableCell({ children: [new Paragraph({ text: v(row.category, lang) })] }),
+              new TableCell({ children: [new Paragraph({ text: v(row.item, lang) })] }),
               new TableCell({ children: [new Paragraph({ text: row.spec })] }),
               new TableCell({ children: [new Paragraph({ text: row.method })] }),
               new TableCell({ children: [new Paragraph({ text: row.samples, alignment: AlignmentType.CENTER })] }),

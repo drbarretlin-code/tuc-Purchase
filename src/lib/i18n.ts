@@ -11,18 +11,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'history': '歷史檔案',
     'showPreview': '顯示正式預覽',
     'hidePreview': '隱藏正式預覽',
-    'officialPreview': '正式預覽區',
-    
-    // Sidebar
-    'sidebarTitle': '編輯目錄',
-    'sidebarSubtitle': 'TUC 採購規範產生器',
-    
-    // Tabs
-    'tabBasic': '基本資訊',
-    'tabHardware': '技術規格',
-    'tabConstruction': '施工作業',
     'tabDrawings': '圖說表格',
     'tabSignOff': '會簽確認',
+    'systemSubtitle': 'TUC 採購規範產生器',
     
     // Form Labels
     'dept': '申請部門',
@@ -97,6 +88,67 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancel': '取消',
     'yes': '是',
     'no': '否',
+    'rangeRange': '適用區間',
+    'deptLabel': '申請單位',
+    'applicantLabel': '申請人員',
+    'extLabel': '分機',
+    'validationComplete': '✅ 規範編校完成',
+    'syncDescription': '您可以點擊下方按鈕將此份規範同步至雲端知識庫。<br/>系統將自動執行 AI 標籤校準，並根據文件隱碼覆蓋舊有資料。',
+    'finalizeSync': '完稿並同步至知識庫',
+    'syncing': '同步中，請稍候...',
+    'success': '成功',
+    'error': '錯誤',
+    'prev': '上一步',
+    'next': '下一步',
+    'page': '頁數',
+    'section': '章節',
+    
+    // Boilerplate Defaults
+    'defaultDependingOnProcurement': '依請購內容而定',
+    'defaultAccordingToTuc': '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
+    'defaultAccordingToTucShort': '依台燿規定',
+    'defaultNationalRegs': '符合國家法規',
+    'defaultSafetyRegs': '設計與安裝符合職業安全衛生法令規範',
+    'defaultInstallStd': `1. PLC以及人機程式修改，施工當天即提供修改前後程式備份
+2. PLC程式修改，原則保留原始程式，另新增輔助接點作新舊功能切替使用，達到可快速復原功能
+3. 工程依職業安全衛生法令規範作業
+4. 工程固定安全衛生管理監工乙員，現場無監工不得作業
+5. 工程完工符合人員安全操作及維修方便性，承包商自行評估進來
+6. 本案工程以功能符合需求、責任施工，承包商不得追加費用
+7. 工程完工設施整體須整齊、美觀、安全。未經核須不得使用葫蘆吊
+8. 手閥把手顏色依操作方式裝設。常開(藍色)/常閉(紅色)/調整(黃色)
+9. 金屬管、支架屬sus亮面材質
+10. 現場施工需維護環境及設備整潔
+11. 工程施工每一階段會監工人員查看拍照，未會同造成後續驗收作業問題，承包商自行承擔
+12. 工程施工進行符合職業安全衛生法及tuc協力廠商環安衛管理規則，相關作業費用已包含於工程內
+13. 施工日期須配合業主許可日期進行
+14. 本工程金屬類廢棄物須清運至tuc指定位置，其餘非金屬類廢棄物承包商須負責處理
+15. 承包工程當訂單確定後須提供進廠相關資料，如附件內容`,
+    'defaultAcceptance': '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收',
+    'defaultAcceptanceExtra': '補充說明',
+    'defaultCompliance': `1. 工程設施驗收後保固一年，工程費用含萬分之7工程保險
+2. 施工配合本公司安排日期((不含例假日))，施工期間遇有臨時問題需停工配合本公司安排
+3. 有動火,高架,吊掛,危險管路，等特殊作業須作業表單流程核准後方可施工，作業時需有tuc監工人員在場，tuc監工人員未在場施作特殊作業，依規定罰款
+4. 施工區域有安全疑慮時，圍出管制作業區域，防止人員車輛進入
+5. 液體管路拆卸須使用盛盤承接，造成危害及損壞依價賠償
+6. 危害性化學物質作業，須配戴個人防護器具
+7. 廠區禁攜帶打火機、砂輪切割機(廠內現場)，廠區內切割使用線鋸機
+8. 施工區域標示及警示(以警示帶或圍籬)，區分隔開，夜間裝警示閃光燈
+9. 厂內天花板動手過需擦拭乾淨或更新
+10. 危險管路拆卸備護目鏡(罩)、膠手套、防護衣、氣密式防毒口罩
+11. 施工臨時電線跨走道地面，使用斑馬膠帶黏貼警示
+12. 施工當日收工清潔環境並將垃圾載走，違反開單罰款
+13. 施工人員進廠全程戴工程帽作業，禁止外籍勞工入廠作業(有內政部核准文件:外籍勞工可移動工作場所，檢覆文件辦理)
+14. 進廠人員不得有宿醉或酒氣情況，違者人員須離廠禁止作業
+15. 屋頂、侷限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
+16. 電力/電控盤與旋轉/傳動機構張貼警告標語
+17. 因本工程造成設施(備)損(傷)壞須賠償。`,
+    'defaultTblFunctional': '功能',
+    'defaultTblQuality': '品質',
+    'defaultTblCapacity': '產能',
+    'defaultTblRuntest': '運轉測試',
+    'defaultTblAppearance': '外觀檢驗',
+    'defaultTblOutput': '出力測速',
     
     // Cloud Inspector
     'cloudInspector': '雲端歷史檔案查閱器',
@@ -116,6 +168,44 @@ export const translations: Record<Language, Record<string, string>> = {
     'progress': '進度',
     'minToBack': '縮小至背景',
     'noFiles': '目前無任何歷史上傳檔案',
+    'minimizeToBg': '縮小至背景執行',
+    'noEntries': '未偵測到條目',
+    'apiKeyLabel': 'Gemini API Key (用於智慧建議)',
+    'apiKeyPlaceholder': '貼入您的 API Key...',
+    'changeAdminPwd': '變更管理密碼',
+    'adminAuth': '管理權限驗證',
+    'newPwdHint': '請輸入新密碼（至少 6 位數字）',
+    'enterPwdHint': '請輸入查閱管理密碼',
+    'newPwdPlaceholder': '新密碼...',
+    'pwdPlaceholder': '請輸入密碼...',
+    'saveNewPwd': '儲存新密碼',
+    'unnamedDoc': '未命名文件',
+    'aiAssembleFail': 'AI 反向組裝失敗，該文件可能缺少關鍵條文。',
+    'queueError': '佇列新增失敗',
+    'unnamedEq': '未命名設備',
+    'uploadComplete': '上傳完成',
+    'successCount': '本次新增',
+    'skippedCount': '本次跳過',
+    'interrupted': '任務中斷',
+    'wizardDesc': '將現有 PDF/Word 或圖片規範拖入，AI 會自動抽取出請購條文並建立智慧索引。',
+    'selectFile': '選擇檔案上傳...',
+    'supportFiles': '支援 PDF, Word, JPG, PNG 格式。檔案將安全加密存儲至 TUC 雲端。',
+    'aiParsing': 'AI 正在深度解析條文...',
+    'queueRemaining': '佇列等待中：',
+    'recentUploads': '最近上傳歷史 (Top 10)',
+    'noRecentRecords': '尚無最近的上傳紀錄',
+    'viewOriginal': '檢視原始檔案',
+    'expertTip': '專家提示：',
+    'jsonStored': '此規範的所有 JSON 結構已存儲至雲端。下次開啟可一鍵載入。',
+    'loadAiResultPrefix': '載入 [',
+    'loadAiResultSuffix': '] 的 AI 解析結果',
+    'editTab': '編輯內容',
+    'previewTab': '查看預覽',
+    'parsedCount': '已解析',
+    'itemsSuffix': '條',
+    'clickToEditTags': '點擊編輯標籤',
+    'newTagHint': '點擊新增標籤...',
+    'noReqDesc': '無需求說明',
 
     // Document Preview & Sections
     'docOfficialPreview': '正式預覽',
@@ -397,6 +487,24 @@ export const translations: Record<Language, Record<string, string>> = {
     'parseError': '解析过程发生错误',
     'unnamedDoc': '未命名文件',
     'unnamedEq': '未命名设备',
+    'apiKeyLabel': 'Gemini API Key (用于智慧建议)',
+    'apiKeyPlaceholder': '贴入您的 API Key...',
+    'changeAdminPwd': '变更管理密码',
+    'adminAuth': '管理权限验证',
+    'newPwdHint': '请输入新密码（至少 6 位数字）',
+    'enterPwdHint': '请输入查阅管理密码',
+    'newPwdPlaceholder': '新密码...',
+    'pwdPlaceholder': '请输入密码...',
+    'saveNewPwd': '储存新密码',
+    'minimizeToBg': '缩小至背景执行',
+    'noEntries': '未检测到条目',
+    'editTab': '编辑内容',
+    'previewTab': '查看预览',
+    'itemsSuffix': '条',
+    'clickToEditTags': '点击编辑标签',
+    'newTagHint': '点击新增标签...',
+    'noReqDesc': '无需求说明',
+    'systemSubtitle': 'TUC 采购规范生成器',
     
     'wizardTitle': '智慧解析与规范归纳',
     'wizardDesc': '上传历史 PDF/图片 规范，AI 将自动萃取技术要点存入知识库',
@@ -430,7 +538,70 @@ export const translations: Record<Language, Record<string, string>> = {
     'parsedCount': '已解析',
     'viewFull': '在新标签页查看',
     'deleteRecord': '删除纪录',
-    'itemsSuffix': '条'
+    'itemsSuffix': '条',
+    'yes': '是',
+    'no': '否',
+    'rangeRange': '适用区间',
+    'deptLabel': '申请单位',
+    'applicantLabel': '申请人员',
+    'extLabel': '分机',
+    'validationComplete': '✅ 规范编校完成',
+    'syncDescription': '您可以点击下方按钮将此份规范同步至云端知识库。<br/>系统将自动执行 AI 标签校准，并根据文件隐码覆盖旧有资料。',
+    'finalizeSync': '完稿并同步至知识库',
+    'syncing': '同步中，请稍候...',
+    'success': '成功',
+    'error': '错误',
+    'prev': '上一步',
+    'next': '下一步',
+    'page': '页数',
+    'section': '章节',
+
+    // Boilerplate Defaults
+    'defaultDependingOnProcurement': '依请购内容而定',
+    'defaultAccordingToTuc': '依台燿规定(承揽商管理规范、承揽商安全卫生管理規則、承揽商作業危害因素告知單等)',
+    'defaultAccordingToTucShort': '依台燿规定',
+    'defaultNationalRegs': '符合国家法规',
+    'defaultSafetyRegs': '设计与安装符合职业安全卫生法令规范',
+    'defaultInstallStd': `1. PLC以及人机程序修改，施工当天即提供修改前後程序备份
+2. PLC程序修改，原则保留原始程序，另新增辅助接点作新旧功能切替使用，达到可快速复原功能
+3. 工程依职业安全卫生法令规范作业
+4. 工程固定安全卫生管理监工乙员，现场无监工不得作业
+5. 工程完工符合人员安全操作及维修方便性，承包商自行评估进来
+6. 本案工程以功能符合需求、责任施工，承包商不得追加费用
+7. 工程完工设施整体须整齐、美觀、安全。未经核须不得使用葫芦吊
+8. 手阀把手颜色依操作方式装设。常开(蓝色)/常闭(红色)/调整(黄色)
+9. 金属管、支架属sus亮面材质
+10. 现场施工需维护环境及设备整洁
+11. 工程施工每一阶段会监工人员查看拍照，未会同造成后续验收作业问题，承包商自行承担
+12. 工程施工进行符合职业安全卫生法及tuc协力厂商环安卫管理规则，相关作业费用已包含于工程内
+13. 施工日期须配合业主许可日期进行
+14. 本工程金属类废弃物须清运至tuc指定位置，其余非金属类废弃物承包商须负责处理
+15. 承包工程当订单确定后须提供进厂相关资料，如附件内容`,
+    'defaultAcceptance': '完工后会同勘查(须缺失改善完成及运作) 1个月后办理验收',
+    'defaultAcceptanceExtra': '补充说明',
+    'defaultCompliance': `1. 工程设施验收后保固一年，工程费用含万分之7工程保险
+2. 施工配合本公司安排日期((不含例假日))，施工期间遇有临时问题需停工配合本公司安排
+3. 有动火,高架,吊挂,危险管路，等特殊作业须作业表單流程核准后方可施工，作业时需有tuc监工人員在場，tuc監工人員未在場施作特殊作業，依規定罰款
+4. 施工区域有安全疑虑时，围出管制作业区域，防止人员车辆进入
+5. 液体管路拆卸须使用盛盘承接，造成危害及损坏依价赔偿
+6. 危害性化学物质作业，须佩戴个人防护器具
+7. 厂区禁携带打火机、砂轮切割机(厂内现场)，厂区内切割使用线锯机
+8. 施工区域标示及警示(以警示带或围栏)，区分隔开，夜间装警示闪光灯
+9. 厂内天花板动手过需擦拭干净或更新
+10. 危险管路拆卸备护目镜(罩)、胶手套、防护服、气密式防毒口罩
+11. 施工临时电线跨走道地面，使用斑马胶带粘贴警示
+12. 施工当日收工清洁环境并将垃圾載走，违反开单罚款
+13. 施工人员进厂全程戴工程帽作業，禁止外籍劳工人厂作业(有内政部核准文件:外籍劳工可移动工作场所，检覆文件办理)
+14. 进厂人员不得有宿醉或酒气情况，违者人员须离厂禁止作业
+15. 屋顶、局限空间作业须符合职业安全卫生设施规则，且于施工前3日提出作业申请(附上作业方法及防护器具清册文件，相关作业仪器须定期第三方检测合格标章)
+16. 电力/电控盘与旋转/传动机构张贴警告标语
+17. 因本工程造成设施(备)损(伤)坏须赔偿。`,
+    'defaultTblFunctional': '功能',
+    'defaultTblQuality': '质量',
+    'defaultTblCapacity': '产能',
+    'defaultTblRuntest': '运转测试',
+    'defaultTblAppearance': '外观检验',
+    'defaultTblOutput': '出力测速'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -514,6 +685,67 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancel': 'Cancel',
     'yes': 'Yes',
     'no': 'No',
+    'rangeRange': 'Applicable Interval',
+    'deptLabel': 'Applying Department',
+    'applicantLabel': 'Applicant',
+    'extLabel': 'Ext.',
+    'validationComplete': '✅ Validation Complete',
+    'syncDescription': 'Click below to sync this spec to cloud knowledge. AI will auto-calibrate tags based on doc hidden codes.',
+    'finalizeSync': 'Finalize & Sync',
+    'syncing': 'Syncing...',
+    'success': 'Success',
+    'error': 'Error',
+    'prev': 'Prev',
+    'next': 'Next',
+    'page': 'Page',
+    'section': 'Section',
+
+    // Boilerplate Defaults
+    'defaultDependingOnProcurement': 'Depending on procurement content',
+    'defaultAccordingToTuc': 'According to Taiwan Union requirements (Contractor Management, Safety and Health Rules, etc.)',
+    'defaultAccordingToTucShort': 'According to Taiwan Union requirements',
+    'defaultNationalRegs': 'Comply with national regulations',
+    'defaultSafetyRegs': 'Design and installation comply with Occupational Safety and Health laws',
+    'defaultInstallStd': `1. Backup of PLC and HMI programs must be provided before and after modification on the day of construction.
+2. In principle, preserve original PLC programs and use auxiliary points for new functions to allow quick recovery.
+3. Construction must follow Occupational Safety and Health regulations.
+4. One stationary safety supervisor required; no work allowed without supervision.
+5. Installation must ensure personnel safety and maintenance convenience.
+6. The project is for functional compliance; no additional costs allowed.
+7. Overall facilities must be neat, aesthetic, and safe. Use of hoists requires approval.
+8. Valve handles colored by operation: NO (Blue) / NC (Red) / Adjust (Yellow).
+9. Metal pipes and brackets made of SUS bright-finish material.
+10. Maintain cleanliness of the environment and equipment during construction.
+11. Each stage of construction must be photographed with supervisors; contractors bear responsibility for validation issues if unverified.
+12. Work must comply with Labor Safety laws and TUC environmental safety rules; costs included in the contract.
+13. Construction dates must be approved by the owner.
+14. Metal waste to TUC designated areas; contractors responsible for non-metal waste.
+15. Provide factory entry data and attachments once the order is confirmed.`,
+    'defaultAcceptance': 'Validation after 1 month of trouble-free operation following joint inspection.',
+    'defaultAcceptanceExtra': 'Extra notes',
+    'defaultCompliance': `1. One-year warranty after validation; insurance costs included.
+2. Construction follows TUC schedule; work may be suspended for TUC needs.
+3. Special work (fire, heights, etc.) requires approved permits and TUC supervision.
+4. Dangerous areas must be marked; unauthorized entry prevented.
+5. Pipe removal must use trays to prevent damage/leaks.
+6. Hazardous chemical work requires personal protective equipment (PPE).
+7. Lighters and abrasive cutters forbidden; use reciprocating saws inside.
+8. Work zones marked with tape/fences; warning lights required at night.
+9. Ceilings must be cleaned or updated if touched.
+10. PPE (goggles, gloves, suits, masks) required for dangerous pipe work.
+11. Temporary cables on walkways protected with zebra tape.
+12. Daily site cleanup required; fines for violations.
+13. Hard hats must be worn; no illegal foreign workers allowed.
+14. Site workers must be sober; intoxicated persons removed.
+15. High-risk work permits submitted 3 days early with PPE lists.
+16. Warning signs on electrical panels and rotating machinery.
+17. Compensation required for facilities damaged during construction.`,
+    'defaultTblFunctional': 'Functional',
+    'defaultTblQuality': 'Quality',
+    'defaultTblCapacity': 'Capacity',
+    'defaultTblRuntest': 'Running Test',
+    'defaultTblAppearance': 'Appearance Check',
+    'defaultTblOutput': 'Output Speed',
     'cloudInspector': 'Cloud History Viewer',
     'displayName': 'Display Name',
     'status': 'Status',
@@ -634,7 +866,24 @@ export const translations: Record<Language, Record<string, string>> = {
     'parsedCount': 'Parsed',
     'viewFull': 'View in new tab',
     'deleteRecord': 'Delete Record',
-    'itemsSuffix': 'entries'
+    'apiKeyLabel': 'Gemini API Key (for AI hints)',
+    'apiKeyPlaceholder': 'Paste your API key here...',
+    'changeAdminPwd': 'Change Admin Password',
+    'adminAuth': 'Admin Authentication',
+    'newPwdHint': 'Enter new password (min 6 digits)',
+    'enterPwdHint': 'Enter admin access password',
+    'newPwdPlaceholder': 'New password...',
+    'pwdPlaceholder': 'Enter password...',
+    'saveNewPwd': 'Save New Password',
+    'minimizeToBg': 'Minimize to Background',
+    'noEntries': 'No entries detected',
+    'editTab': 'Edit',
+    'previewTab': 'Preview',
+    'itemsSuffix': 'entries',
+    'clickToEditTags': 'Click to edit tags',
+    'newTagHint': 'Add tag...',
+    'noReqDesc': 'No requirement description',
+    'systemSubtitle': 'TUC Procurement Spec Generator',
   },
   'th-TH': {
     'systemTitle': 'แบบฟอร์มการสร้างข้อกำหนดการจัดซื้อและการรับมอบ',
@@ -718,6 +967,67 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancel': 'ยกเลิก',
     'yes': 'ใช่',
     'no': 'ไม่',
+    'rangeRange': 'ช่วงเวลาที่ใช้งาน',
+    'deptLabel': 'หน่วยงานที่สมัคร',
+    'applicantLabel': 'ผู้สมัคร',
+    'extLabel': 'เบอร์ต่อ',
+    'validationComplete': '✅ ตรวจสอบข้อกำหนดเสร็จสิ้น',
+    'syncDescription': 'คลิกด้านล่างเพื่อซิงค์ข้อกำหนดนี้กับความรู้บนคลาวด์ AI จะปรับเทียบแท็กโดยอัตโนมัติตามรหัสลับในเอกสาร',
+    'finalizeSync': 'เสร็จสิ้นและซิงค์กับฐานความรู้',
+    'syncing': 'กำลังซิงค์...',
+    'success': 'สำเร็จ',
+    'error': 'ข้อผิดพลาด',
+    'prev': 'ก่อนหน้า',
+    'next': 'ถัดไป',
+    'page': 'หน้า',
+    'section': 'หัวข้อ',
+
+    // Boilerplate Defaults
+    'defaultDependingOnProcurement': 'ขึ้นอยู่กับเนื้อหาการจัดซื้อ',
+    'defaultAccordingToTuc': 'ตามข้อกำหนดของ Taiwan Union (การจัดการผู้รับเหมา, กฎความปลอดภัย, ฯลฯ)',
+    'defaultAccordingToTucShort': 'ตามข้อกำหนดของ Taiwan Union',
+    'defaultNationalRegs': 'ปฏิบัติตามกฎหมายระดับประเทศ',
+    'defaultSafetyRegs': 'การออกแบบและติดตั้งเป็นไปตามกฎหมายความปลอดภัยและอาชีวอนามัย',
+    'defaultInstallStd': `1. ต้องจัดเตรียมข้อมูลสำรองของโปรแกรม PLC และ HMI ก่อนและหลังการแก้ไขในวันที่ก่อสร้าง
+2. โดยหลักการแล้ว ให้รักษาโปรแกรม PLC เดิมไว้ และใช้จุดช่วยสำหรับฟังก์ชันใหม่เพื่อให้สามารถกู้คืนได้อย่างรวดเร็ว
+3. การก่อสร้างต้องเป็นไปตามกฎระเบียบด้านความปลอดภัยและอาชีวอนามัย
+4. ต้องมีหัวหน้างานด้านความปลอดภัยประจำจุดหนึ่งคน ไม่อนุญาตให้ทำงานโดยไม่มีการควบคุมดูแล
+5. การติดตั้งต้องมั่นใจในความปลอดภัยของบุคลากรและความสะดวกในการบำรุงรักษา
+6. โครงการนี้มีไว้สำหรับการปฏิบัติตามหน้าที่ ไม่อนุญาตให้มีค่าใช้จ่ายเพิ่มเติม
+7. สิ่งอำนวยความสะดวกโดยรวมต้องเป็นระเบียบ สวยงาม และปลอดภัย การใช้รอกต้องได้รับการอนุมัติ
+8. มือจับวาล์วรหัสสีตามการใช้งาน: NO (สีน้ำเงิน) / NC (สีแดง) / ปรับ (สีเหลือง)
+9. ท่อโลหะและฉากยึดทำจากวัสดุ SUS ผิวมัน
+10. รักษาสภาพแวดล้อมและอุปกรณ์ให้สะอาดในระหว่างการก่อสร้าง
+11. การก่อสร้างแต่ละขั้นตอนต้องมีการถ่ายภาพร่วมกับหัวหน้างาน ผู้รับเหมาต้องรับผิดชอบต่อปัญหาความถูกต้องหากไม่ได้รับการตรวจสอบ
+12. งานต้องเป็นไปตามกฎหมายความปลอดภัยแรงงานและกฎการจัดการความปลอดภัยในสิ่งแวดล้อมของ TUC ค่าใช้จ่ายรวมอยู่ในสัญญาแล้ว
+13. วันก่อสร้างต้องได้รับอนุมัติจากเจ้าของ
+14. ขยะโลหะไปยังพื้นที่ที่ TUC กำหนด ผู้รับเหมาเป็นผู้รับผิดชอบขยะที่ไม่ใช่โลหะ
+15. ให้ข้อมูลการเข้าโรงงานและสิ่งที่แนบมาเมื่อยืนยันการสั่งซื้อแล้ว`,
+    'defaultAcceptance': 'การตรวจสอบความถูกต้องหลังจากใช้งานได้ 1 เดือนโดยไม่มีปัญหาหลังจากซูเปอร์ไวเซอร์ตรวจสอบร่วมกัน',
+    'defaultAcceptanceExtra': 'บันทึกเพิ่มเติม',
+    'defaultCompliance': `1. รับประกันหนึ่งปีหลังจากตรวจสอบความถูกต้อง รวมค่าประกัน
+2. การก่อสร้างเป็นไปตามกำหนดเวลาของ TUC งานอาจถูกระงับตามความต้องการของ TUC
+3. งานพิเศษ (ไฟ, ที่สูง, ฯลฯ) ต้องมีใบอนุญาตที่ได้รับอนุมัติและการดูแลของ TUC
+4. ต้องทำเครื่องหมายพื้นที่อันตราย ป้องกันการเข้าโดยไม่ได้รับอนุญาต
+5. การถอดท่อต้องใช้ถาดรองเพื่อป้องกันความเสียหาย/รอยรั่ว
+6. งานสารเคมีอันตรายต้องใช้อุปกรณ์ป้องกันส่วนบุคคล (PPE)
+7. ห้ามใช้ไฟแช็กและเครื่องตัดขัดสี ให้ใช้เลื่อยชักภายในอาคาร
+8. เขตงานทำเครื่องหมายด้วยเทป/รั้ว จำเป็นต้องมีไฟเตือนในตอนกลางคืน
+9. ฝ้าเพดานต้องทำความสะอาดหรืออัปเดตหากมีการสัมผัส
+10. จำเป็นต้องมี PPE (แว่นตา, ถุงมือ, ชุด, หน้ากาก) สำหรับงานท่อที่เป็นอันตราย
+11. สายเคเบิลชั่วคราวบนทางเดินป้องกันด้วยเทปม้าลาย
+12. ต้องทำความสะอาดไซต์งานทุกวัน มีโทษปรับสำหรับผู้ฝ่าฝืน
+13. ต้องสวมหมวกนิรภัย ไม่อนุญาตให้ใช้แรงงานต่างด้าวผิดกฎหมาย
+14. คนงานในไซต์งานต้องมีสติ ผู้ที่มึนเมาจะถูกเชิญออกจากพื้นชุด
+15. ใบอนุญาตทำงานที่มีความเสี่ยงสูงยื่นล่วงหน้า 3 วันพร้อมรายการ PPE
+16. ป้ายเตือนบนแผงไฟฟ้าและเครื่องจักรที่หมุนได้
+17. จำเป็นต้องได้รับการชดเชยสำหรับสิ่งอำนวยความสะดวกที่ได้รับความเสียหายในระหว่างการก่อสร้าง`,
+    'defaultTblFunctional': 'ฟังก์ชันการทำงาน',
+    'defaultTblQuality': 'คุณภาพ',
+    'defaultTblCapacity': 'ความจุ',
+    'defaultTblRuntest': 'การทดสอบการทำงาน',
+    'defaultTblAppearance': 'การตรวจสอบลักษณะภายนอก',
+    'defaultTblOutput': 'ความเร็วเอาต์พุต',
     'cloudInspector': 'ตัวแสดงประวัติบนคลาวด์',
     'displayName': 'ชื่อที่แสดง',
     'status': 'สถานะ',
@@ -838,7 +1148,24 @@ export const translations: Record<Language, Record<string, string>> = {
     'parsedCount': 'วิเคราะห์แล้ว',
     'viewFull': 'ดูในแท็บใหม่',
     'deleteRecord': 'ลบบันทึก',
-    'itemsSuffix': 'รายการ'
+    'apiKeyLabel': 'คีย์ Gemini API (สำหรับคำแนะนำ AI)',
+    'apiKeyPlaceholder': 'วางคีย์ API ของคุณที่นี่...',
+    'changeAdminPwd': 'เปลี่ยนรหัสผ่านผู้ดูแลระบบ',
+    'adminAuth': 'การยืนยันตัวตนผู้ดูแลระบบ',
+    'newPwdHint': 'กรุณาใส่รหัสผ่านใหม่ (อย่างน้อย 6 หลัก)',
+    'enterPwdHint': 'กรุณาใส่รหัสผ่านเข้าถึงผู้ดูแลระบบ',
+    'newPwdPlaceholder': 'รหัสผ่านใหม่...',
+    'pwdPlaceholder': 'กรุณาใส่รหัสผ่าน...',
+    'saveNewPwd': 'บันทึกรหัสผ่านใหม่',
+    'minimizeToBg': 'ลดขนาดลงพื้นหลัง',
+    'noEntries': 'ตรวจไม่พบรายการ',
+    'editTab': 'แก้ไขเนื้อหา',
+    'previewTab': 'ดูตัวอย่าง',
+    'itemsSuffix': 'รายการ',
+    'clickToEditTags': 'คลิกเพื่อแก้ไขแท็ก',
+    'newTagHint': 'คลิกเพื่อเพิ่มแท็ก...',
+    'noReqDesc': 'ไม่มีรายละเอียดความต้องการ',
+    'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
   }
 };
 

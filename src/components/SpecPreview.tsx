@@ -49,6 +49,8 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   const hasImages = data.images.length > 0;
   const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
 
+  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
+
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <style>{`
@@ -140,35 +142,35 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection2', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{data.appearance || 'NA'}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{v(data.appearance)}</div>
             </div>
 
             <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection3', data.language)}<span style={{ fontWeight: 'normal' }}>{data.quantityUnit || 'NA'}</span></h4>
+              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection3', data.language)}<span style={{ fontWeight: 'normal' }}>{v(data.quantityUnit)}</span></h4>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection4', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem' }}>{data.equipmentName || 'NA'}</div>
+              <div style={{ marginLeft: '1.2rem' }}>{v(data.equipmentName)}</div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection5', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{data.rangeRange || 'NA'}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.rangeRange)}</div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection6', data.language)}</h4>
               <div style={{ marginLeft: '1.2rem' }}>
-                <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_1', data.language)}</strong> {data.envRequirements}</div>
-                <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_2', data.language)}</strong> {data.regRequirements}</div>
-                <div style={{ whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_3', data.language)}</strong> {data.maintRequirements}</div>
+                <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_1', data.language)}</strong> {v(data.envRequirements)}</div>
+                <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_2', data.language)}</strong> {v(data.regRequirements)}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_3', data.language)}</strong> {v(data.maintRequirements)}</div>
               </div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection7', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{data.safetyRequirements}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.safetyRequirements)}</div>
             </div>
 
             <div className="doc-section">
@@ -176,19 +178,19 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_1', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.elecSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.elecSpecs)}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_2', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.mechSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.mechSpecs)}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_3', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.physSpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.physSpecs)}</div>
                 </div>
                 <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
                   <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_4', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.relySpecs}</div>
+                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.relySpecs)}</div>
                 </div>
               </div>
             </div>
@@ -196,16 +198,16 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection9', data.language)}</h4>
               <div style={{ marginLeft: '1.2rem' }}>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(data.installStandard)}</div>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.installStandard))}</div>
                 <div style={{ margin: '8px 0' }}><strong>{t('docSub9_date', data.language)}</strong> {data.deliveryDate || 'NA'} | <strong>{t('docSub9_period', data.language)}</strong> {data.workPeriod || 'NA'}</div>
                 <strong>{t('docSub9_acceptance', data.language)}</strong>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{data.acceptanceDesc}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{v(data.acceptanceDesc)}</div>
               </div>
             </div>
 
             <div className="doc-section">
               <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection10', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(data.complianceDesc)}</div>
+              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.complianceDesc))}</div>
             </div>
 
             {/* Conditional Sections XI & XII */}
@@ -239,8 +241,8 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
                     <tbody>
                       {data.tableData.map((row, i) => (
                         <tr key={i}>
-                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category}</td>
-                          <td style={{ border: '1px solid black' }}>{row.item}</td>
+                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category?.startsWith('default') ? t(row.category, data.language) : row.category}</td>
+                          <td style={{ border: '1px solid black' }}>{row.item?.startsWith('default') ? t(row.item, data.language) : row.item}</td>
                           <td style={{ border: '1px solid black' }}>{row.spec}</td>
                           <td style={{ border: '1px solid black' }}>{row.method}</td>
                           <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>

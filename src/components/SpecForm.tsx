@@ -29,7 +29,7 @@ import SpecTable from './SpecTable';
 import ImageUpload from './ImageUpload';
 import * as KP from '../lib/knowledgeParser';
 import type { FormState, AIHintSelection } from '../types/form';
-import { INITIAL_FORM_STATE } from '../types/form';
+import { INITIAL_FORM_STATE, BOILERPLATE_KEYS } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
 interface Props {
@@ -103,13 +103,73 @@ const CompactThreshold: React.FC<{
 };
 
 const SpecForm: React.FC<Props> = ({ data, onChange }) => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = React.useState(0);
+  const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
+
+  // V14: 遷移舊有硬編碼中文至 i18n 標籤 (Migration Logic)
+  React.useEffect(() => {
+    const MIGRATION_MAP: Record<string, string> = {
+      '依請購內容而定': 'defaultDependingOnProcurement',
+      '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)': 'defaultAccordingToTuc',
+      '依台燿規定': 'defaultAccordingToTucShort',
+      '符合國家法規': 'defaultNationalRegs',
+      '設計與安裝符合職業安全衛生法令規範': 'defaultSafetyRegs',
+      '完工後會同勘查(須缺失改善完成及運作) 1個月後辦理驗收': 'defaultAcceptance',
+      '補充說明': 'defaultAcceptanceExtra',
+      '功能': 'defaultTblFunctional',
+      '品質': 'defaultTblQuality',
+      '產能': 'defaultTblCapacity',
+      '運轉測試': 'defaultTblRuntest',
+      '外觀檢驗': 'defaultTblAppearance',
+      '出力測速': 'defaultTblOutput'
+    };
+
+    let needsUpdate = false;
+    const newData = { ...data };
+
+    // 檢查主要文字欄位
+    const textFields: (keyof FormState)[] = [
+      'equipmentScope', 'rangeRange', 'envRequirements', 'regRequirements', 
+      'maintRequirements', 'safetyRequirements', 'elecSpecs', 'mechSpecs', 
+      'physSpecs', 'relySpecs', 'installStandard', 'acceptanceDesc', 
+      'acceptanceExtra', 'complianceDesc'
+    ];
+
+    textFields.forEach(field => {
+      const val = data[field] as string;
+      if (val && MIGRATION_MAP[val]) {
+        (newData as any)[field] = MIGRATION_MAP[val];
+        needsUpdate = true;
+      } else if (field === 'installStandard' && val && val.includes('PLC以及人機程式修改')) {
+        // 特別處理多行字串
+        newData.installStandard = 'defaultInstallStd';
+        needsUpdate = true;
+      } else if (field === 'complianceDesc' && val && val.includes('工程設施驗收後保固一年')) {
+        newData.complianceDesc = 'defaultCompliance';
+        needsUpdate = true;
+      }
+    });
+
+    // 檢查表格資料
+    if (newData.tableData) {
+      newData.tableData = newData.tableData.map(row => {
+        let rowUpdated = false;
+        const newRow = { ...row };
+        if (MIGRATION_MAP[row.category]) { newRow.category = MIGRATION_MAP[row.category]; rowUpdated = true; }
+        if (MIGRATION_MAP[row.item]) { newRow.item = MIGRATION_MAP[row.item]; rowUpdated = true; }
+        if (rowUpdated) needsUpdate = true;
+        return newRow;
+      });
+    }
+
+    if (needsUpdate) {
+      onChange(newData);
+    }
+  }, []); // 只在載入時執行一次
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const [isDbImportModalOpen, setIsDbImportModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
@@ -467,16 +527,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div className="input-with-label">
-                    <label><Building2 size={14} /> 申請單位</label>
+                    <label><Building2 size={14} /> {t('deptLabel', data.language)}</label>
                     <input type="text" value={data.department} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('department', e.target.value)} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
                     <div className="input-with-label">
-                      <label><User size={14} /> 申請人員</label>
+                      <label><User size={14} /> {t('applicantLabel', data.language)}</label>
                       <input type="text" value={data.requester} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('requester', e.target.value)} />
                     </div>
                     <div className="input-with-label">
-                      <label><Hash size={14} /> 分機</label>
+                      <label><Hash size={14} /> {t('extLabel', data.language)}</label>
                       <input type="text" value={data.extension} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('extension', e.target.value)} />
                     </div>
                   </div>
@@ -822,10 +882,11 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 </div>
 
                 <div className="doc-section-box" style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(59, 130, 246, 0.05)', border: '2px dashed rgba(59, 130, 246, 0.2)', marginTop: '2rem' }}>
-                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>{data.language === 'en-US' ? '✅ Validation Complete' : '✅ 規範編校完成'}</h4>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    {data.language === 'en-US' ? 'Click below to sync this spec to cloud knowledge. AI will auto-calibrate tags based on doc hidden codes.' : '您可以點擊下方按鈕將此份規範同步至雲端知識庫。<br/>系統將自動執行 AI 標籤校準，並根據文件隱碼覆蓋舊有資料。'}
-                  </p>
+                  <h4 style={{ color: 'white', marginBottom: '1.5rem', fontSize: '1.5rem' }}>{t('validationComplete', data.language)}</h4>
+                  <p 
+                    style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}
+                    dangerouslySetInnerHTML={{ __html: t('syncDescription', data.language) }}
+                  />
                   
                   <button 
                     onClick={handleSyncToKnowledge}
@@ -839,7 +900,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                       boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                     }}
                   >
-                    {isSyncing ? (data.language === 'en-US' ? 'Syncing...' : '同步中，請稍候...') : (data.language === 'en-US' ? 'Finalize & Sync' : '完稿並同步至知識庫')}
+                    {isSyncing ? t('syncing', data.language) : t('finalizeSync', data.language)}
                   </button>
 
                   {syncStatus.type && (
@@ -865,10 +926,10 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
               onClick={() => setActiveTab(prev => prev - 1)} 
               className="ghost-button"
             >
-              <ChevronLeft size={20} /> {data.language === 'en-US' ? 'Prev' : '上一步'}
+              <ChevronLeft size={20} /> {t('prev', data.language)}
             </button>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {data.language === 'en-US' ? 'Section' : '章節'} {activeTab + 1} / {tabs.length}
+              {t('section', data.language)} {activeTab + 1} / {tabs.length}
             </div>
             {activeTab < tabs.length - 1 && (
               <button 
@@ -876,7 +937,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                 className="primary-button"
                 style={{ width: 'auto', padding: '0.6rem 2rem' }}
               >
-                {data.language === 'en-US' ? 'Next' : '下一步'} <ChevronRight size={20} />
+                {t('next', data.language)} <ChevronRight size={20} />
               </button>
             )}
           </footer>

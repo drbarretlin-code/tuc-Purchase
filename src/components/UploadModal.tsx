@@ -43,7 +43,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             })));
           }
         } catch (err) {
-          console.error('無法讀取檔案歷史:', err);
+          console.error('Fetch file history failed:', err);
         }
       };
       fetchFileHistory();
@@ -105,7 +105,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             isMyTurn = true;
             await client.from('tuc_system_queue').update({ status: 'processing' }).eq('owner_session', sessionId);
           } else {
-            console.log('[佇列等待] 前方尚有任務，5秒後重試...');
+            console.log('[Queue Waiting] Jobs ahead, retrying in 5s...');
             await new Promise(r => setTimeout(r, 5000));
           }
         }
@@ -113,20 +113,20 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       await waitForTurn();
 
       // --- 第二階段：重複檢查與清空 (去重機制) ---
-      console.log('[去重運算] 偵測並清理歷史重複檔案...');
+      console.log('[Deduplication] Checking and cleaning duplicates...');
       for (const file of fileList) {
         // 1. 執行批次查詢，找出所有「同檔名 + 同設備」的舊資料 (不論需求說明是否嚴格匹配)
         const { data: dups } = await client
           .from('tuc_uploaded_files')
           .select('id, storage_path')
           .eq('original_name', file.name)
-          .contains('equipment_tags', [data.equipmentName || '未命名設備']);
+          .contains('equipment_tags', [data.equipmentName || t('unnamedEq', language)]);
 
         if (dups && dups.length > 0) {
           const idsToRemove = dups.map(d => d.id);
           const pathsToRemove = dups.map(d => d.storage_path);
           
-          console.log(`[去重] 發現 ${dups.length} 筆重複檔案，正在進行取代作業...`);
+          console.log(`[Deduplication] Found ${dups.length} duplicates, replacing...`);
           
           // 批次刪除知識條目
           await client.from('tuc_history_knowledge').delete().eq('source_file_name', file.name);
@@ -154,7 +154,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           display_name: displayName,
           requester: data.requester || t('unknown', language),
           equipment_tags: [data.equipmentName || t('unnamedEq', language)],
-          requirement_desc: data.requirementDesc || '無需求說明',
+          requirement_desc: data.requirementDesc || t('noReqDesc', language),
           is_parsed: false
         }).select('id').single();
  
@@ -189,7 +189,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           })
           .eq('id', id);
 
-        console.log(`[同步] 檔案 ${file.name} 解析狀態與標籤 (${finalDetectedEq}) 已寫入雲端。`);
+        console.log(`[Sync] File ${file.name} status and tag (${finalDetectedEq}) synced to cloud.`);
 
         completedNames.push(file.name);
         localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));

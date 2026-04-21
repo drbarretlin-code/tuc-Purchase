@@ -29,6 +29,8 @@ const SectionEditor: React.FC<Props> = ({
   isTextArea = true, required = false, placeholder, inputType = "text",
   searchStatus = 'none', addon, language
 }) => {
+  const displayValue = (value && value.startsWith('default')) ? t(value, language) : value;
+
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
       <label style={{ 
@@ -47,7 +49,7 @@ const SectionEditor: React.FC<Props> = ({
       {isTextArea ? (
         <textarea
           style={{ width: '100%', minHeight: '100px' }}
-          value={value}
+          value={displayValue}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder || `${t('inputPlaceholder', language)}${label}...`}
         />
@@ -56,7 +58,7 @@ const SectionEditor: React.FC<Props> = ({
           <input
             type={inputType}
             style={{ width: '100%', paddingRight: inputType === 'date' ? '40px' : '10px' }}
-            value={value}
+            value={displayValue}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder || `${t('inputPlaceholder', language)}${label}...`}
           />
