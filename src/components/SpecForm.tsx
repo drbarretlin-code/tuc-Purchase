@@ -20,7 +20,8 @@ import {
   PenTool,
   Trash2,
   Repeat,
-  ShieldAlert
+  ShieldAlert,
+  Book
 } from 'lucide-react';
 import SectionEditor from './SectionEditor';
 import SpecTable from './SpecTable';
