@@ -1018,9 +1018,11 @@ function App() {
                           onClick={() => {
                             if (editingFileId !== f.id) {
                               setEditingFileId(f.id);
-                             }}
-                           title={t('clickToEditTags', data.language)}
-                         >
+                              setTempTags((f.equipment_tags && f.equipment_tags.length > 0) ? f.equipment_tags.join(', ') : (f.equipment_name || ''));
+                            }
+                          }}
+                          title={t('clickToEditTags', data.language)}
+                        >
                           {editingFileId === f.id ? (
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                               <input 

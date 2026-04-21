@@ -1,3 +1,6 @@
+import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+import { supabase } from './supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
 import { t, Language } from './i18n';
@@ -146,6 +149,7 @@ const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
   }
 };
 
+export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   const finalKey = rawKey.trim();
   
