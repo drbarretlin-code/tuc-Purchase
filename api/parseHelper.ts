@@ -13,8 +13,8 @@ export async function processFileBackend(
   docId: string
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
-  // Auto select model logic simplified for backend (always use 1.5 flash for stability & context window)
-  const modelId = 'gemini-2.0-flash';
+  // V17.6: 使用 1.5-flash 以平衡速度與長文本處理能力，適合背景大量處理
+  const modelId = 'gemini-1.5-flash';
   const model = genAI.getGenerativeModel({ model: modelId });
 
   let text = '';
@@ -39,8 +39,23 @@ export async function processFileBackend(
           mimeType: "application/pdf",
           displayName: fileName,
         });
-        fileUri = uploadResponse.file.uri;
-        console.log(`[Backend Parser] PDF 上傳成功, URI: ${fileUri}`);
+        
+        let file = uploadResponse.file;
+        console.log(`[Backend Parser] PDF 上傳成功, URI: ${file.uri}, 正在等待處理...`);
+        
+        // V17.6: 等待檔案處理完成 (Active 狀態)
+        let attempts = 0;
+        while (file.state === "PROCESSING" && attempts < 10) {
+          await new Promise(r => setTimeout(r, 2000));
+          file = await fileManager.getFile(file.name);
+          attempts++;
+        }
+        
+        if (file.state !== "ACTIVE") {
+          throw new Error(`PDF 檔案處理逾時或失敗: ${file.state}`);
+        }
+        
+        fileUri = file.uri;
       } finally {
         // Clean up temp file
         if (fs.existsSync(tmpFilePath)) {
@@ -56,32 +71,30 @@ export async function processFileBackend(
 
     const prompt = `
       你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範或技術標準檔案。
-      你的任務是：**榨乾這份檔案的所有技術價值**。
+      你的任務是：**榨乾這份檔案的所有技術價值，絕不遺漏任何技術參數、法規編號、施工要求或驗收標準**。
       
-      請執行以下操作：
-      1. **深度語意分析**：
-         - 如果檔案是特定設備的規範，請提取所有規格、材質、性能指標。
-         - 如果檔案是通用技術標準 (Standard) 或法規 (Global)，請提取關鍵的「作業準則」、「安全規範」或「驗收條件」。
-      2. **絕對強制提取**：
-         - **嚴禁回傳空的 specEntries**。
-         - 即便內容難以辨識或看起來是目錄/封面，你也要根據檔名（${fileName}）與可見文字，產出至少 5 條「文檔核心摘要」或「預期技術要求」。
-      3. **知識層級判定**：
-         - Specific: 具體設備或工程。
+      請依據以下分類邏輯進行深度索引：
+         - Specific: 針對特定設備（如 RTO、空壓機、剪床）的專屬規格。
          - Standard: 施工法、材料標準、KCG 編號標準。
-         - Global: 法令、環保規章。
+         - Global: 法令、環保規章、安全規則。
+      
+      規則：
+      1. 必須挖掘出至少 10-15 條具備技術含量的實體條目。
+      2. 內容必須包含原文中的具體數值（如：mm, kg, ℃, %）。
+      3. 輸出語言必須一律使用「繁體中文」。
       
       回傳格式：必須是純粹的 JSON。
       {
         "docType": "Specific | Standard | Global",
         "detectedEquipment": "最相關的設備或工程名稱",
         "specEntries": [
-          {"category": "技術要求/安全規範/驗收標準...", "content": "精煉後的條款內容"}
+          {"category": "技術要求/安全規範/驗收標準/材料規格...", "content": "精煉後的完整技術條目"}
         ],
-        "fullJsonData": { "summary": "文檔整體摘要", "keywords": ["關鍵字1", "關鍵字2"] }
+        "fullJsonData": { "summary": "文檔整體核心摘要", "keywords": ["關鍵字1", "關鍵字2"] }
       }
       
       待分析內容：
-      ${text ? text.substring(0, 25000) : '請深度掃描附件 PDF 並提取所有技術條款。'}
+      ${text ? text.substring(0, 30000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
     `;
 
     const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
