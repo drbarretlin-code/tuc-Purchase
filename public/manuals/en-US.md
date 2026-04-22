@@ -1,36 +1,62 @@
 # TUC Purchase Specification & Knowledge Base - User Manual
 
-Welcome to the TUC Intelligent Procurement System. This platform integrates Gemini AI technology to help you quickly parse equipment specifications, establish technical standards, and perform multi-lingual translations.
+Welcome to the TUC Intelligent Procurement System. This manual will guide you through the core features to achieve efficient and standardized specification building.
 
-## 1. Core Features
-- **Intelligent Parsing**: Automatically extract technical parameters from PDF/Docx files.
-- **Cloud Knowledge Base**: Cross-regional sharing of equipment maintenance and technical standards.
-- **Extreme Mining**: Deeply scan documents to extract every piece of technical value.
-- **Multi-lingual Sync**: Real-time switching between Traditional Chinese, Simplified Chinese, English, and Thai.
+---
 
-## 2. Gemini API Key - Important Information (BYOK)
-To ensure high parsing performance and minimize operational costs, this system uses the **BYOK (Bring Your Own Key)** model.
+## 1. Gemini API Key Configuration (Priority Step)
+This system uses the **BYOK (Bring Your Own Key)** model to ensure efficient data processing and privacy.
 
 ### Why use the Free Tier?
-- **Zero Cost**: Google AI Studio provides a free tier suitable for individual or small team use, requiring no API fees.
-- **High Performance**: Even in the free tier, parsing speed and accuracy remain outstanding.
-- **Privacy Control**: Your Key is stored only in your local browser; the system does not transmit your private key.
+- **Zero Cost**: Apply via Google AI Studio for free, perfect for daily operations.
+- **High Performance**: Powerful technical specification parsing and multi-lingual translation capabilities.
+- **Importance**: Without a Key, AI generation, Extreme Mining, and dynamic translation features will be unavailable.
 
-### Limitations & Policies
-- **Rate Limit**: The free tier is typically limited to 15 requests per minute (15 RPM), which is more than enough for a single user.
-- **Data Usage**: Please note that inputs in the free tier may be used by Google to improve their models (do not upload highly sensitive or confidential documents).
+### How to apply and set up?
+1. Go to **[Google AI Studio](https://aistudio.google.com/app/apikey)**.
+2. After logging in, click **"Create API key"** and copy it.
+3. Click the **(Settings ⚙️)** icon at the top right of the system, paste the key into the field, and save.
 
-### How to apply?
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Log in with your Google account.
-3. Click **"Create API key"**.
-4. Copy the key and paste it into the API Key field in the "Settings" icon at the top right of this system.
+---
 
-## 3. Workflow
-1. **Configure Key**: Ensure you enter your Gemini API Key before first use.
-2. **Upload Files**: Click "Upload New Spec"; the system will queue them for background analysis.
-3. **Load from Cloud**: Click "Load from Cloud" to reference historical records with automatic translation based on your language.
-4. **Extreme Mining**: If parsing is incomplete, use the "Reparse" function to trigger the Extreme Mining mechanism.
+## 2. File Operations & Uploads
+In the **(File Options 📁)** area at the top of the main interface, you can perform the following:
+
+- **(Upload ☁️) Upload New Spec**: Drag and drop PDF or Docx files. The system will automatically trigger the "Extreme Mining" engine for analysis.
+- **(Import 📂) Load Local JSON**: Import previously saved specification drafts to continue editing.
+- **(Export 💾) Export File**: Export completed specifications as JSON for archiving and exchange.
+
+---
+
+## 3. Main Editor: AI Extraction & Usage Tips
+When filling out technical specifications, you can utilize the **AI Assistant Panel** on the right:
+
+- **History Data Matching**: Based on the "Equipment Name" you enter, the system automatically retrieves maintenance records for similar equipment from the cloud.
+- **Technical Standards Reference**: For specific components or engineering tasks, AI recommends relevant KCG standards or industry norms.
+- **Usage Tips**:
+    - Adjust the **(Threshold ⚡)**: Increase the percentage for more precise matches; decrease it for broader references.
+    - Click the **(Apply ➕)** button next to suggested items to fill them directly into the corresponding fields, significantly reducing typing time.
+
+---
+
+## 4. Preview Area & Verification
+Click **(Show Preview 👁️)** in the header to enter split-screen mode:
+
+- **Real-time Rendering**: Edits on the left are immediately reflected in the formal specification format on the right.
+- **Calibration Labels**: The system marks calibrated items with a **(Check ✅)** icon.
+- **PDF Generation**: Once verified, you can download the official PDF acceptance specification directly from the preview area.
+
+---
+
+## 5. Cloud History Inspector (Operations)
+The **(Cloud History ☁️)** located in the sidebar or bottom toolbar is the system's knowledge core:
+
+- **Status Tracking**:
+    - **(Pending 🔵)**: File is in queue waiting for AI analysis.
+    - **(Completed 🟢)**: Parsing complete, technical index established.
+    - **(Failed 🔴)**: Parsing failed, usually due to encryption or incomplete content.
+- **Force Reparse**: For failed or sparse files, select them and click **(Repeat 🔄)** to force AI into a deep scan.
+- **Multi-lingual Reference**: In non-Traditional Chinese modes, the inspector dynamically translates filenames. Click a file to translate its technical content into the current language and import it into the form.
 
 ---
 *Version: V17.6 | Tech Support: Antigravity AI*
