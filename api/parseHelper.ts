@@ -23,7 +23,7 @@ export async function processFileBackend(
 
   try {
     if (fileName.toLowerCase().endsWith('.docx')) {
-      const resp = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
+      const resp = await mammoth.extractRawText({ buffer: Buffer.from(fileBuffer) });
       text = resp.value;
     } else if (fileName.toLowerCase().endsWith('.pdf')) {
       // PDF handling: Use Google AI File Manager to handle large PDFs (up to 30MB)
