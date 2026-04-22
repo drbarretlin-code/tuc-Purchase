@@ -688,7 +688,10 @@ function App() {
           const res = await fetch('/api/enqueue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileIds: batch })
+            body: JSON.stringify({ 
+              fileIds: batch,
+              language: data.language 
+            })
           });
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));

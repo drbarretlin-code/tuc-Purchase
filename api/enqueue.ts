@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { fileIds } = req.body;
+    const { fileIds, language } = req.body;
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
       return res.status(400).json({ error: 'fileIds array is required' });
     }
@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const delaySeconds = i * 20;
         const publishOptions: any = {
           url: workerUrl,
-          body: { fileId: id },
+          body: { fileId: id, language: language },
           retries: 3,
         };
         

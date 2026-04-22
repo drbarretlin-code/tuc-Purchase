@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 1. Verify QStash request (Basic verification, assuming Upstash sends valid POST)
-  const { fileId } = req.body || {};
+  const { fileId, language } = req.body || {};
   if (!fileId) {
     return res.status(400).json({ error: 'fileId is required in body' });
   }
@@ -67,7 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       record.original_name,
       apiKey,
       record.equipment_name,
-      fileId
+      fileId,
+      language || 'zh-TW'
     );
 
     // 6. 解析成功後，先插入新條目，再刪除舊條目（防止解析失敗導致資料歸零）

@@ -187,7 +187,10 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           const res = await fetch('/api/enqueue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileIds: fileIdsToEnqueue })
+            body: JSON.stringify({ 
+              fileIds: fileIdsToEnqueue,
+              language: language 
+            })
           });
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));

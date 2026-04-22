@@ -10,7 +10,8 @@ export async function processFileBackend(
   fileName: string, 
   apiKey: string, 
   equipmentName: string, 
-  docId: string
+  docId: string,
+  targetLang: string = 'zh-TW'
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   // V17.6: 使用 1.5-flash 以平衡速度與長文本處理能力，適合背景大量處理
@@ -81,7 +82,7 @@ export async function processFileBackend(
       規則：
       1. 必須挖掘出至少 10-15 條具備技術含量的實體條目。
       2. 內容必須包含原文中的具體數值（如：mm, kg, ℃, %）。
-      3. 輸出語言必須一律使用「繁體中文」。
+      3. 輸出語言：優先使用「${targetLang}」，但若文檔內容為泰文/英文且包含關鍵技術代碼，請在保持易讀性的前提下忠實呈現。
       
       回傳格式：必須是純粹的 JSON。
       {
