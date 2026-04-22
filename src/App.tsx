@@ -146,7 +146,7 @@ function App() {
     // 翻譯前 50 筆，涵蓋大部分視窗範圍
     const itemsToTranslate = cloudFiles.slice(0, 50).map(f => ({
       id: f.id,
-      name: f.equipment_name || f.original_name,
+      name: f.display_name || f.equipment_name || f.original_name,
       tags: f.equipment_tags || []
     }));
 
@@ -154,7 +154,15 @@ function App() {
       const translated = await KP.translateCloudMetadata(itemsToTranslate, data.language, apiKey);
       const newFiles = cloudFiles.map(f => {
         const trans = translated.find(t => t.id === f.id);
-        return trans ? { ...f, equipment_name: trans.name, equipment_tags: trans.tags } : f;
+        if (!trans) return f;
+        
+        // V17.4: 更新顯示名稱與標籤
+        return { 
+          ...f, 
+          display_name: trans.name, 
+          equipment_name: trans.name.includes('(') ? trans.name.split('(')[1].replace(')', '') : trans.name,
+          equipment_tags: trans.tags 
+        };
       });
       setTranslatedCloudFiles(newFiles);
     } catch (err) {
