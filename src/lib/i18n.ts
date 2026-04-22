@@ -284,8 +284,11 @@ export const translations: Record<string, any> = {
     'queuePending': '等待中',
     'queueProcessing': '解析中',
     'queueFailed': '失敗',
+    'unparsed': '未解析',
     'completionRate': '總完成率',
     'enqueueUnparsed': '解析失敗/未解析送入佇列',
+    'batchReparse': '批次重新解析',
+    'confirmReparseBatch': '確定要將這 {n} 筆檔案送入雲端背景重新解析嗎？\n(系統將分批送出，避免逾時)',
     'statusPending': '等待佇列中',
     'statusProcessing': '伺服器解析中',
     'statusFailed': '解析失敗'
@@ -568,8 +571,11 @@ export const translations: Record<string, any> = {
     'queuePending': '等待中',
     'queueProcessing': '解析中',
     'queueFailed': '失败',
+    'unparsed': '未解析',
     'completionRate': '总完成率',
     'enqueueUnparsed': '解析失败/未解析送入队列',
+    'batchReparse': '批量重新解析',
+    'confirmReparseBatch': '确定要将这 {n} 筆档案送入云端背景重新解析吗？\n(系统将分批送出，避免超时)',
     'statusPending': '等待队列中',
     'statusProcessing': '服务器解析中',
     'statusFailed': '解析失败'
@@ -868,8 +874,11 @@ export const translations: Record<string, any> = {
     'queuePending': 'Pending',
     'queueProcessing': 'Processing',
     'queueFailed': 'Failed',
+    'unparsed': 'Unparsed',
     'completionRate': 'Completion',
     'enqueueUnparsed': 'Enqueue Failed/Unparsed',
+    'batchReparse': 'Batch Reparse',
+    'confirmReparseBatch': 'Are you sure you want to send these {n} files for background re-parsing?\n(System will send in batches to avoid timeout)',
     'statusPending': 'Queued',
     'statusProcessing': 'Server parsing',
     'statusFailed': 'Parse failed'
@@ -1139,6 +1148,7 @@ export const translations: Record<string, any> = {
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
     'parsedCount': 'วิเคราะห์แล้ว',
     'viewFull': 'ดูในแท็บใหม่',
+    'forceReparse': 'บังคับวิเคราะห์ใหม่',
 
     // Queue Status Dashboard
     'queueOverview': 'สถานะคิว',
@@ -1148,8 +1158,11 @@ export const translations: Record<string, any> = {
     'queuePending': 'รอดำเนินการ',
     'queueProcessing': 'กำลังวิเคราะห์',
     'queueFailed': 'ล้มเหลว',
+    'unparsed': 'ยังไม่วิเคราะห์',
     'completionRate': 'อัตราสำเร็จ',
     'enqueueUnparsed': 'ส่งรายการล้มเหลว/ยังไม่วิเคราะห์เข้าคิว',
+    'batchReparse': 'วิเคราะห์ซ้ำแบบกลุ่ม',
+    'confirmReparseBatch': 'คุณแน่ใจหรือไม่ว่าต้องการส่งไฟล์ {n} รายการเหล่านี้เพื่อวิเคราะห์ใหม่ในพื้นหลัง?\n(ระบบจะส่งเป็นชุดเพื่อหลีกเลี่ยงการหมดเวลา)',
     'statusPending': 'อยู่ในคิว',
     'statusProcessing': 'เซิร์ฟเวอร์กำลังวิเคราะห์',
     'statusFailed': 'วิเคราะห์ล้มเหลว'

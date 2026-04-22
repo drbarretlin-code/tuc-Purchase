@@ -618,7 +618,7 @@ function App() {
     const targets = cloudFiles.filter(f => ids.includes(f.id));
     if (targets.length === 0) return;
     
-    if (!confirm(`確定要將這 ${targets.length} 筆檔案送入雲端背景重新解析嗎？\n(系統將分批送出，避免逾時)`)) return;
+    if (!confirm(`${t('confirmReparseBatch', data.language).replace('{n}', targets.length.toString())}`)) return;
 
     setIsReparsing(true);
     
@@ -1023,7 +1023,7 @@ function App() {
                         opacity: isReparsing ? 0.5 : 1
                       }}
                     >
-                      <Repeat size={14} /> 批次重新解析 ({selectedFileIds.length})
+                      <Repeat size={14} /> {t('batchReparse', data.language)} ({selectedFileIds.length})
                     </button>
                     <button 
                       className="primary-button" 
@@ -1110,6 +1110,7 @@ function App() {
               const pendingCount = cloudFiles.filter(f => getFileCategory(f) === 'pending').length;
               const processingCount = cloudFiles.filter(f => getFileCategory(f) === 'processing').length;
               const failedCount = cloudFiles.filter(f => getFileCategory(f) === 'failed').length;
+              const unparsedCount = cloudFiles.filter(f => getFileCategory(f) === 'unparsed').length;
               const totalFiles = cloudFiles.length;
               const progressPct = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
               const hasActiveJobs = pendingCount > 0 || processingCount > 0;
@@ -1150,6 +1151,12 @@ function App() {
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
                       <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueFailed', data.language)} <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
                     </div>
+                    {unparsedCount > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#888' }} />
+                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('unparsed', data.language)} <b style={{ color: '#888' }}>{unparsedCount}</b></span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                     <div style={{ 
@@ -1183,7 +1190,7 @@ function App() {
                     <Loader2 size={14} className="spin" /> {t('processing', data.language)}: <b>{reparseCurrentFile}</b>
                   </span>
                   <span style={{ color: '#888' }}>
-                    {t('progress', data.language)}: <b style={{ color: '#60A5FA' }}>{reparseIndex} / {reparseTotal}</b> ({reparseProgress}%)
+                    {t('progress', data.language)}: <b style={{ color: '#60A5FA' }}>{Math.min(reparseIndex + 5, reparseTotal)} / {reparseTotal}</b> ({reparseProgress}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
