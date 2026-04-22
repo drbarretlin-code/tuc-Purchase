@@ -6,7 +6,10 @@ import { createClient } from '@supabase/supabase-js';
 let qstashClient: Client | null = null;
 try {
   if (process.env.QSTASH_TOKEN) {
-    qstashClient = new Client({ token: process.env.QSTASH_TOKEN });
+    qstashClient = new Client({ 
+      token: process.env.QSTASH_TOKEN,
+      baseUrl: process.env.QSTASH_URL || undefined
+    });
   }
 } catch (e) {
   console.warn('QSTASH_TOKEN initialization failed');

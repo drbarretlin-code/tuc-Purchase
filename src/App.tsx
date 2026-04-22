@@ -626,7 +626,11 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileIds: ids })
       });
-      if (!res.ok) throw new Error('Enqueue API failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('[Enqueue API Error Details]:', errorData);
+        throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+      }
       
       alert(`已成功將 ${ids.length} 筆檔案送入背景解析佇列！請稍後重整網頁檢視最新狀態。`);
       await fetchCloudFiles();

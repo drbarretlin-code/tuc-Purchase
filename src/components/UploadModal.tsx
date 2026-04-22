@@ -189,7 +189,11 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileIds: fileIdsToEnqueue })
           });
-          if (!res.ok) throw new Error('Enqueue API failed');
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            console.error('[Enqueue API Error Details]:', errorData);
+            throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+          }
           console.log('[Queue] 檔案已成功送入背景佇列');
         } catch (err) {
           console.error('[Queue Error]', err);
