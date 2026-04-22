@@ -618,28 +618,62 @@ function App() {
     const targets = cloudFiles.filter(f => ids.includes(f.id));
     if (targets.length === 0) return;
     
-    if (!confirm(`確定要將這 ${targets.length} 筆檔案送入雲端背景重新解析嗎？\n(請確保已設定好背景佇列，檔案將進入排隊流程)`)) return;
+    if (!confirm(`確定要將這 ${targets.length} 筆檔案送入雲端背景重新解析嗎？\n(系統將分批送出，避免逾時)`)) return;
 
     setIsReparsing(true);
+    
+    // 分批送出（每批最多 5 筆），避免 Vercel Serverless 10s 逾時
+    const BATCH_SIZE = 5;
+    let enqueuedTotal = 0;
+    let failedBatches = 0;
+
     try {
-      const res = await fetch('/api/enqueue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileIds: ids })
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error('[Enqueue API Error Details]:', errorData);
-        throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(ids.length / BATCH_SIZE);
+        
+        setReparseCurrentFile(`${t('queuePending', data.language)} ${batchNum}/${totalBatches}`);
+        setReparseProgress(Math.round((i / ids.length) * 100));
+        setReparseIndex(i);
+        setReparseTotal(ids.length);
+
+        try {
+          const res = await fetch('/api/enqueue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileIds: batch })
+          });
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            console.error(`[Enqueue Batch ${batchNum}] Error:`, errorData);
+            failedBatches++;
+          } else {
+            enqueuedTotal += batch.length;
+          }
+        } catch (err: any) {
+          console.error(`[Enqueue Batch ${batchNum}] Network error:`, err.message);
+          failedBatches++;
+        }
+
+        // 批次間間隔 2 秒，避免瞬間壓力
+        if (i + BATCH_SIZE < ids.length) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
-      
-      alert(`已成功將 ${ids.length} 筆檔案送入背景解析佇列！請稍後重整網頁檢視最新狀態。`);
+
+      const msg = failedBatches > 0
+        ? `已送出 ${enqueuedTotal} 筆，${failedBatches} 批次失敗。請稍後重試失敗的檔案。`
+        : `已成功將 ${enqueuedTotal} 筆檔案分批送入背景解析佇列！`;
+      alert(msg);
       await fetchCloudFiles();
       setSelectedFileIds([]);
     } catch (err: any) {
-      alert('無法送入解析佇列: ' + err.message);
+      alert('送入解析佇列時發生錯誤: ' + err.message);
     } finally {
       setIsReparsing(false);
+      setReparseCurrentFile('');
+      setReparseProgress(0);
     }
   };
 
