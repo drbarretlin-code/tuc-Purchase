@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Book, ExternalLink, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { t, Language } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 
 interface ManualModalProps {
   isOpen: boolean;
