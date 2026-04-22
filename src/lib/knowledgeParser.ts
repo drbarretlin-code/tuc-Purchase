@@ -349,23 +349,25 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
     let addedCount = 0;
     let skippedCount = 0;
-    
+
+    // V17.3: In-memory deduplication to prevent cross-file conflicts and speed up processing
+    const uniqueItems = [];
+    const seen = new Set();
     for (const item of indexData) {
-      const safeCategory = item.category ? item.category.substring(0, 50) : '未分類';
-      
-      const { data: existing } = await supabase
-        .from('tuc_history_knowledge')
-        .select('id')
-        .eq('category', safeCategory)
-        .eq('content', item.content)
-        .contains('metadata', { equipment_name: detectedEq })
-        .maybeSingle();
-
-      if (existing) {
+      const contentStr = item.content || '無內容摘要';
+      const catStr = item.category || '未分類';
+      const key = `${catStr}:::${contentStr}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push({ category: catStr, content: contentStr });
+      } else {
         skippedCount++;
-        continue;
       }
+    }
 
+    for (const item of uniqueItems) {
+      const safeCategory = item.category.substring(0, 50);
+      
       const { error } = await supabase.from('tuc_history_knowledge').insert({
         category: safeCategory,
         content: item.content,
