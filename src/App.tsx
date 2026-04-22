@@ -672,6 +672,11 @@ function App() {
         setReparseTotal(ids.length);
 
         try {
+          // V17.2: 樂觀更新 - 在發送請求前先在本地標記為 pending，讓使用者有即時回饋
+          setCloudFiles(prev => prev.map(f => 
+            batch.includes(f.id) ? { ...f, parse_status: 'pending', error_message: null } : f
+          ));
+
           const res = await fetch('/api/enqueue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1449,32 +1454,40 @@ function App() {
                             <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? t('statusPending', data.language) : t('statusProcessing', data.language)}
                           </span>
                         ) : (f as any).parse_status === 'failed' ? (
-                          <span style={{ 
-                            padding: '2px 8px', 
-                            background: 'rgba(239,68,68,0.1)', 
-                            color: '#EF4444', 
-                            borderRadius: '12px', 
-                            fontSize: '0.75rem',
-                            border: '1px solid rgba(239,68,68,0.2)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }} title={(f as any).error_message}>
-                            <ShieldAlert size={10} /> {t('statusFailed', data.language)}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ 
+                              padding: '2px 8px', 
+                              background: 'rgba(239,68,68,0.1)', 
+                              color: '#EF4444', 
+                              borderRadius: '12px', 
+                              fontSize: '0.75rem',
+                              border: '1px solid rgba(239,68,68,0.2)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              width: 'fit-content'
+                            }}>
+                              <ShieldAlert size={10} /> {t('statusFailed', data.language)}
+                            </span>
+                            {f.error_message && (
+                              <div style={{ fontSize: '0.65rem', color: '#666', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.error_message}>
+                                {f.error_message}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span style={{ 
                             padding: '2px 8px', 
-                            background: 'rgba(245,158,11,0.1)', 
-                            color: '#F59E0B', 
+                            background: 'rgba(255,255,255,0.05)', 
+                            color: '#888', 
                             borderRadius: '12px', 
                             fontSize: '0.75rem',
-                            border: '1px solid rgba(245,158,11,0.2)',
+                            border: '1px solid rgba(255,255,255,0.1)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            <Loader2 size={10} className="spin" /> {t('noEntries', data.language)}
+                            <Info size={10} /> {t('unparsed', data.language)}
                           </span>
                         )}
                       </td>
