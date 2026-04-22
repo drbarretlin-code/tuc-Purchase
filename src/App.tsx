@@ -282,7 +282,8 @@ function App() {
         return;
       }
 
-      setLargeFilesFound(filtered);
+      // 預設全部勾選要刪除
+      setLargeFilesFound(filtered.map(f => ({ ...f, checked: true })));
       setShowCleanupModal(true);
     } catch (err: any) {
       console.error('Scan large files failed:', err);
@@ -293,11 +294,15 @@ function App() {
   };
 
   const executeCleanup = async () => {
-    if (!supabase || largeFilesFound.length === 0) return;
+    const toDelete = largeFilesFound.filter(f => f.checked);
+    if (!supabase || toDelete.length === 0) {
+      alert('請至少選擇一個檔案進行清理。');
+      return;
+    }
     setIsCleaning(true);
 
     try {
-      const fileNames = largeFilesFound.map(f => f.name);
+      const fileNames = toDelete.map(f => f.name);
 
       // 1. 刪除 Storage 實體檔案
       const { error: storageError } = await supabase.storage.from('spec-files').remove(fileNames);
@@ -1339,9 +1344,21 @@ function App() {
                         color: '#aaa'
                       }}>
                         {largeFilesFound.map((f, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '4px 0' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{f.name}</span>
-                            <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={f.checked} 
+                              onChange={(e) => {
+                                const newList = [...largeFilesFound];
+                                newList[i].checked = e.target.checked;
+                                setLargeFilesFound(newList);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{f.name}</span>
+                              <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
                           </div>
                         ))}
                       </div>
