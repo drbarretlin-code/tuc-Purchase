@@ -289,8 +289,8 @@ function App() {
           (cf.public_url && cf.public_url.includes(f.name)) ||
           cf.id === f.name.split('_')[0]
         );
-        // 如果找不到記錄（可能為孤兒檔案），則顯示原儲存名稱
-        const displayName = dbRecord ? (dbRecord.original_name || dbRecord.display_name) : f.name;
+        // 如果找不到記錄（可能為孤兒檔案），則顯示原儲存名稱並加註
+        const displayName = dbRecord ? (dbRecord.original_name || dbRecord.display_name) : `${f.name} (查無原始紀錄的孤兒檔案)`;
         
         return { 
           ...f, 
