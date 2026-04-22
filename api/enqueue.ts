@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client } from '@upstash/qstash';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Initialize inside handler to avoid global crashes if env vars are missing
 let qstashClient: Client | null = null;
@@ -15,7 +15,7 @@ try {
   console.warn('QSTASH_TOKEN initialization failed');
 }
 
-let supabase: ReturnType<typeof createClient> | null = null;
+let supabase: SupabaseClient | null = null;
 try {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -48,10 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'fileIds array is required' });
     }
 
-    if (!process.env.QSTASH_TOKEN) {
-      console.warn('[Enqueue] QSTASH_TOKEN 尚未配置，將跳過推播，僅更新資料庫狀態');
-    }
-
     // Determine base URL for Webhook callback
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
@@ -64,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 1. 更新資料庫狀態為 pending
     const { error: dbError } = await supabase
       .from('tuc_uploaded_files')
-      .update({ parse_status: 'pending', error_message: null })
+      .update({ parse_status: 'pending', error_message: null } as any)
       .in('id', fileIds);
 
     if (dbError) {
@@ -73,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 2. 推送任務至 QStash
-    const results = [];
+    const results: any[] = [];
     if (qstashClient) {
       for (let i = 0; i < fileIds.length; i++) {
         const id = fileIds[i];

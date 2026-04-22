@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-import { processFileBackend } from './parseHelper';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { processFileBackend } from './parseHelper.js';
 
-// Initialize Supabase Client dynamically inside handler
-let supabase: ReturnType<typeof createClient> | null = null;
+// Initialize Supabase Client dynamically
+let supabase: SupabaseClient | null = null;
 try {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -41,11 +41,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error(`File record not found: ${fetchError?.message}`);
     }
 
+    const record = fileRecord as any;
+
     // 3. Mark as processing
-    await supabase.from('tuc_uploaded_files').update({ parse_status: 'processing' }).eq('id', fileId);
+    await supabase.from('tuc_uploaded_files').update({ parse_status: 'processing' } as any).eq('id', fileId);
 
     // 4. Download file from Supabase Storage
-    const storagePath = fileRecord.storage_path;
+    const storagePath = record.storage_path;
     const { data: fileBlob, error: downloadError } = await supabase.storage.from('tuc_documents').download(storagePath);
     
     if (downloadError || !fileBlob) {
@@ -58,16 +60,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_KEY || '';
     if (!apiKey) throw new Error('SERVER_GEMINI_API_KEY is not configured on the server.');
 
-    console.log(`[Worker] 開始解析檔案: ${fileRecord.original_name}`);
+    console.log(`[Worker] 開始解析檔案: ${record.original_name}`);
     
     // Safety: Delete any old records for this file to ensure clean rebuild
-    await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+    await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', record.original_name);
 
     const parseResult = await processFileBackend(
       arrayBuffer,
-      fileRecord.original_name,
+      record.original_name,
       apiKey,
-      fileRecord.equipment_name,
+      record.equipment_name,
       fileId
     );
 
@@ -77,14 +79,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { error: insertError } = await supabase.from('tuc_history_knowledge').insert({
         category: item.category,
         content: item.content,
-        source_file_name: fileRecord.original_name,
+        source_file_name: record.original_name,
         metadata: {
           equipment_name: parseResult.detectedEquipment,
           docType: parseResult.docType,
           docId: fileId,
           full_json_data: parseResult.fullJsonData
         }
-      });
+      } as any);
       if (!insertError) addedCount++;
     }
 
@@ -96,9 +98,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       equipment_name: parseResult.detectedEquipment,
       equipment_tags: [parseResult.detectedEquipment],
       error_message: null
-    }).eq('id', fileId);
+    } as any).eq('id', fileId);
 
-    console.log(`[Worker] 檔案解析成功: ${fileRecord.original_name}, 新增條目: ${addedCount}`);
+    console.log(`[Worker] 檔案解析成功: ${record.original_name}, 新增條目: ${addedCount}`);
     return res.status(200).json({ success: true, added: addedCount });
 
   } catch (error: any) {
@@ -107,10 +109,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await supabase.from('tuc_uploaded_files').update({
       parse_status: 'failed',
       error_message: error.message || 'Unknown parsing error'
-    }).eq('id', fileId);
+    } as any).eq('id', fileId);
 
     // Return 500 so QStash knows it failed and will retry if appropriate
-    // Note: If you don't want QStash to retry on permanent errors, return 200 with success: false
     return res.status(500).json({ error: error.message });
   }
 }
