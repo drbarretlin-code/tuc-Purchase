@@ -61,9 +61,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!apiKey) throw new Error('SERVER_GEMINI_API_KEY is not configured on the server.');
 
     console.log(`[Worker] 開始解析檔案: ${record.original_name}`);
-    
-    // Safety: Delete any old records for this file to ensure clean rebuild
-    await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', record.original_name);
 
     const parseResult = await processFileBackend(
       arrayBuffer,
@@ -73,10 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fileId
     );
 
-    // 6. Insert parsed knowledge into Database
+    // 6. 解析成功後，先插入新條目，再刪除舊條目（防止解析失敗導致資料歸零）
     let addedCount = 0;
+    const newEntries: any[] = [];
     for (const item of parseResult.entries) {
-      const { error: insertError } = await supabase.from('tuc_history_knowledge').insert({
+      newEntries.push({
         category: item.category,
         content: item.content,
         source_file_name: record.original_name,
@@ -86,8 +84,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           docId: fileId,
           full_json_data: parseResult.fullJsonData
         }
-      } as any);
-      if (!insertError) addedCount++;
+      });
+    }
+
+    if (newEntries.length > 0) {
+      // 先刪除舊條目（只在有新條目可替換時才刪除）
+      await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', record.original_name);
+      
+      // 批次插入新條目
+      const { error: insertError } = await supabase.from('tuc_history_knowledge').insert(newEntries as any);
+      if (insertError) {
+        console.error(`[Worker] 批次插入失敗，改用逐筆插入:`, insertError.message);
+        for (const entry of newEntries) {
+          const { error: singleErr } = await supabase.from('tuc_history_knowledge').insert(entry as any);
+          if (!singleErr) addedCount++;
+        }
+      } else {
+        addedCount = newEntries.length;
+      }
+    } else {
+      console.warn(`[Worker] AI 解析結果為空，保留既有知識條目不刪除: ${record.original_name}`);
     }
 
     // 7. Update uploaded_files record to completed
