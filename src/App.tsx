@@ -75,7 +75,7 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
-  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed'>('all');
+  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
   
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
