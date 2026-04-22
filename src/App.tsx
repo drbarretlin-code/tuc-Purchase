@@ -192,6 +192,7 @@ function App() {
   const fetchCloudFiles = async () => {
     console.log('[Debug] 正在嘗試獲取雲端歷史檔案...', { supabaseInitialized: !!supabase });
     if (!supabase) return;
+    fetchUsageStats(); // 每次獲取檔案清單時也同步更新資源水位
     
     try {
       // 1. 獲取檔案清單 (優先使用 is_parsed 標籤)
@@ -248,6 +249,7 @@ function App() {
         .from('tuc_uploaded_files')
         .select('*', { count: 'exact', head: true });
       
+      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storage: sCount });
       setKnowledgeCount(kCount || 0);
       setStorageCount(sCount || 0);
     } catch (err) {
@@ -272,6 +274,7 @@ function App() {
       setShowPasswordPrompt(false);
       setInputPassword('');
       fetchCloudFiles();
+      fetchUsageStats();
       setShowCloudInspector(true);
     } else {
       alert('密碼錯誤，請重新輸入。');
