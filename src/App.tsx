@@ -101,7 +101,6 @@ function App() {
 
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [diagnosticTarget, setDiagnosticTarget] = useState<any | null>(null);
 
   // V17.6: 操作說明書狀態
@@ -908,7 +907,6 @@ function App() {
           }
 
           const errorStorageString = JSON.stringify(diag);
-          const displayError = diag.message || err.message;
 
           await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorStorageString } as any).eq('id', fileRecord.id);
           setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorStorageString } : f));

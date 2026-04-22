@@ -57,12 +57,12 @@ const DiagnosticModal: React.FC<DiagnosticModalProps> = ({ isOpen, onClose, diag
           {diagnostic.rawError && (
             <details style={{ cursor: 'pointer' }}>
               <summary style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.5rem' }}>查看原始技術日誌</summary>
-              <pre style={{ 
-                padding: '0.75rem', 
-                background: 'rgba(0,0,0,0.3)', 
-                borderRadius: '4px', 
-                fontSize: '0.7rem', 
-                color: '#666', 
+              <pre style={{
+                padding: '0.75rem',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                color: '#666',
                 overflowX: 'auto',
                 whiteSpace: 'pre-wrap'
               }}>
