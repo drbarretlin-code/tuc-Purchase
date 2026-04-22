@@ -59,4 +59,4 @@ The **(Cloud History ☁️)** located in the sidebar or bottom toolbar is the s
 - **Multi-lingual Reference**: In non-Traditional Chinese modes, the inspector dynamically translates filenames. Click a file to translate its technical content into the current language and import it into the form.
 
 ---
-*Version: V17.6 | Tech Support: Antigravity AI*
+*Version: V17.6 | Tech Support: Dr. Barret Lin*
