@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldAlert, Info, ExternalLink, Lightbulb } from 'lucide-react';
+import { X, ShieldAlert, Info, Lightbulb } from 'lucide-react';
 import type { DiagnosticResult } from '../lib/knowledgeParser';
 
 interface DiagnosticModalProps {
