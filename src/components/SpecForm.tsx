@@ -21,7 +21,8 @@ import {
   Trash2,
   Repeat,
   ShieldAlert,
-  Book
+  Book,
+  Loader2
 } from 'lucide-react';
 import { t } from '../lib/i18n';
 import SectionEditor from './SectionEditor';
