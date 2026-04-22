@@ -375,9 +375,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const handleClear = () => {
-    if (confirm('確定要清除所有欄位並恢復預設完整版面嗎？(此操作不可還原)')) {
+    if (confirm(t('confirmReset', data.language))) {
       onChange(INITIAL_FORM_STATE);
-      setSyncStatus({ type: 'success', message: '✅ 資料已重置為預設狀態' });
+      setSyncStatus({ type: 'success', message: t('resetSuccess', data.language) });
       setTimeout(() => setSyncStatus({ type: null, message: '' }), 3000);
     }
   };
@@ -392,7 +392,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         onChange(importedData);
         setIsExportMenuOpen(false);
       } catch (error) {
-        alert('無效的 JSON 檔案');
+        alert(t('invalidJson', data.language));
       }
     };
     reader.readAsText(file);
@@ -400,7 +400,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
 
   const handleSyncToKnowledge = async () => {
     if (!data.equipmentName || !data.requirementDesc) {
-      setSyncStatus({ type: 'error', message: '請至少填寫設備名稱與需求說明再進行同步。' });
+      setSyncStatus({ type: 'error', message: t('syncErrorReq', data.language) });
       return;
     }
 
@@ -411,10 +411,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       const result = await KP.syncFormDataToKnowledge(data);
       setSyncStatus({ 
         type: 'success', 
-        message: `✅ 同步成功！已更新 ${result.count} 條技術條文至知識庫。 (隱碼: ${result.docId.substring(0,8)}...)` 
+        message: t('syncSuccessBatch', data.language)
+          .replace('{n}', result.count.toString())
+          .replace('{id}', result.docId.substring(0,8))
       });
     } catch (err: any) {
-      setSyncStatus({ type: 'error', message: `❌ 同步失敗: ${err.message}` });
+      setSyncStatus({ type: 'error', message: `${t('syncFail', data.language)} ${err.message}` });
     } finally {
       setIsSyncing(false);
     }

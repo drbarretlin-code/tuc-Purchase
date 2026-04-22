@@ -29,6 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'fileId is required in body' });
   }
 
+  // V17.8: 安全性檢查 - 確保語系在白名單內
+  const SUPPORTED_LANGS = ['zh-TW', 'zh-CN', 'en-US', 'th-TH'];
+  const targetLang = SUPPORTED_LANGS.includes(language) ? language : 'zh-TW';
+
   try {
     // 2. Fetch file record from Database
     const { data: fileRecord, error: fetchError } = await supabase
@@ -68,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       apiKey,
       record.equipment_name,
       fileId,
-      language || 'zh-TW'
+      targetLang
     );
 
     // 6. 解析成功後，先插入新條目，再刪除舊條目（防止解析失敗導致資料歸零）

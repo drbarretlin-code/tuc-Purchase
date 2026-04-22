@@ -39,6 +39,9 @@ function App() {
     // V16: 持久化語系選擇
     localStorage.setItem('tuc_ui_lang', data.language);
     document.documentElement.lang = data.language;
+    
+    // V17.8: 動態網頁標題
+    document.title = t('systemTitle', data.language);
   }, [data.language]);
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
@@ -357,7 +360,7 @@ function App() {
       });
 
       if (toDelete.length === 0) {
-        alert('目前資料庫非常整潔，未偵測到任何重複檔案。');
+        alert(t('dbClean', data.language));
         return;
       }
 
@@ -375,11 +378,11 @@ function App() {
       // 清理資料庫紀錄
       await supabase.from('tuc_uploaded_files').delete().in('id', idsToRemove);
 
-      alert(`清理完成！已移除 ${toDelete.length} 筆重複紀錄。`);
+      alert(t('cleanSuccess', data.language).replace('{n}', toDelete.length.toString()));
       fetchCloudFiles();
     } catch (err: any) {
       console.error('清理失敗:', err);
-      alert('清理過程發生錯誤: ' + err.message);
+      alert(`${t('cleanError', data.language)} ${err.message}`);
     }
   };
 
@@ -408,12 +411,12 @@ function App() {
       }));
       setEditingFileId(null);
     } catch (err: any) {
-      alert('標籤更新失敗: ' + err.message);
+      alert(`${t('tagUpdateFail', data.language)} ${err.message}`);
     }
   };
 
   const handleAutofixLabels = async () => {
-    if (!supabase || !confirm('系統將分析全課檔案內容，自動辨別並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？')) return;
+    if (!supabase || !confirm(t('confirmCalibrate', data.language))) return;
     if (!supabase) {
       alert('資料庫尚未就緒，請檢查連線。');
       return;
@@ -784,7 +787,7 @@ function App() {
   return (
     <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
+        <div role="banner" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -803,7 +806,7 @@ function App() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* V16: 語系選擇器 */}
           <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
             <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>{t('languageLabel', data.language)}</span>
@@ -811,6 +814,7 @@ function App() {
               value={data.language} 
               onChange={(e) => setData({ ...data, language: e.target.value as Language })}
               className="lang-select"
+              aria-label="Select Language"
             >
               <option value="zh-TW">🇹🇼 繁體中文</option>
               <option value="zh-CN">🇨🇳 简体中文</option>
@@ -823,6 +827,7 @@ function App() {
             <button 
               onClick={() => setShowPreview(!showPreview)} 
               className="icon-btn" 
+              aria-label={showPreview ? "Switch to Edit Mode" : "Switch to Preview Mode"}
               style={{ 
                 padding: '0.5rem 1rem', 
                 background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
@@ -837,6 +842,7 @@ function App() {
           <button 
             onClick={() => setShowManual(true)} 
             className="icon-btn manual-btn"
+            aria-label="Open User Manual"
             style={{ 
               background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)', 
               color: 'white',
@@ -855,10 +861,14 @@ function App() {
             {!isMobile && <span>{t('userManual', data.language)}</span>}
           </button>
 
-          <button onClick={() => setShowConfig(true)} className="icon-btn">
+          <button 
+            onClick={() => setShowConfig(true)} 
+            className="icon-btn"
+            aria-label="Open Settings"
+          >
             <Settings size={isMobile ? 18 : 20} />
           </button>
-        </div>
+        </nav>
       </header>
 
       <main className="main-grid" style={{ 
