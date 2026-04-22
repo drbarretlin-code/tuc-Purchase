@@ -133,10 +133,11 @@ function App() {
       
       if (fileError) throw fileError;
 
-      // 2. 優化統計：分頁獲取所有條目以進行準確統計 (解決 5000 筆上限截斷的問題)
+      // 2. 優化統計：分頁獲取所有條目以進行準確統計
+      // 關鍵修復：Supabase 預設單次查詢上限 1000 筆，pageSize 必須 <= 1000
       const countMap: Record<string, number> = {};
       let offset = 0;
-      const pageSize = 5000;
+      const pageSize = 1000;
       let hasMore = true;
 
       while (hasMore) {
@@ -155,12 +156,13 @@ function App() {
             const name = item.source_file_name;
             countMap[name] = (countMap[name] || 0) + 1;
           });
-          offset += pageSize;
+          offset += statsBatch.length;
           if (statsBatch.length < pageSize) hasMore = false;
         } else {
           hasMore = false;
         }
       }
+      console.log(`[Debug] 知識條目統計完成，共掃描 ${offset} 筆，涵蓋 ${Object.keys(countMap).length} 個檔案`);
 
       // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
