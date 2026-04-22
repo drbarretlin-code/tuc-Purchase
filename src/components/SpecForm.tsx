@@ -968,12 +968,30 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
             'extension', 'model', 'category', 'deliveryDate',
             'applicantName', 'deptHeadName', 'needsDrawing', 'docId'
           ];
+          const formatValue = (val: any): string => {
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'string') return val;
+            if (Array.isArray(val)) {
+              return val.map(v => formatValue(v)).filter(v => v && v.trim() !== '').join('\n');
+            }
+            if (typeof val === 'object') {
+              return Object.entries(val)
+                .map(([k, v]) => {
+                  const vStr = formatValue(v);
+                  if (!vStr || vStr.trim() === '') return '';
+                  // 如果 Key 是 camelCase (如 testCriteria) 或者是單純的索引，只保留 Value
+                  const isTechnicalKey = /^[a-z]+[A-Z]/.test(k) || /^\d+$/.test(k) || k.length > 20;
+                  return isTechnicalKey ? vStr : `${k}: ${vStr}`;
+                })
+                .filter(Boolean)
+                .join('\n');
+            }
+            return String(val);
+          };
+
           const cleanImported = Object.entries(importedData).reduce((acc: any, [key, value]) => {
-            if (value === null || value === undefined) {
-              acc[key] = '';
-            } else if (STRING_FIELDS.includes(key) && typeof value !== 'string') {
-              // 物件或陣列欄位應為字串的，強制轉換
-              acc[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            if (STRING_FIELDS.includes(key)) {
+              acc[key] = formatValue(value);
             } else {
               acc[key] = value;
             }
