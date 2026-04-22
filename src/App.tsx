@@ -89,8 +89,8 @@ function App() {
 
   // V17.8: 資源水位預警狀態
   const [knowledgeCount, setKnowledgeCount] = useState(0);
-  const [storageCount, setStorageCount] = useState(0);
-  const [largeFileSizeLimit, setLargeFileSizeLimit] = useState(10); // 預設 10MB
+  const [storageSize, setStorageSize] = useState(0);
+  const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
   const [isCleaning, setIsCleaning] = useState(false);
@@ -248,14 +248,13 @@ function App() {
         .from('tuc_history_knowledge')
         .select('*', { count: 'exact', head: true });
       
-      // 獲取檔案總數
-      const { count: sCount } = await supabase
-        .from('tuc_uploaded_files')
-        .select('*', { count: 'exact', head: true });
+      // 獲取儲存空間總量
+      const { data: storageFiles } = await supabase.storage.from('spec-files').list('', { limit: 5000 });
+      const totalSizeBytes = (storageFiles || []).reduce((acc, f) => acc + (f?.metadata?.size || 0), 0);
       
-      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storage: sCount });
+      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storageTotalBytes: totalSizeBytes });
       setKnowledgeCount(kCount || 0);
-      setStorageCount(sCount || 0);
+      setStorageSize(totalSizeBytes);
     } catch (err) {
       console.error('Fetch usage stats error:', err);
     }
@@ -263,7 +262,7 @@ function App() {
 
   const handleDeleteLargeFiles = async () => {
     if (!supabase) return;
-    const limitBytes = largeFileSizeLimit * 1024 * 1024;
+    const limitBytes = Number(largeFileSizeLimit) * 1024 * 1024;
     setIsCleaning(true);
 
     try {
@@ -1193,7 +1192,7 @@ function App() {
 
       {showCloudInspector && (
         <div className="modal-overlay" style={{ zIndex: 1200, display: isReparseMinimized ? 'none' : 'flex' }}>
-          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '85vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <BookOpen size={24} color="var(--tuc-red)" /> {t('cloudInspector', data.language)}
@@ -1294,12 +1293,14 @@ function App() {
               </div>
             </div>
 
+            {/* 系統中控面板區域 (Grid) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem', flexShrink: 0 }}>
             {/* V17.8: 資源水位預警面板 */}
             {(() => {
               const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
-              const storageLimit = 500;    // 500個檔案設為警戒線 (約佔 1GB)
+              const storageLimitBytes = 1 * 1024 * 1024 * 1024;    // 1 GB
               const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
-              const sUsage = Math.min(Math.round((storageCount / storageLimit) * 100), 100);
+              const sUsage = Math.min(Math.round((storageSize / storageLimitBytes) * 100), 100);
               const isHighUsage = kUsage > 80 || sUsage > 80;
 
               return (
@@ -1308,7 +1309,6 @@ function App() {
                   border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`, 
                   borderRadius: '10px', 
                   padding: '1rem', 
-                  marginBottom: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
@@ -1394,7 +1394,7 @@ function App() {
                         <input 
                           type="number" 
                           value={largeFileSizeLimit} 
-                          onChange={(e) => setLargeFileSizeLimit(Number(e.target.value))}
+                          onChange={(e) => setLargeFileSizeLimit(e.target.value)}
                           style={{ 
                             width: '40px', 
                             background: 'transparent', 
@@ -1447,11 +1447,13 @@ function App() {
                       </div>
                     </div>
 
-                    {/* 檔案數量 */}
+                    {/* 檔案數量與容量 */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
                         <span style={{ color: '#aaa' }}>{t('storageFiles', data.language)}</span>
-                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>{storageCount} / {storageLimit} {data.language === 'en-US' ? 'files' : '個'}</span>
+                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>
+                          {(storageSize / 1024 / 1024 / 1024).toFixed(3)} GB / 1 GB
+                        </span>
                       </div>
                       <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                         <div style={{ 
@@ -1498,7 +1500,6 @@ function App() {
                   border: `1px solid ${hasActiveJobs ? 'rgba(96,165,250,0.3)' : 'var(--border-color)'}`, 
                   borderRadius: '10px', 
                   padding: '1rem 1.2rem', 
-                  marginBottom: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem'
@@ -1547,9 +1548,16 @@ function App() {
                   <div style={{ fontSize: '0.7rem', color: '#555', textAlign: 'right' }}>
                     {t('completionRate', data.language)}：{progressPct}% ({completedCount}/{totalFiles})
                   </div>
+                  {pendingCount > 0 && (
+                     <div style={{ fontSize: '0.75rem', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.1)', padding: '6px 10px', borderRadius: '4px', marginTop: '4px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                       <Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} /> 
+                       <div>若長時間停滯，可能是雲端佇列逾時休眠。<br/>請圈選檔案並點擊上方「全部重新解析」改由本地強制處理。</div>
+                     </div>
+                  )}
                 </div>
               );
             })()}
+            </div>
 
             {isReparsing && (
               <div style={{ 
@@ -1647,7 +1655,7 @@ function App() {
               );
             })()}
 
-            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+            <div style={{ flex: 1, minHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
