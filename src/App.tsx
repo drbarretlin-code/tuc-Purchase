@@ -1248,7 +1248,7 @@ function App() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
                         <span style={{ color: '#aaa' }}>{t('knowledgeEntries', data.language)}</span>
-                        <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()}</span>
+                        <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()} {data.language === 'en-US' ? 'items' : '筆'}</span>
                       </div>
                       <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                         <div style={{ 
@@ -1264,7 +1264,7 @@ function App() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
                         <span style={{ color: '#aaa' }}>{t('storageFiles', data.language)}</span>
-                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>{storageCount} / {storageLimit}</span>
+                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>{storageCount} / {storageLimit} {data.language === 'en-US' ? 'files' : '個'}</span>
                       </div>
                       <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                         <div style={{ 
