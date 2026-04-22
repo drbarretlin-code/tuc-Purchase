@@ -836,3 +836,45 @@ Return format: [{"idx": number, "name": "translated name", "tags": ["translated 
   }
 }
 
+/**
+ * V17.4: 深度規格內容轉譯
+ * 當載入歷史檔案時，若語系不符，自動將整個 JSON 規格內容轉譯為目標語系
+ */
+export async function translateFullSpec(
+  data: any,
+  targetLang: string,
+  apiKey: string
+): Promise<any> {
+  if (!data || targetLang === 'zh-TW') return data;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelId = await getAutoSelectedModel(apiKey);
+  const model = genAI.getGenerativeModel({ model: modelId });
+
+  const langMap: Record<string, string> = {
+    'zh-CN': 'Simplified Chinese (简体中文)',
+    'en-US': 'English',
+    'th-TH': 'Thai (ภาษาไทย)'
+  };
+  const targetLabel = langMap[targetLang] || targetLang;
+
+  const prompt = `You are a professional technical procurement translator. 
+Translate the following procurement specification JSON from Traditional Chinese into ${targetLabel}.
+Maintain the EXACT JSON structure. Only translate the string values.
+Keep technical terms like "PLC", "SUS304", "HMI", "ISO" in their standard technical format.
+
+Input JSON: ${JSON.stringify(data)}
+Return ONLY the translated JSON.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleanJson);
+  } catch (err) {
+    console.error('[AI Deep Translation] Full spec translation failed:', err);
+    return data; // 失敗時傳回原文
+  }
+}
+
+

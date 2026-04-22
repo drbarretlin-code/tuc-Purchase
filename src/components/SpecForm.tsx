@@ -123,6 +123,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = React.useState(0);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isImportTranslating, setIsImportTranslating] = React.useState(false);
 
   // V14: 遷移舊有硬編碼中文至 i18n 標籤 (Migration Logic)
   React.useEffect(() => {
@@ -957,7 +958,21 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
       <DatabaseImportModal 
         isOpen={isDbImportModalOpen}
         onClose={() => setIsDbImportModalOpen(false)}
-        onSelect={(importedData: any) => {
+        onSelect={async (rawImportedData: any) => {
+          setIsImportTranslating(true);
+          const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+          let importedData = rawImportedData;
+
+          // V17.4: 自動內容轉譯 - 若語系不符，將整個規格內容送交 AI 轉譯
+          if (data.language !== 'zh-TW' && apiKey) {
+            try {
+              importedData = await KP.translateFullSpec(rawImportedData, data.language, apiKey);
+            } catch (err) {
+              console.error('[AI Content Translation] Failed:', err);
+            }
+          }
+          setIsImportTranslating(false);
+
           // V12.6: 深度防禦 - 確保所有欄位型別安全，防止物件/陣列被誤傳給 .startsWith() 導致黑屏
           const STRING_FIELDS = [
             'equipmentName', 'requirementDesc', 'appearance', 'quantityUnit',
@@ -1012,6 +1027,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         }}
         language={data.language}
       />
+
+      {isImportTranslating && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
+            <Loader2 className="animate-spin" size={48} style={{ margin: '0 auto 1rem', color: 'var(--tuc-red)' }} />
+            <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>{t('aiTranslatingContent', data.language)}</h3>
+            <p style={{ color: '#aaa', fontSize: '0.9rem' }}>{t('aiTranslatingHint', data.language)}</p>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .ghost-button {

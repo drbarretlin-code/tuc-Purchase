@@ -291,7 +291,9 @@ export const translations: Record<string, any> = {
     'confirmReparseBatch': '確定要將這 {n} 筆檔案送入雲端背景重新解析嗎？\n(系統將分批送出，避免逾時)',
     'statusPending': '等待佇列中',
     'statusProcessing': '伺服器解析中',
-    'statusFailed': '解析失敗'
+    'statusFailed': '解析失敗',
+    'aiTranslatingContent': 'AI 深度轉譯中...',
+    'aiTranslatingHint': '正在將雲端紀錄內容轉譯為您的介面語系，請稍候'
   },
   'zh-CN': {
     'systemTitle': '采购验收规范建置表',
@@ -578,7 +580,9 @@ export const translations: Record<string, any> = {
     'confirmReparseBatch': '确定要将这 {n} 筆档案送入云端背景重新解析吗？\n(系统将分批送出，避免超时)',
     'statusPending': '等待队列中',
     'statusProcessing': '服务器解析中',
-    'statusFailed': '解析失败'
+    'statusFailed': '解析失败',
+    'aiTranslatingContent': 'AI 深度转译中...',
+    'aiTranslatingHint': '正在将雲端紀錄内容转译为您的界面语系，请稍候'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -881,7 +885,9 @@ export const translations: Record<string, any> = {
     'confirmReparseBatch': 'Are you sure you want to send these {n} files for background re-parsing?\n(System will send in batches to avoid timeout)',
     'statusPending': 'Queued',
     'statusProcessing': 'Server parsing',
-    'statusFailed': 'Parse failed'
+    'statusFailed': 'Parse failed',
+    'aiTranslatingContent': 'AI Deep Translating...',
+    'aiTranslatingHint': 'Translating cloud content to your interface language, please wait.'
   },
   'th-TH': {
     'systemTitle': 'แบบฟอร์มการสร้างข้อกำหนดการจัดซื้อและการรับมอบ',
@@ -1165,7 +1171,9 @@ export const translations: Record<string, any> = {
     'confirmReparseBatch': 'คุณแน่ใจหรือไม่ว่าต้องการส่งไฟล์ {n} รายการเหล่านี้เพื่อวิเคราะห์ใหม่ในพื้นหลัง?\n(ระบบจะส่งเป็นชุดเพื่อหลีกเลี่ยงการหมดเวลา)',
     'statusPending': 'อยู่ในคิว',
     'statusProcessing': 'เซิร์ฟเวอร์กำลังวิเคราะห์',
-    'statusFailed': 'วิเคราะห์ล้มเหลว'
+    'statusFailed': 'วิเคราะห์ล้มเหลว',
+    'aiTranslatingContent': 'AI กำลังแปลเชิงลึก...',
+    'aiTranslatingHint': 'กำลังแปลเนื้อหาจากคลาวด์เป็นภาษาที่คุณเลือก โปรดรอสักครู่'
   }
 };
 
