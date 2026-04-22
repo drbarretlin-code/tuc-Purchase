@@ -219,33 +219,33 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   if (!text && !inlineData) throw new Error(t('parseError', lang));
 
   const prompt = `
-    你是一個「全方位知識挖掘與解構」專家。目前你正在處理一份從原始二進制檔案中救援出的、可能高度混亂的文件片段。
-    你的終極任務是：**完整利用並解構每一條知識資訊**，絕對不允許漏掉任何具備參考價值的文字。
-
-    請針對${inlineData ? '「附件檔案」' : '「以下殘缺文字」'}，執行深度挖掘（Deep Mining）：
-    1. **語意切片 (Semantic Chunking)**：
-       請利用語意邏輯將內容切分為獨立的「知識點」。即使該段落不屬於硬性的技術指標，只要其涉及設備描述、操作備註、環境要求、合約細項或文件背景，皆必須被視為一條 specEntry。
-    2. **去重與重組**：
-       內容中可能混雜了重複片段與殘缺字元，請協助進行語意復原。
-    3. **知識層級 (docType)**：
-       - Specific: 專屬機台、型號、廠牌。
-       - Standard: 跨設備技術標準。
-       - Global: 政府、環境、勞安法規。
-    4. **設備主體 (detectedEquipment)**：精確辨識或根據上下文推斷。
-    5. **強制條列化 (Mandatory Extraction)**：
-       請將所有挖掘到的內容轉化為 specEntries。**嚴禁回傳空陣列**。若內容確實貧乏，請以「文檔段落總結」或「背景描述」的形式至少提供 3 筆以上條目。
-
-    同時，將最關鍵的核心數據填充至結構化 JSON (fullJsonData) 中（若無明確數據請留空，但 specEntries 不可為空）。
-
-    回傳格式：嚴格純 JSON。
+    你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範或技術標準檔案。
+    你的任務是：**榨乾這份檔案的所有技術價值**。
+    
+    請執行以下操作：
+    1. **深度語意分析**：
+       - 如果檔案是特定設備的規範，請提取所有規格、材質、性能指標。
+       - 如果檔案是通用技術標準 (Standard) 或法規 (Global)，請提取關鍵的「作業準則」、「安全規範」或「驗收條件」。
+    2. **絕對強制提取**：
+       - **嚴禁回傳空的 specEntries**。
+       - 即便內容難以辨識或看起來是目錄/封面，你也要根據檔名（${file.name}）與可見文字，產出至少 5 條「文檔核心摘要」或「預期技術要求」。
+    3. **知識層級判定**：
+       - Specific: 具體設備或工程。
+       - Standard: 施工法、材料標準、KCG 編號標準。
+       - Global: 法令、環保規章。
+    
+    回傳格式：必須是純粹的 JSON。
     {
       "docType": "Specific | Standard | Global",
-      "detectedEquipment": "辨識出的設備名稱",
-      "specEntries": [{"category": "知識類別", "content": "詳細內容"}],
-      "fullJsonData": { ...設備名稱、需求描述、規格等... }
+      "detectedEquipment": "最相關的設備或工程名稱",
+      "specEntries": [
+        {"category": "技術要求/安全規範/驗收標準...", "content": "精煉後的條款內容"}
+      ],
+      "fullJsonData": { "summary": "文檔整體摘要", "keywords": ["關鍵字1", "關鍵字2"] }
     }
     
-    ${text ? `分析內容：\n${text.substring(0, 15000)}` : '請直接分析附件檔案內容並徹底挖掘所有隱含知識。'}
+    待分析內容：
+    ${text ? text.substring(0, 15000) : '請深度掃描附件檔案並提取所有技術條款。'}
   `;
 
   try {
