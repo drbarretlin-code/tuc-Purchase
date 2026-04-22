@@ -1643,8 +1643,9 @@ function App() {
                 );
               })()}
             </div>
+          </div>
 
-            {/* V18.6: 垂直 Resizer 調整條 */}
+          {/* V18.6: 垂直 Resizer 調整條 */}
             <div 
               onMouseDown={() => setIsInspectorResizing(true)}
               style={{
