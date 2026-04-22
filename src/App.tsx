@@ -9,6 +9,7 @@ import * as KP from './lib/knowledgeParser';
 import UploadWizardModal from './components/UploadModal';
 import { t } from './lib/i18n';
 import type { Language } from './lib/i18n';
+import ManualModal from './components/ManualModal';
 
 function App() {
   const [data, setData] = useState<FormState>(() => {
@@ -75,6 +76,9 @@ function App() {
   
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  
+  // V17.6: 操作說明書狀態
+  const [showManual, setShowManual] = useState(false);
   
   // V9.0: 行內標籤編輯狀態
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
@@ -830,6 +834,27 @@ function App() {
             </button>
           )}
 
+          <button 
+            onClick={() => setShowManual(true)} 
+            className="icon-btn manual-btn"
+            style={{ 
+              background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)', 
+              color: 'white',
+              border: 'none',
+              padding: isMobile ? '6px 10px' : '8px 14px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(255, 59, 48, 0.2)',
+              fontWeight: 600,
+              fontSize: '0.85rem'
+            }}
+          >
+            <BookOpen size={isMobile ? 18 : 20} />
+            {!isMobile && <span>{t('userManual', data.language)}</span>}
+          </button>
+
           <button onClick={() => setShowConfig(true)} className="icon-btn">
             <Settings size={isMobile ? 18 : 20} />
           </button>
@@ -1584,6 +1609,13 @@ function App() {
             <Maximize2 size={16} />
           </div>
         </div>
+      )}
+      {showManual && (
+        <ManualModal 
+          isOpen={showManual} 
+          onClose={() => setShowManual(false)} 
+          language={data.language} 
+        />
       )}
     </div>
   );
