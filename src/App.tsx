@@ -267,8 +267,7 @@ function App() {
 
     try {
       const { data: files, error } = await supabase.storage.from('spec-files').list('', {
-        limit: 1000,
-        sortBy: { column: 'size', order: 'desc' }
+        limit: 1000
       });
 
       if (error) throw error;
