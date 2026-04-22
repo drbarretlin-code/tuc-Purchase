@@ -252,14 +252,18 @@ function App() {
         
         return {
           ...f,
+          display_name: f.display_name || f.original_name, // 防呆：確保介面總是有名稱可顯示
           knowledgeCount: countFromStats,
-          // 若 db 有 is_parsed 則信任，若無但有條目產出，便強制作為 true (因為 V17 確保 100% 產出，這表示該檔已成功解析)
           is_parsed: f.is_parsed === true || countFromStats > 0
         };
       });
 
       console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
       setCloudFiles(enrichedList);
+      // V18.4: 確保翻譯列表在初始加載時也有數據，防止 UI 空白
+      if (data.language === 'zh-TW') {
+        setTranslatedCloudFiles(enrichedList);
+      }
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
       alert('無法取得檔案紀錄: ' + err.message);
@@ -1813,7 +1817,7 @@ function App() {
                       </td>
                       <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
                       <td style={{ padding: '12px' }}>
-                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name}</div>
+                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name || f.original_name}</div>
                         <div 
                           style={{ 
                             marginTop: '6px',
