@@ -1,8 +1,12 @@
 import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
 import { t } from './i18n';
+
+// 設定 PDF.js Worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 /**
  * V13: 動態模型管理系統 (2026 最新版)
@@ -10,45 +14,31 @@ import { t } from './i18n';
  */
 let cachedModelId: string | null = null;
 
-export interface DiagnosticResult {
-  code: 'QUOTA_EXCEEDED' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
-  message: string;
-  rawError?: string;
-  timestamp: string;
-  suggestion?: string;
-}
-
-export class DiagnosticError extends Error {
-  diagnostic: DiagnosticResult;
-  constructor(diag: DiagnosticResult) {
-    super(diag.message);
-    this.name = 'DiagnosticError';
-    this.diagnostic = diag;
-  }
-}
-
 async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // V18.2: 修正模型清單 — 僅使用 Google 確認仍在線的模型
-  // gemini-1.5-flash / gemini-1.5-pro 已從 v1beta 下架 (404)
-  // gemini-2.5-flash / gemini-2.5-flash-lite 確認存在 (429 = 存在但限流)
+  // V16: 模型搜尋機制
+  // 優先順序策略 (由 2026 最新至穩定版)
+  // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
+    'gemini-3.1-flash',
+    'gemini-3.0-flash',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
+    'gemini-1.5-flash'
   ];
 
   console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
 
   for (const mId of priorityList) {
     try {
+      // 必須使用 generateContent 進行試驗，因為 countTokens 可能在已禁用模型上仍然成功
       const model = genAI.getGenerativeModel({ model: mId });
       await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        generationConfig: { maxOutputTokens: 1 }
+        generationConfig: { maxOutputTokens: 1 } // 極小消耗
       });
       cachedModelId = mId;
       console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
@@ -57,41 +47,33 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
       
-      // V18.2 關鍵修正：429 代表「模型存在，只是暫時限流」
-      // 應該鎖定此模型，而非跳過
       if (
+        errMsg.includes('404') || 
+        status === 404 || 
         errMsg.includes('429') || 
         status === 429 || 
+        errMsg.toLowerCase().includes('not found') ||
         errMsg.toLowerCase().includes('resource_exhausted') ||
         errMsg.toLowerCase().includes('quota') ||
         errMsg.toLowerCase().includes('rate limit')
       ) {
-        cachedModelId = mId;
-        console.log(`[AI Discovery] 模型 ${mId} 存在但暫時限流 (429)，鎖定此模型。`);
-        break;
-      }
-
-      // 404 = 模型不存在，跳過
-      if (
-        errMsg.includes('404') || 
-        status === 404 || 
-        errMsg.toLowerCase().includes('not found')
-      ) {
-        console.warn(`[AI Discovery] 模型 ${mId} 不存在 (404)，嘗試下一個...`);
+        console.warn(`[AI Discovery] 模型 ${mId} 暫時不可用 (404/429/Quota)，嘗試下一個...`);
         continue;
       }
       
+      // 處理「新使用者受限」的特殊報錯
       if (errMsg.includes('no longer available to new users')) {
         console.warn(`[AI Discovery] 模型 ${mId} 受限 (僅限舊用戶)，跳過...`);
         continue;
       }
 
       console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
+      // 若為授權錯誤 (401)，則不需要再試驗其他模型
       if (status === 401 || errMsg.includes('API key not valid')) break;
     }
   }
 
-  return cachedModelId || 'gemini-2.5-flash';
+  return cachedModelId || 'gemini-1.5-flash';
 }
 
 /**
@@ -208,17 +190,30 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     text = extractStringsFromBinary(arrayBuffer);
     console.log(`[AI Parser] .doc (Legacy) 字串掃描成功: ${text.length} 字`);
   } else if (file.name.endsWith('.pdf')) {
-    // V18: 徹底移除不穩定的 pdfjs-dist CDN Worker，全面啟用 Gemini 原生多模態 PDF 視覺解析。
-    // 這能完美保留表格結構、繞過加密字體提取失敗，並解決大部分 CDN 逾時問題。
-    const MAX_BASE64_SIZE = 15 * 1024 * 1024; // 15MB 上限 (Base64 會膨脹 33%，約佔 20MB Payload)
-    if (file.size > MAX_BASE64_SIZE) {
-      console.warn(`[AI Multimodal] PDF 檔案超過單次請求上限 (15MB)，嘗試擷取... : ${file.name}`);
-      // 這裡理論上可以呼叫 File API 分割，但目前先直上，由外圍 Catch 接住超限報錯。
+    const arrayBuffer = await file.arrayBuffer();
+    // V13.1: 修正 PDF.js cMap 配置
+    const pdf = await pdfjsLib.getDocument({ 
+      data: arrayBuffer,
+      cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
+      cMapPacked: true
+    }).promise;
+    
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map((item: any) => item.str).join(' ');
     }
-    const base64 = await fileToBase64(file);
-    inlineData = { data: base64, mimeType: 'application/pdf' };
-    text = ''; 
-    console.log(`[AI Multimodal] PDF 原生視覺渲染啟動: ${file.name}`);
+    
+    // V13.6: 自動回退機制 - 若提取文字過少，嘗試多模態解析
+    if (!fullText || fullText.trim().length < 50) {
+      console.warn(`[AI Multimodal] PDF 文字提取內容不足 (${fullText?.length || 0} 字)，自動切換至多模態附件模式: ${file.name}`);
+      const base64 = await fileToBase64(file);
+      inlineData = { data: base64, mimeType: 'application/pdf' };
+      text = ''; 
+    } else {
+      text = fullText;
+    }
   }
 
   if (!text && !inlineData) throw new Error(t('parseError', lang));
@@ -262,29 +257,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
     const result = await model.generateContent({
       contents
-    }).catch(err => {
-      const msg = err.message || '';
-      // V18.1: 精確識別 429 配額錯誤
-      if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
-        throw new DiagnosticError({
-          code: 'QUOTA_EXCEEDED',
-          message: 'Gemini API 每日或每分鐘配額已耗盡。',
-          rawError: msg,
-          timestamp: new Date().toISOString(),
-          suggestion: '請等待 1 分鐘後再試，或更換 API Key。如果您使用的是免費版，每日限制通常為 20-50 次。'
-        });
-      }
-      // 安全攔截
-      if (msg.toLowerCase().includes('safety') || msg.toLowerCase().includes('blocked')) {
-        throw new DiagnosticError({
-          code: 'AI_SAFETY_REJECT',
-          message: 'AI 安全審查攔截了此檔案內容。',
-          rawError: msg,
-          timestamp: new Date().toISOString(),
-          suggestion: '檔案中可能包含敏感字眼或格式被誤判為有害。請嘗試重新掃描或手動節錄關鍵技術條款。'
-        });
-      }
-      throw err;
     });
     const responseText = result.response.text();
     if (!responseText) throw new Error(t('aiError', lang));

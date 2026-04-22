@@ -6,11 +6,10 @@ import SpecPreview from './components/SpecPreview';
 import { ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
-import ManualModal from './components/ManualModal';
-import DiagnosticModal from './components/DiagnosticModal';
 import UploadWizardModal from './components/UploadModal';
 import { t } from './lib/i18n';
 import type { Language } from './lib/i18n';
+import ManualModal from './components/ManualModal';
 
 function App() {
   const [data, setData] = useState<FormState>(() => {
@@ -40,7 +39,7 @@ function App() {
     // V16: 持久化語系選擇
     localStorage.setItem('tuc_ui_lang', data.language);
     document.documentElement.lang = data.language;
-
+    
     // V17.8: 動態網頁標題
     document.title = t('systemTitle', data.language);
   }, [data.language]);
@@ -61,31 +60,10 @@ function App() {
 
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
   const [showApiKey, setShowApiKey] = useState(false);
-
+  
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [translatedCloudFiles, setTranslatedCloudFiles] = useState<any[]>([]);
-  // V18.3: 診斷數據安全解析助手
-  const getSafeDiagnostic = (errorMsg: string | null): KP.DiagnosticResult | null => {
-    if (!errorMsg) return null;
-    try {
-      if (errorMsg.startsWith('{')) {
-        return JSON.parse(errorMsg);
-      }
-      return {
-        code: 'UNKNOWN',
-        message: errorMsg,
-        timestamp: new Date().toISOString(),
-        suggestion: '這是一個舊有的錯誤紀錄。請嘗試重新解析以獲取精確診斷。'
-      };
-    } catch {
-      return {
-        code: 'UNKNOWN',
-        message: errorMsg,
-        timestamp: new Date().toISOString()
-      };
-    }
-  };
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
@@ -97,29 +75,25 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
-  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
-
+  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed'>('all');
+  
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [diagnosticTarget, setDiagnosticTarget] = useState<any | null>(null);
-
+  
   // V17.6: 操作說明書狀態
   const [showManual, setShowManual] = useState(false);
-
+  
   // V9.0: 行內標籤編輯狀態
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [tempTags, setTempTags] = useState<string>('');
 
   // V17.8: 資源水位預警狀態
   const [knowledgeCount, setKnowledgeCount] = useState(0);
-  const [storageSize, setStorageSize] = useState(0);
-  const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
+  const [storageCount, setStorageCount] = useState(0);
+  const [largeFileSizeLimit, setLargeFileSizeLimit] = useState(10); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
   const [isCleaning, setIsCleaning] = useState(false);
-  // V18.6: 雲端查閱器垂直調整器狀態
-  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(380);
-  const [isInspectorResizing, setIsInspectorResizing] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -155,64 +129,25 @@ function App() {
     };
   }, [isResizing, showPreview, isMobile]);
 
-  // V18.6: 雲端查閱器垂直調整邏輯
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isInspectorResizing) return;
-      // 計算相對於 modal-content 的 Y 軸偏移
-      const modalContent = document.querySelector('.modal-content.inspector-modal');
-      if (modalContent) {
-        const rect = modalContent.getBoundingClientRect();
-        const newHeight = e.clientY - rect.top - 60; // 扣除 Header 高度
-        if (newHeight > 150 && newHeight < rect.height - 200) {
-          setInspectorDashboardHeight(newHeight);
-        }
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsInspectorResizing(false);
-      document.body.classList.remove('unselectable-v');
-    };
-
-    if (isInspectorResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      document.body.classList.add('unselectable-v');
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isInspectorResizing]);
-
   // 自動刷新：當雲端查閱器開啟且有佇列任務時，每 15 秒自動更新狀態
   useEffect(() => {
     if (!showCloudInspector) return;
-    const hasActiveJobs = cloudFiles.some(f =>
+    const hasActiveJobs = cloudFiles.some(f => 
       (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing'
     );
     if (!hasActiveJobs) return;
-
+    
     const timer = setInterval(() => {
       console.log('[AutoRefresh] 偵測到佇列任務，自動刷新狀態...');
       fetchCloudFiles();
     }, 15000);
-
+    
     return () => clearInterval(timer);
   }, [showCloudInspector, cloudFiles]);
-
-  // V18.5: 初始載入時獲取資源使用量 (確保第五章節同步按鈕狀態正確)
-  useEffect(() => {
-    fetchUsageStats();
-  }, []);
 
   // V17.3: 雲端查閱器動態內容翻譯
   useEffect(() => {
     if (cloudFiles.length > 0 && data.language !== 'zh-TW' && showCloudInspector) {
-      // V17.4: 只有在雲端檔案清單變動且長度減少（換頁或刪除）時才重新全量翻譯，避免解析過程中的頻繁閃爍
-      // 但我們需要一個機制來獲取增量翻譯
       translateCloudInspectorItems();
     } else {
       setTranslatedCloudFiles(cloudFiles);
@@ -222,7 +157,7 @@ function App() {
   const translateCloudInspectorItems = async () => {
     const apiKey = localStorage.getItem('tuc_gemini_key') || '';
     if (!apiKey) return;
-
+    
     // 翻譯前 50 筆，涵蓋大部分視窗範圍
     const itemsToTranslate = cloudFiles.slice(0, 50).map(f => ({
       id: f.id,
@@ -235,13 +170,13 @@ function App() {
       const newFiles = cloudFiles.map(f => {
         const trans = translated.find(t => t.id === f.id);
         if (!trans) return f;
-
+        
         // V17.4: 更新顯示名稱與標籤
-        return {
-          ...f,
-          display_name: trans.name,
+        return { 
+          ...f, 
+          display_name: trans.name, 
           equipment_name: trans.name.includes('(') ? trans.name.split('(')[1].replace(')', '') : trans.name,
-          equipment_tags: trans.tags
+          equipment_tags: trans.tags 
         };
       });
       setTranslatedCloudFiles(newFiles);
@@ -262,20 +197,20 @@ function App() {
     console.log('[Debug] 正在嘗試獲取雲端歷史檔案...', { supabaseInitialized: !!supabase });
     if (!supabase) return;
     fetchUsageStats(); // 每次獲取檔案清單時也同步更新資源水位
-
+    
     try {
       // 1. 獲取檔案清單 (優先使用 is_parsed 標籤)
       const { data: list, error: fileError } = await supabase
         .from('tuc_uploaded_files')
         .select('*')
         .order('created_at', { ascending: false });
-
+      
       if (fileError) throw fileError;
 
       // 2. 高效統計：透過資料庫 RPC 一次取得所有檔案的知識條目數（無分頁限制）
       const countMap: Record<string, number> = {};
       const { data: countData, error: countError } = await supabase.rpc('get_knowledge_counts');
-
+      
       if (countError) {
         console.error('無法統計解析條目:', countError);
       } else if (countData) {
@@ -288,21 +223,17 @@ function App() {
       // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
         const countFromStats = countMap[f.original_name] || 0;
-
+        
         return {
           ...f,
-          display_name: f.display_name || f.original_name, // 防呆：確保介面總是有名稱可顯示
           knowledgeCount: countFromStats,
+          // 若 db 有 is_parsed 則信任，若無但有條目產出，便強制作為 true (因為 V17 確保 100% 產出，這表示該檔已成功解析)
           is_parsed: f.is_parsed === true || countFromStats > 0
         };
       });
 
       console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
       setCloudFiles(enrichedList);
-      // V18.4: 確保翻譯列表在初始加載時也有數據，防止 UI 空白
-      if (data.language === 'zh-TW') {
-        setTranslatedCloudFiles(enrichedList);
-      }
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
       alert('無法取得檔案紀錄: ' + err.message);
@@ -316,14 +247,15 @@ function App() {
       const { count: kCount } = await supabase
         .from('tuc_history_knowledge')
         .select('*', { count: 'exact', head: true });
-
-      // 獲取儲存空間總量
-      const { data: storageFiles } = await supabase.storage.from('spec-files').list('', { limit: 5000 });
-      const totalSizeBytes = (storageFiles || []).reduce((acc, f) => acc + (f?.metadata?.size || 0), 0);
-
-      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storageTotalBytes: totalSizeBytes });
+      
+      // 獲取檔案總數
+      const { count: sCount } = await supabase
+        .from('tuc_uploaded_files')
+        .select('*', { count: 'exact', head: true });
+      
+      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storage: sCount });
       setKnowledgeCount(kCount || 0);
-      setStorageSize(totalSizeBytes);
+      setStorageCount(sCount || 0);
     } catch (err) {
       console.error('Fetch usage stats error:', err);
     }
@@ -331,18 +263,19 @@ function App() {
 
   const handleDeleteLargeFiles = async () => {
     if (!supabase) return;
-    const limitBytes = Number(largeFileSizeLimit) * 1024 * 1024;
+    const limitBytes = largeFileSizeLimit * 1024 * 1024;
     setIsCleaning(true);
 
     try {
       const { data: files, error } = await supabase.storage.from('spec-files').list('', {
-        limit: 1000
+        limit: 1000,
+        sortBy: { column: 'size', order: 'desc' }
       });
 
       if (error) throw error;
 
       const filtered = (files || []).filter(f => f.metadata && f.metadata.size > limitBytes);
-
+      
       if (filtered.length === 0) {
         alert('未偵測到任何大於 ' + largeFileSizeLimit + ' MB 的檔案。');
         setIsCleaning(false);
@@ -350,23 +283,7 @@ function App() {
       }
 
       // 預設全部勾選要刪除
-      setLargeFilesFound(filtered.map(f => {
-        // 從目前的 cloudFiles (tuc_uploaded_files) 找到對應的展示名稱，支援多種新舊欄位與 URL 模糊配對
-        const dbRecord = cloudFiles.find(cf =>
-          cf.storage_path === f.name ||
-          cf.file_path === f.name ||
-          (cf.public_url && cf.public_url.includes(f.name)) ||
-          cf.id === f.name.split('_')[0]
-        );
-        // 如果找不到記錄（可能為孤兒檔案），則顯示原儲存名稱並加註
-        const displayName = dbRecord ? (dbRecord.original_name || dbRecord.display_name) : `${f.name} (查無原始紀錄的孤兒檔案)`;
-
-        return {
-          ...f,
-          checked: true,
-          originalName: displayName
-        };
-      }));
+      setLargeFilesFound(filtered.map(f => ({ ...f, checked: true })));
       setShowCleanupModal(true);
     } catch (err: any) {
       console.error('Scan large files failed:', err);
@@ -466,10 +383,10 @@ function App() {
         // 2. 清除 Storage 實體檔案
         await supabase.storage.from('spec-files').remove([targetFile.storage_path]);
       }
-
+      
       const { error } = await supabase.from('tuc_uploaded_files').delete().eq('id', id);
       if (error) throw error;
-
+      
       setCloudFiles(prev => prev.filter(f => f.id !== id));
       setSelectedFileIds(prev => prev.filter(x => x !== id));
       alert('刪除成功');
@@ -479,7 +396,7 @@ function App() {
   };
 
   const handleToggleSelectFile = (id: string) => {
-    setSelectedFileIds(prev =>
+    setSelectedFileIds(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
@@ -510,7 +427,7 @@ function App() {
       await supabase.storage.from('spec-files').remove(pathsToDelete);
       // 3. 清理資料庫紀錄
       const { error } = await supabase.from('tuc_uploaded_files').delete().in('id', selectedFileIds);
-
+      
       if (error) throw error;
 
       setCloudFiles(prev => prev.filter(f => !selectedFileIds.includes(f.id)));
@@ -524,20 +441,20 @@ function App() {
 
   const handleCleanupDuplicates = async () => {
     if (!supabase || !confirm('系統將自動掃描資料庫中「檔名相同」的重複項，僅保留最新的一筆紀錄。\n此操作將同步清理實體檔案與解析紀錄，確定執行嗎？')) return;
-
+    
     try {
       // 1. 獲取所有紀錄
       const { data: allFiles, error: fetchError } = await supabase
         .from('tuc_uploaded_files')
         .select('id, original_name, equipment_name, created_at, storage_path')
         .order('created_at', { ascending: false });
-
+ 
       if (fetchError || !allFiles) throw fetchError;
-
+ 
       // 2. 演算法辨識重複項 (保留每組的第一筆，即最新的)
       const seen = new Set<string>();
       const toDelete: { id: string, path: string, name: string }[] = [];
-
+ 
       allFiles.forEach(bit => {
         // V8.7: 改為僅以檔名作為去重基準 (寬鬆判斷)
         const key = bit.original_name;
@@ -583,7 +500,7 @@ function App() {
         .split(/[，,]/)
         .map(t => t.trim())
         .filter(t => t.length > 0);
-
+      
       const uniqueTags = Array.from(new Set(tagArray));
 
       const { error } = await supabase
@@ -621,7 +538,7 @@ function App() {
     // V16.10: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
     // 斷點續傳機制：僅選取尚未完成校準的檔案
     const targets = cloudFiles.filter(f => f.is_calibrated !== true);
-
+    
     console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
 
     if (targets.length === 0) {
@@ -653,11 +570,11 @@ function App() {
           currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
 
           const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
+          const updateData: any = { 
             is_calibrated: true,
-            equipment_name: currentDetectedLabel,
+            equipment_name: currentDetectedLabel, 
             equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName
+            display_name: newDisplayName 
           };
 
           const { error: updateError } = await supabase.from('tuc_uploaded_files')
@@ -674,7 +591,7 @@ function App() {
               .from('tuc_history_knowledge')
               .select('id, metadata')
               .eq('source_file_name', fileRecord.original_name);
-
+            
             if (entries) {
               for (const entry of entries) {
                 const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
@@ -685,17 +602,17 @@ function App() {
         } catch (e: any) {
           console.error(`[Batch] 檔案 ${fileRecord.original_name} 校準失敗:`, e);
           // V13.7: 改為 continue，避免單一檔案配額耗盡或錯誤導致整批中斷
-          continue;
+          continue; 
         }
 
         setCloudFiles(prev => prev.map(f => {
           if (f.id === fileRecord.id) {
-            return {
-              ...f,
+            return { 
+              ...f, 
               is_calibrated: true,
               equipment_name: currentDetectedLabel,
-              equipment_tags: [currentDetectedLabel]
-            };
+              equipment_tags: [currentDetectedLabel] 
+            }; 
           }
           return f;
         }));
@@ -728,12 +645,12 @@ function App() {
     }
     // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
     console.log('[Resume] 正在核對當前解析狀態...');
-
+    
     // 僅過濾出尚未標記為已解析的檔案，或雖然標記已解析但條目數為 0 的幽靈檔案 (V17.1)
-    const targets = cloudFiles.filter(f =>
+    const targets = cloudFiles.filter(f => 
       f.is_parsed !== true || (f as any).knowledgeCount === 0
     );
-
+    
     if (targets.length === 0) {
       alert('所有檔案皆已完成解析，無須重複執行。');
       return;
@@ -754,7 +671,7 @@ function App() {
         setReparseIndex(i + 1);
         setReparseProgress(Math.round(((i + 1) / totalCount) * 100)); // 前置計算百分比
         setReparseCurrentFile(fileRecord.original_name);
-
+        
         try {
           // 1. 下載雲端檔案
           const response = await fetch(fileRecord.public_url);
@@ -772,11 +689,11 @@ function App() {
           const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
           const newAdded = parseResult?.added || 0;
           const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
-
+          
           // V12: 補解析時同步進行「標籤校準」
           const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
-            is_parsed: true,
+          const updateData: any = { 
+            is_parsed: true, 
             is_calibrated: true, // 同步進行校準
             parsed_at: new Date().toISOString(),
             equipment_name: currentDetectedLabel,
@@ -798,7 +715,7 @@ function App() {
               .from('tuc_history_knowledge')
               .select('id, metadata')
               .eq('source_file_name', fileRecord.original_name);
-
+            
             if (entries) {
               for (const entry of entries) {
                 const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
@@ -810,9 +727,9 @@ function App() {
           // V8.6: 精準刷新列表狀態 (純本地使用 ID)
           setCloudFiles(prev => prev.map(f => {
             if (f.id === fileRecord.id) {
-              return {
-                ...f,
-                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded,
+              return { 
+                ...f, 
+                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, 
                 is_parsed: true,
                 is_calibrated: true,
                 equipment_name: currentDetectedLabel,
@@ -829,7 +746,7 @@ function App() {
           if (fileErr.message && fileErr.message.includes('RLS')) Object.assign(fileErr, { isRls: true });
           if ((fileErr as any).isRls) alert(fileErr.message); // 明確卡住提示 RLS 問題
           // V13.7: 改為 continue，避免單一檔案配額耗盡或格式錯誤導致整批中斷
-          continue;
+          continue; 
         }
 
         // 為了避免頻控，間隔 6 秒
@@ -837,7 +754,7 @@ function App() {
       }
 
       await new Promise(r => setTimeout(r, 1000));
-      await fetchCloudFiles();
+      await fetchCloudFiles(); 
       alert('批次補解析與 AI 標籤校準任務已完成！');
     } catch (err: any) {
       alert('批次處理出錯: ' + err.message);
@@ -854,118 +771,62 @@ function App() {
     if (!supabase) return;
     const targets = cloudFiles.filter(f => ids.includes(f.id));
     if (targets.length === 0) return;
-
+    
     if (!confirm(`${t('confirmReparseBatch', data.language).replace('{n}', targets.length.toString())}`)) return;
 
     setIsReparsing(true);
+    
+    // 分批送出（每批最多 5 筆），避免 Vercel Serverless 10s 逾時
+    const BATCH_SIZE = 5;
+    let enqueuedTotal = 0;
+    let failedBatches = 0;
 
     try {
-      const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
-      let failedBatches = 0;
-      for (let i = 0; i < targets.length; i++) {
-        const fileRecord = targets[i];
-        setReparseCurrentFile(fileRecord.original_name);
-        setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
-        setReparseIndex(i + 1);
-        setReparseTotal(targets.length);
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(ids.length / BATCH_SIZE);
+        
+        setReparseCurrentFile(`${t('queuePending', data.language)} ${batchNum}/${totalBatches}`);
+        setReparseProgress(Math.round((i / ids.length) * 100));
+        setReparseIndex(i);
+        setReparseTotal(ids.length);
 
         try {
-          // 1. 下載雲端檔案
-          const response = await fetch(fileRecord.public_url);
-          const blob = await response.blob();
-          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
+          // V17.2: 樂觀更新 - 在發送請求前先在本地標記為 pending，讓使用者有即時回饋
+          setCloudFiles(prev => prev.map(f => 
+            batch.includes(f.id) ? { ...f, parse_status: 'pending', error_message: null } : f
+          ));
 
-          // 2. 清理舊有紀錄
-          await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
-
-          // 3. 驅動本地 AI 解析引擎
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          const newAdded = parseResult?.added || 0;
-          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
-
-          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
-            is_parsed: true,
-            is_calibrated: true,
-            parsed_at: new Date().toISOString(),
-            equipment_name: currentDetectedLabel,
-            equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName,
-            parse_status: 'completed',
-            error_message: null
-          };
-
-          const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update(updateData)
-            .eq('id', fileRecord.id);
-
-          if (updateError) {
-            throw new Error(`檔案狀態更新失敗 (RLS): ${updateError.message}`);
+          const res = await fetch('/api/enqueue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              fileIds: batch,
+              language: data.language 
+            })
+          });
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            console.error(`[Enqueue Batch ${batchNum}] Error:`, errorData);
+            failedBatches++;
+          } else {
+            enqueuedTotal += batch.length;
           }
-
-          if (currentDetectedLabel !== fileRecord.equipment_name) {
-            const { data: entries } = await supabase.from('tuc_history_knowledge').select('id, metadata').eq('source_file_name', fileRecord.original_name);
-            if (entries) {
-              for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
-                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
-              }
-            }
-          }
-
-          setCloudFiles(prev => prev.map(f => {
-            if (f.id === fileRecord.id) {
-              return {
-                ...f,
-                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded,
-                is_parsed: true,
-                is_calibrated: true,
-                equipment_name: currentDetectedLabel,
-                equipment_tags: [currentDetectedLabel],
-                parse_status: 'completed',
-                error_message: null
-              };
-            }
-            return f;
-          }));
-
         } catch (err: any) {
-          console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);
-
-          let diag: any = {
-            code: 'UNKNOWN',
-            message: err.message,
-            timestamp: new Date().toISOString()
-          };
-
-          if (err.diagnostic) {
-            diag = err.diagnostic;
-          } else if (err.message?.includes('QUOTA_EXCEEDED')) {
-            diag.code = 'QUOTA_EXCEEDED';
-            diag.message = 'Gemini API 配額已耗盡';
-            diag.suggestion = '請等待 1 分鐘後再試。';
-          }
-
-          const errorStorageString = JSON.stringify(diag);
-
-          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorStorageString } as any).eq('id', fileRecord.id);
-          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorStorageString } : f));
+          console.error(`[Enqueue Batch ${batchNum}] Network error:`, err.message);
           failedBatches++;
-
-          if (diag.code === 'QUOTA_EXCEEDED') {
-            alert('偵測到 Gemini API 配額已耗盡 (每日或每分鐘限額)。為了保護您的帳號，系統已自動暫停後續解析作業。\n請至少等待 1 分鐘後再試，或更換 API Key。');
-            break;
-          }
         }
 
-        if (i < targets.length - 1) {
-          await new Promise(r => setTimeout(r, 6000));
+        // 批次間間隔 2 秒，避免瞬間壓力
+        if (i + BATCH_SIZE < ids.length) {
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
 
       const msg = failedBatches > 0
-        ? `處理完畢，但有 ${failedBatches} 筆解析失敗。`
-        : `已成功由本地強制解析完成 ${targets.length} 筆檔案！`;
+        ? `已送出 ${enqueuedTotal} 筆，${failedBatches} 批次失敗。請稍後重試失敗的檔案。`
+        : `已成功將 ${enqueuedTotal} 筆檔案分批送入背景解析佇列！`;
       alert(msg);
       await fetchCloudFiles();
       setSelectedFileIds([]);
@@ -992,7 +853,7 @@ function App() {
   const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
-
+    
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1010,27 +871,21 @@ function App() {
     }
   };
 
-   // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 parsed > failed > processing > pending
+  // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 failed > processing > pending > parsed
   const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
-    // 優先檢查是否已有解析結果 (只要有條目或標記為已解析，就是成功)
-    if (f.knowledgeCount > 0 || f.is_parsed) return 'parsed';
-    
-    // 其次檢查狀態
     if (f.parse_status === 'failed') return 'failed';
     if (f.parse_status === 'processing') return 'processing';
-    if (f.parse_status === 'pending') return 'pending';
-    
+    if (f.parse_status === 'pending' && !f.is_parsed && !f.knowledgeCount) return 'pending';
+    if (f.knowledgeCount > 0 || f.is_parsed) return 'parsed';
     return 'unparsed';
   };
 
   const filteredFiles = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles).filter(f => {
-    // V17.9: 修正搜尋邏輯，同時支援原始檔名與翻譯檔名
-    const nameToSearch = f.display_name || f.original_name || '';
-    const matchesSearch = nameToSearch.includes(searchQuery) ||
+    const matchesSearch = (f.display_name || '').includes(searchQuery) ||
       (f.equipment_name || '').includes(searchQuery) ||
       (f.requester || '').includes(searchQuery);
     if (!matchesSearch) return false;
-
+    
     if (queueFilterTab === 'all') return true;
     return getFileCategory(f) === queueFilterTab;
   });
@@ -1039,9 +894,9 @@ function App() {
     <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
         <div role="banner" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
             justifyContent: 'center',
             fontWeight: '900',
             color: 'var(--tuc-red)',
@@ -1061,8 +916,8 @@ function App() {
           {/* V16: 語系選擇器 */}
           <div className="lang-selector-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', borderRadius: '6px', padding: '2px 8px' }}>
             <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>{t('languageLabel', data.language)}</span>
-            <select
-              value={data.language}
+            <select 
+              value={data.language} 
               onChange={(e) => setData({ ...data, language: e.target.value as Language })}
               className="lang-select"
               aria-label="Select Language"
@@ -1075,27 +930,27 @@ function App() {
           </div>
 
           {!isMobile && (
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="icon-btn"
+            <button 
+              onClick={() => setShowPreview(!showPreview)} 
+              className="icon-btn" 
               aria-label={showPreview ? "Switch to Edit Mode" : "Switch to Preview Mode"}
-              style={{
-                padding: '0.5rem 1rem',
+              style={{ 
+                padding: '0.5rem 1rem', 
                 background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
                 borderColor: showPreview ? '#333' : 'var(--tuc-red)',
                 color: 'white'
               }}
             >
-              {showPreview ? <span className="header-btn-text">{t('hidePreview', data.language)}</span> : <span className="header-btn-text">{t('showPreview', data.language)}</span>}
+               {showPreview ? <span className="header-btn-text">{t('hidePreview', data.language)}</span> : <span className="header-btn-text">{t('showPreview', data.language)}</span>}
             </button>
           )}
 
-          <button
-            onClick={() => setShowManual(true)}
+          <button 
+            onClick={() => setShowManual(true)} 
             className="icon-btn manual-btn"
             aria-label="Open User Manual"
-            style={{
-              background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
+            style={{ 
+              background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)', 
               color: 'white',
               border: 'none',
               padding: isMobile ? '6px 10px' : '8px 14px',
@@ -1112,8 +967,8 @@ function App() {
             {!isMobile && <span>{t('userManual', data.language)}</span>}
           </button>
 
-          <button
-            onClick={() => setShowConfig(true)}
+          <button 
+            onClick={() => setShowConfig(true)} 
             className="icon-btn"
             aria-label="Open Settings"
           >
@@ -1122,34 +977,31 @@ function App() {
         </nav>
       </header>
 
-      <main className="main-grid" style={{
-        gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'),
+      <main className="main-grid" style={{ 
+        gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'), 
         gap: 0,
-        flex: 1,
+        flex: 1, 
         overflow: 'hidden',
         paddingBottom: isMobile ? '70px' : '0'
       }}>
         {(!isMobile || mobileAppTab === 'edit') && (
           <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
-            {(() => {
-              const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
-              return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
-            })()}
+            <SpecForm data={data} onChange={setData} />
           </div>
         )}
 
         {!isMobile && showPreview && (
-          <div
-            className={`layout-resizer ${isResizing ? 'active' : ''}`}
+          <div 
+            className={`layout-resizer ${isResizing ? 'active' : ''}`} 
             onMouseDown={() => setIsResizing(true)}
           />
         )}
 
         {(!isMobile || mobileAppTab === 'preview') && (
-          <div style={{
+          <div style={{ 
             minWidth: 0,
             height: '100%',
-            opacity: (!isMobile && !showPreview) ? 0 : 1,
+            opacity: (!isMobile && !showPreview) ? 0 : 1, 
             pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
             transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'auto',
@@ -1163,17 +1015,17 @@ function App() {
                   <Eye size={16} /> {t('officialPreview', data.language)}
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={() => setShowUploadWizard(true)}
-                    className="icon-btn"
+                  <button 
+                    onClick={() => setShowUploadWizard(true)} 
+                    className="icon-btn" 
                     title={t('wizardTitle', data.language)}
                     style={{ color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)', padding: '4px 8px' }}
                   >
                     <CloudUpload size={16} /> <span style={{ fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '4px' }}>{t('import', data.language)}</span>
                   </button>
-                  <button
-                    onClick={handleOpenInspector}
-                    className="icon-btn"
+                  <button 
+                    onClick={handleOpenInspector} 
+                    className="icon-btn" 
                     title={t('history', data.language)}
                     style={{ color: 'var(--tuc-red)', border: '1px solid rgba(230,0,18,0.3)', padding: '4px 8px' }}
                   >
@@ -1189,14 +1041,14 @@ function App() {
 
       {isMobile && (
         <nav className="bottom-nav">
-          <button
+          <button 
             className={`nav-tab ${mobileAppTab === 'edit' ? 'active' : ''}`}
             onClick={() => setMobileAppTab('edit')}
           >
             <PenTool size={22} />
             {t('editTab', data.language)}
           </button>
-          <button
+          <button 
             className="nav-tab"
             onClick={() => setShowUploadWizard(true)}
             style={{ color: '#60A5FA' }}
@@ -1204,7 +1056,7 @@ function App() {
             <CloudUpload size={22} />
             {t('import', data.language)}
           </button>
-          <button
+          <button 
             className="nav-tab"
             onClick={handleOpenInspector}
             style={{ color: 'var(--tuc-red)' }}
@@ -1212,7 +1064,7 @@ function App() {
             <Database size={22} />
             {t('history', data.language)}
           </button>
-          <button
+          <button 
             className={`nav-tab ${mobileAppTab === 'preview' ? 'active' : ''}`}
             onClick={() => setMobileAppTab('preview')}
           >
@@ -1233,13 +1085,13 @@ function App() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="input-with-label">
               <label>{t('apiKeyLabel', data.language)}</label>
               <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={(!showApiKey && tempKey) ? tempKey.substring(0, 8) + "****************" : tempKey}
+                <input 
+                  type={showApiKey ? "text" : "password"} 
+                  value={(!showApiKey && tempKey) ? tempKey.substring(0, 8) + "****************" : tempKey} 
                   onChange={(e) => {
                     const val = e.target.value;
                     // 如果目前是遮蔽狀態且有變動，則視為重新輸入
@@ -1247,21 +1099,21 @@ function App() {
                     setTempKey(val);
                   }}
                   placeholder={t('apiKeyPlaceholder', data.language)}
-                  style={{
+                  style={{ 
                     flex: 1,
                     borderColor: (tempKey && (!tempKey.startsWith('AIza') || tempKey.length < 30)) ? '#EF4444' : 'var(--border-color)'
                   }}
                 />
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="icon-btn"
+                <button 
+                  onClick={() => setShowApiKey(!showApiKey)} 
+                  className="icon-btn" 
                   style={{ padding: '0 8px' }}
                 >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />} 
                 </button>
-                <button
-                  onClick={handleDeleteApiKey}
-                  className="icon-btn"
+                <button 
+                  onClick={handleDeleteApiKey} 
+                  className="icon-btn" 
                   style={{ padding: '0 8px', color: '#EF4444' }}
                 >
                   <Trash2 size={16} />
@@ -1284,12 +1136,12 @@ function App() {
             <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1.5rem' }}>
               {isChangePasswordMode ? t('newPwdHint', data.language) : t('enterPwdHint', data.language)}
             </p>
-
+            
             {isChangePasswordMode ? (
               <>
-                <input
-                  type="password"
-                  value={newPassword}
+                <input 
+                  type="password" 
+                  value={newPassword} 
                   onChange={(e) => {
                     setNewPassword(e.target.value);
                     setPasswordError('');
@@ -1307,9 +1159,9 @@ function App() {
               </>
             ) : (
               <>
-                <input
-                  type="password"
-                  value={inputPassword}
+                <input 
+                  type="password" 
+                  value={inputPassword} 
                   onChange={(e) => setInputPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
                   placeholder={t('pwdPlaceholder', data.language)}
@@ -1320,15 +1172,15 @@ function App() {
                   <button className="ghost-button" onClick={() => setShowPasswordPrompt(false)} style={{ flex: 1 }}>{t('cancel', data.language)}</button>
                   <button className="primary-button" onClick={handleVerifyPassword} style={{ flex: 2 }}>{t('confirm', data.language)}</button>
                 </div>
-                <button
-                  onClick={() => setIsChangePasswordMode(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#666',
-                    fontSize: '0.75rem',
-                    textDecoration: 'underline',
-                    cursor: 'pointer'
+                <button 
+                  onClick={() => setIsChangePasswordMode(true)} 
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: '#666', 
+                    fontSize: '0.75rem', 
+                    textDecoration: 'underline', 
+                    cursor: 'pointer' 
                   }}
                 >
                   {t('changePassword', data.language)}
@@ -1341,7 +1193,7 @@ function App() {
 
       {showCloudInspector && (
         <div className="modal-overlay" style={{ zIndex: 1200, display: isReparseMinimized ? 'none' : 'flex' }}>
-          <div className="glass-panel modal-content inspector-modal" style={{ padding: '2rem', width: '95vw', maxWidth: '1200px', height: '90vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <BookOpen size={24} color="var(--tuc-red)" /> {t('cloudInspector', data.language)}
@@ -1349,27 +1201,27 @@ function App() {
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {selectedFileIds.length > 0 && (
                   <>
-                    <button
-                      className="primary-button"
+                    <button 
+                      className="primary-button" 
                       onClick={() => handleForceReparseFiles(selectedFileIds)}
                       disabled={isReparsing}
-                      style={{
-                        fontSize: '0.8rem',
-                        padding: '6px 12px',
-                        background: '#60A5FA',
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '6px 12px', 
+                        background: '#60A5FA', 
                         borderColor: '#60A5FA',
                         opacity: isReparsing ? 0.5 : 1
                       }}
                     >
                       <Repeat size={14} /> {t('batchReparse', data.language)} ({selectedFileIds.length})
                     </button>
-                    <button
-                      className="primary-button"
+                    <button 
+                      className="primary-button" 
                       onClick={handleBatchDeleteFiles}
-                      style={{
-                        fontSize: '0.8rem',
-                        padding: '6px 12px',
-                        background: '#EF4444',
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '6px 12px', 
+                        background: '#EF4444', 
                         borderColor: '#EF4444',
                         marginRight: '0.5rem'
                       }}
@@ -1379,14 +1231,14 @@ function App() {
                   </>
                 )}
                 {selectedFileIds.length === 0 && (
-                  <button
-                    className="primary-button"
+                  <button 
+                    className="primary-button" 
                     onClick={handleEnqueueUnparsed}
                     disabled={isReparsing}
-                    style={{
-                      fontSize: '0.8rem',
-                      padding: '6px 12px',
-                      background: '#10B981',
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      padding: '6px 12px', 
+                      background: '#10B981', 
                       borderColor: '#10B981',
                       marginRight: '0.5rem',
                       opacity: isReparsing ? 0.5 : 1
@@ -1399,38 +1251,38 @@ function App() {
                   <Download size={16} /> {t('exportCsv', data.language)}
                 </button>
 
-                <button
-                  className="ghost-button"
-                  onClick={handleCleanupDuplicates}
+                <button 
+                  className="ghost-button" 
+                  onClick={handleCleanupDuplicates} 
                   style={{ fontSize: '0.8rem', color: '#FBBF24', borderColor: 'rgba(251,191,36,0.3)' }}
                 >
                   <Sparkles size={16} /> <span className="header-btn-text">{t('cleanup', data.language)}</span>
                 </button>
-                <button
-                  className="ghost-button"
-                  onClick={handleReparseAll}
+                <button 
+                  className="ghost-button" 
+                  onClick={handleReparseAll} 
                   disabled={isReparsing}
-                  style={{
-                    fontSize: '0.8rem',
-                    color: '#60A5FA',
+                  style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#60A5FA', 
                     borderColor: 'rgba(96,165,250,0.3)',
                     opacity: isReparsing ? 0.5 : 1
                   }}
                 >
                   <Zap size={16} /> <span className="header-btn-text">{t('reparseAll', data.language)}</span>
                 </button>
-                <button
-                  className="ghost-button"
-                  onClick={handleAutofixLabels}
+                <button 
+                  className="ghost-button" 
+                  onClick={handleAutofixLabels} 
                   disabled={isReparsing}
-                  style={{
-                    fontSize: '0.8rem',
-                    color: '#10B981',
+                  style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#10B981', 
                     borderColor: 'rgba(16,185,129,0.3)',
                     opacity: isReparsing ? 0.5 : 1
                   }}
                 >
-                  {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />}
+                  {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />} 
                   <span className="header-btn-text">{t('labelFix', data.language)}</span>
                 </button>
                 <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title={t('minimizeToBg', data.language)}>
@@ -1442,237 +1294,269 @@ function App() {
               </div>
             </div>
 
-            {/* 系統中控面板區域 (與下方列表可調整高度) */}
-            <div style={{ height: inspectorDashboardHeight, display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
-                {/* V17.8: 資源水位預警面板 */}
-                {(() => {
-                  const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
-                  const storageLimitBytes = 1 * 1024 * 1024 * 1024;    // 1 GB
-                  const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
-                  const sUsage = Math.min(Math.round((storageSize / storageLimitBytes) * 100), 100);
-                  const isHighUsage = kUsage > 80 || sUsage > 80;
+            {/* V17.8: 資源水位預警面板 */}
+            {(() => {
+              const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
+              const storageLimit = 500;    // 500個檔案設為警戒線 (約佔 1GB)
+              const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
+              const sUsage = Math.min(Math.round((storageCount / storageLimit) * 100), 100);
+              const isHighUsage = kUsage > 80 || sUsage > 80;
 
-                  return (
+              return (
+                <div style={{ 
+                  background: 'rgba(0,0,0,0.2)', 
+                  border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`, 
+                  borderRadius: '10px', 
+                  padding: '1rem', 
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  position: 'relative'
+                }}>
+                  {/* 清理確認彈窗 (內嵌) */}
+                  {showCleanupModal && (
                     <div style={{
-                      background: 'rgba(0,0,0,0.2)',
-                      border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`,
+                      position: 'absolute',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(20,20,20,0.95)',
                       borderRadius: '10px',
-                      padding: '1rem',
+                      zIndex: 10,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.75rem',
-                      position: 'relative'
+                      padding: '1rem',
+                      border: '1px solid #EF4444'
                     }}>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ShieldAlert size={16} color={isHighUsage ? '#EF4444' : '#60A5FA'} />
-                        {t('resourceUsage', data.language)}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '2px 6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          <span style={{ fontSize: '0.7rem', color: '#888', marginRight: '6px' }}>{t('sizeLimitLabel', data.language)}</span>
-                          <input
-                            type="number"
-                            value={largeFileSizeLimit}
-                            onChange={(e) => setLargeFileSizeLimit(e.target.value)}
-                            style={{
-                              width: '45px',
-                              background: 'rgba(0,0,0,0.5)',
-                              border: '1px solid rgba(96,165,250,0.5)',
-                              borderRadius: '4px',
-                              color: '#fff',
-                              fontSize: '0.75rem',
-                              textAlign: 'center',
-                              outline: 'none',
-                              padding: '2px'
-                            }}
-                            title="可手動輸入要刪除的容量設定"
-                          />
-                          <span style={{ fontSize: '0.7rem', color: '#888', marginLeft: '6px' }}>MB</span>
-                        </div>
-                        <button
-                          onClick={handleDeleteLargeFiles}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                          {t('cleanupLargeFiles', data.language)} (共 {largeFilesFound.length} 個)
+                        </span>
+                        <button onClick={() => setShowCleanupModal(false)} className="icon-btn"><X size={16} /></button>
+                      </div>
+                      <div style={{ 
+                        flex: 1, 
+                        overflowY: 'auto', 
+                        background: 'rgba(0,0,0,0.3)', 
+                        borderRadius: '6px', 
+                        padding: '0.5rem',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: '#aaa'
+                      }}>
+                        {largeFilesFound.map((f, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={f.checked} 
+                              onChange={(e) => {
+                                const newList = [...largeFilesFound];
+                                newList[i].checked = e.target.checked;
+                                setLargeFilesFound(newList);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{f.name}</span>
+                              <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#EF4444', marginBottom: '0.5rem' }}>
+                        * 提醒：點擊確認後將一併刪除「實體檔案」、「上傳紀錄」與「知識庫所有條文」，且無法復原。
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                          onClick={executeCleanup} 
                           disabled={isCleaning}
-                          style={{
-                            padding: '4px 8px',
-                            background: '#EF4444',
-                            border: 'none',
-                            borderRadius: '4px',
-                            color: '#fff',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          title={t('cleanupLargeFiles', data.language)}
+                          style={{ flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px', cursor: 'pointer', fontWeight: 'bold' }}
                         >
-                          {isCleaning ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />}
-                          {t('cleanupLargeFiles', data.language)}
+                          {isCleaning ? <Loader2 size={16} className="spin" /> : '確認徹底清理'}
+                        </button>
+                        <button 
+                          onClick={() => setShowCleanupModal(false)}
+                          style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
+                        >
+                          取消
                         </button>
                       </div>
                     </div>
+                  )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                      {/* 知識庫條目 */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
-                          <span style={{ color: '#aaa' }}>{t('knowledgeEntries', data.language)}</span>
-                          <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()} {data.language === 'en-US' ? 'items' : '筆'}</span>
-                        </div>
-                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${kUsage}%`,
-                            height: '100%',
-                            background: kUsage > 80 ? '#EF4444' : '#60A5FA',
-                            transition: 'width 0.5s ease-out'
-                          }} />
-                        </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShieldAlert size={16} color={isHighUsage ? '#EF4444' : '#60A5FA'} />
+                      {t('resourceUsage', data.language)}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 4px' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#888', marginRight: '4px' }}>{t('sizeLimitLabel', data.language)}</span>
+                        <input 
+                          type="number" 
+                          value={largeFileSizeLimit} 
+                          onChange={(e) => setLargeFileSizeLimit(Number(e.target.value))}
+                          style={{ 
+                            width: '40px', 
+                            background: 'transparent', 
+                            border: 'none', 
+                            color: '#fff', 
+                            fontSize: '0.75rem', 
+                            textAlign: 'center',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '0.7rem', color: '#888' }}>MB</span>
                       </div>
+                      <button 
+                        onClick={handleDeleteLargeFiles}
+                        disabled={isCleaning}
+                        style={{ 
+                          padding: '4px 8px', 
+                          background: '#EF4444', 
+                          border: 'none', 
+                          borderRadius: '4px', 
+                          color: '#fff', 
+                          fontSize: '0.7rem', 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title={t('cleanupLargeFiles', data.language)}
+                      >
+                        {isCleaning ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />} 
+                        {t('cleanupLargeFiles', data.language)}
+                      </button>
+                    </div>
+                  </div>
 
-                      {/* 檔案數量與容量 */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
-                          <span style={{ color: '#aaa' }}>{t('storageFiles', data.language)}</span>
-                          <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>
-                            {(storageSize / 1024 / 1024 / 1024).toFixed(3)} GB / 1 GB
-                          </span>
-                        </div>
-                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${sUsage}%`,
-                            height: '100%',
-                            background: sUsage > 80 ? '#EF4444' : '#10B981',
-                            transition: 'width 0.5s ease-out'
-                          }} />
-                        </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    {/* 知識庫條目 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>{t('knowledgeEntries', data.language)}</span>
+                        <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()} {data.language === 'en-US' ? 'items' : '筆'}</span>
+                      </div>
+                      <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${kUsage}%`, 
+                          height: '100%', 
+                          background: kUsage > 80 ? '#EF4444' : '#60A5FA', 
+                          transition: 'width 0.5s ease-out'
+                        }} />
                       </div>
                     </div>
 
-                    {isHighUsage && (
-                      <div style={{
-                        marginTop: '4px',
-                        padding: '8px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        color: '#EF4444',
-                        borderLeft: '3px solid #EF4444'
-                      }}>
-                        {t('warningHighUsage', data.language)}
+                    {/* 檔案數量 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>{t('storageFiles', data.language)}</span>
+                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>{storageCount} / {storageLimit} {data.language === 'en-US' ? 'files' : '個'}</span>
+                      </div>
+                      <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${sUsage}%`, 
+                          height: '100%', 
+                          background: sUsage > 80 ? '#EF4444' : '#10B981', 
+                          transition: 'width 0.5s ease-out'
+                        }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {isHighUsage && (
+                    <div style={{ 
+                      marginTop: '4px',
+                      padding: '8px', 
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      borderRadius: '4px', 
+                      fontSize: '0.75rem', 
+                      color: '#EF4444',
+                      borderLeft: '3px solid #EF4444'
+                    }}>
+                      {t('warningHighUsage', data.language)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* 佇列狀態總覽面板 */}
+            {(() => {
+              const completedCount = cloudFiles.filter(f => getFileCategory(f) === 'parsed').length;
+              const pendingCount = cloudFiles.filter(f => getFileCategory(f) === 'pending').length;
+              const processingCount = cloudFiles.filter(f => getFileCategory(f) === 'processing').length;
+              const failedCount = cloudFiles.filter(f => getFileCategory(f) === 'failed').length;
+              const unparsedCount = cloudFiles.filter(f => getFileCategory(f) === 'unparsed').length;
+              const totalFiles = cloudFiles.length;
+              const progressPct = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
+              const hasActiveJobs = pendingCount > 0 || processingCount > 0;
+
+              return (
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.02)', 
+                  border: `1px solid ${hasActiveJobs ? 'rgba(96,165,250,0.3)' : 'var(--border-color)'}`, 
+                  borderRadius: '10px', 
+                  padding: '1rem 1.2rem', 
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>{t('queueOverview', data.language)}</span>
+                    {hasActiveJobs && (
+                      <span style={{ fontSize: '0.7rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Loader2 size={10} className="spin" /> {t('autoRefreshHint', data.language)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueParsed', data.language)} <b style={{ color: '#10B981' }}>{completedCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queuePending', data.language)} <b style={{ color: '#F59E0B' }}>{pendingCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#60A5FA' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueProcessing', data.language)} <b style={{ color: '#60A5FA' }}>{processingCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueFailed', data.language)} <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
+                    </div>
+                    {unparsedCount > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#888' }} />
+                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('unparsed', data.language)} <b style={{ color: '#888' }}>{unparsedCount}</b></span>
                       </div>
                     )}
                   </div>
-                );
-              })()}
-
-              {/* 佇列狀態總覽面板 */}
-              {(() => {
-                const completedCount = cloudFiles.filter(f => getFileCategory(f) === 'parsed').length;
-                const pendingCount = cloudFiles.filter(f => getFileCategory(f) === 'pending').length;
-                const processingCount = cloudFiles.filter(f => getFileCategory(f) === 'processing').length;
-                const failedCount = cloudFiles.filter(f => getFileCategory(f) === 'failed').length;
-                const unparsedCount = cloudFiles.filter(f => getFileCategory(f) === 'unparsed').length;
-                const totalFiles = cloudFiles.length;
-                const progressPct = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
-                const hasActiveJobs = pendingCount > 0 || processingCount > 0;
-
-                return (
-                  <div style={{
-                    background: 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${hasActiveJobs ? 'rgba(96,165,250,0.3)' : 'var(--border-color)'}`,
-                    borderRadius: '10px',
-                    padding: '1rem 1.2rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>{t('queueOverview', data.language)}</span>
-                      {hasActiveJobs && (
-                        <span style={{ fontSize: '0.7rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Loader2 size={10} className="spin" /> {t('autoRefreshHint', data.language)}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
-                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueParsed', data.language)} <b style={{ color: '#10B981' }}>{completedCount}</b></span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
-                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queuePending', data.language)} <b style={{ color: '#F59E0B' }}>{pendingCount}</b></span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#60A5FA' }} />
-                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueProcessing', data.language)} <b style={{ color: '#60A5FA' }}>{processingCount}</b></span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
-                        <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueFailed', data.language)} <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
-                      </div>
-                      {unparsedCount > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#888' }} />
-                          <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('unparsed', data.language)} <b style={{ color: '#888' }}>{unparsedCount}</b></span>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${progressPct}%`,
-                        height: '100%',
-                        background: 'linear-gradient(90deg, #10B981, #34D399)',
-                        transition: 'width 0.5s ease-out',
-                        borderRadius: '3px'
-                      }} />
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#555', textAlign: 'right' }}>
-                      {t('completionRate', data.language)}：{progressPct}% ({completedCount}/{totalFiles})
-                    </div>
-                    {pendingCount > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.1)', padding: '6px 10px', borderRadius: '4px', marginTop: '4px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                        <Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-                        <div>若長時間停滯，可能是雲端佇列逾時休眠。<br />請圈選檔案並點擊上方「全部重新解析」改由本地強制處理。</div>
-                      </div>
-                    )}
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${progressPct}%`, 
+                      height: '100%', 
+                      background: 'linear-gradient(90deg, #10B981, #34D399)', 
+                      transition: 'width 0.5s ease-out',
+                      borderRadius: '3px'
+                    }} />
                   </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* V18.6: 垂直 Resizer 調整條 */}
-            <div 
-              onMouseDown={() => setIsInspectorResizing(true)}
-              style={{
-                height: '8px',
-                width: '100%',
-                cursor: 'ns-resize',
-                background: isInspectorResizing ? 'rgba(230,0,18,0.2)' : 'transparent',
-                borderTop: '1px solid var(--border-color)',
-                borderBottom: '1px solid var(--border-color)',
-                margin: '4px 0',
-                transition: 'background 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10
-              }}
-              className="inspector-resizer"
-            >
-              <div style={{ width: '30px', height: '2px', background: 'rgba(255,255,255,0.2)', borderRadius: '10px' }} />
-            </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', textAlign: 'right' }}>
+                    {t('completionRate', data.language)}：{progressPct}% ({completedCount}/{totalFiles})
+                  </div>
+                </div>
+              );
+            })()}
 
             {isReparsing && (
-              <div style={{
-                background: 'rgba(96,165,250,0.05)',
-                border: '1px solid rgba(96,165,250,0.2)',
-                borderRadius: '8px',
-                padding: '1rem',
+              <div style={{ 
+                background: 'rgba(96,165,250,0.05)', 
+                border: '1px solid rgba(96,165,250,0.2)', 
+                borderRadius: '8px', 
+                padding: '1rem', 
                 marginBottom: '1rem',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1687,10 +1571,10 @@ function App() {
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${reparseProgress}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #3B82F6, #60A5FA)',
+                  <div style={{ 
+                    width: `${reparseProgress}%`, 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #3B82F6, #60A5FA)', 
                     transition: 'width 0.5s ease-out',
                     boxShadow: '0 0 10px rgba(96, 165, 250, 0.5)'
                   }} />
@@ -1700,25 +1584,19 @@ function App() {
 
             {/* 分頁篩選標籤列 */}
             {(() => {
-              const listToCount = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles);
               const counts = {
-                all: listToCount.filter(f => {
-                  const name = f.display_name || f.original_name || '';
-                  return name.includes(searchQuery) || (f.equipment_name || '').includes(searchQuery) || (f.requester || '').includes(searchQuery);
-                }).length,
-                parsed: listToCount.filter(f => getFileCategory(f) === 'parsed').length,
-                pending: listToCount.filter(f => getFileCategory(f) === 'pending').length,
-                processing: listToCount.filter(f => getFileCategory(f) === 'processing').length,
-                failed: listToCount.filter(f => getFileCategory(f) === 'failed').length,
-                unparsed: listToCount.filter(f => getFileCategory(f) === 'unparsed').length
+                all: cloudFiles.length,
+                parsed: cloudFiles.filter(f => getFileCategory(f) === 'parsed').length,
+                pending: cloudFiles.filter(f => getFileCategory(f) === 'pending').length,
+                processing: cloudFiles.filter(f => getFileCategory(f) === 'processing').length,
+                failed: cloudFiles.filter(f => getFileCategory(f) === 'failed').length,
               };
-              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'; labelKey: string; color: string }[] = [
+              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed'; labelKey: string; color: string }[] = [
                 { key: 'all', labelKey: 'allFiles', color: '#888' },
                 { key: 'parsed', labelKey: 'queueParsed', color: '#10B981' },
                 { key: 'pending', labelKey: 'queuePending', color: '#F59E0B' },
                 { key: 'processing', labelKey: 'queueProcessing', color: '#60A5FA' },
                 { key: 'failed', labelKey: 'queueFailed', color: '#EF4444' },
-                { key: 'unparsed', labelKey: 'unparsed', color: '#888' },
               ];
               return (
                 <div style={{
@@ -1728,8 +1606,7 @@ function App() {
                   borderBottom: '1px solid var(--border-color)',
                   background: 'rgba(255,255,255,0.02)',
                   borderRadius: '8px 8px 0 0',
-                  overflow: 'hidden',
-                  flexShrink: 0
+                  overflow: 'hidden'
                 }}>
                   {tabs.map(tab => (
                     <button
@@ -1770,14 +1647,13 @@ function App() {
               );
             })()}
 
-            {/* Content List Table Container with specific layout boundaries to prevent parent overflow */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
                     <th style={{ textAlign: 'center', padding: '12px', width: '40px' }}>
-                      <input
-                        type="checkbox"
+                      <input 
+                        type="checkbox" 
                         checked={filteredFiles.length > 0 && selectedFileIds.length === filteredFiles.length}
                         onChange={(e) => handleSelectAllFiles(e.target.checked)}
                       />
@@ -1794,20 +1670,20 @@ function App() {
                   {filteredFiles.length === 0 ? (
                     <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#555' }}>{t('noFiles', data.language)}</td></tr>
                   ) : filteredFiles.map((f, idx) => (
-                    <tr
-                      key={f.id}
-                      style={{
-                        borderTop: '1px solid rgba(255,255,255,0.05)',
+                    <tr 
+                      key={f.id} 
+                      style={{ 
+                        borderTop: '1px solid rgba(255,255,255,0.05)', 
                         transition: 'background 0.2s',
                         background: selectedFileIds.includes(f.id) ? 'rgba(230,0,18,0.05)' : 'transparent',
                         cursor: 'pointer'
-                      }}
+                      }} 
                       className="hover-row"
                       onClick={() => handleToggleSelectFile(f.id)}
                     >
                       <td style={{ textAlign: 'center', padding: '12px' }}>
-                        <input
-                          type="checkbox"
+                        <input 
+                          type="checkbox" 
                           checked={selectedFileIds.includes(f.id)}
                           onChange={() => handleToggleSelectFile(f.id)}
                           onClick={(e) => e.stopPropagation()}
@@ -1815,9 +1691,9 @@ function App() {
                       </td>
                       <td style={{ padding: '12px', color: '#888' }}>{idx + 1}</td>
                       <td style={{ padding: '12px' }}>
-                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name || f.original_name}</div>
-                        <div
-                          style={{
+                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{f.display_name}</div>
+                        <div 
+                          style={{ 
                             marginTop: '6px',
                             cursor: 'pointer',
                             padding: '4px',
@@ -1837,7 +1713,7 @@ function App() {
                         >
                           {editingFileId === f.id ? (
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <input
+                              <input 
                                 autoFocus
                                 className="glass-input"
                                 style={{ padding: '2px 8px', fontSize: '0.75rem', flex: 1, minWidth: '150px', background: '#000' }}
@@ -1847,7 +1723,7 @@ function App() {
                                   if (e.key === 'Enter') handleUpdateTags(f.id, tempTags);
                                   if (e.key === 'Escape') setEditingFileId(null);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()} 
                               />
                               <button className="icon-btn" style={{ color: '#10B981', padding: '2px' }} onClick={(e) => {
                                 e.stopPropagation();
@@ -1866,11 +1742,11 @@ function App() {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                               {(f.equipment_tags && f.equipment_tags.length > 0) ? (
                                 f.equipment_tags.map((tag: string, i: number) => (
-                                  <span key={i} style={{
-                                    fontSize: '0.65rem',
-                                    padding: '1px 8px',
-                                    background: 'rgba(230,0,18,0.1)',
-                                    color: 'var(--tuc-red)',
+                                  <span key={i} style={{ 
+                                    fontSize: '0.65rem', 
+                                    padding: '1px 8px', 
+                                    background: 'rgba(230,0,18,0.1)', 
+                                    color: 'var(--tuc-red)', 
                                     borderRadius: '4px',
                                     border: '1px solid rgba(230,0,18,0.2)',
                                     fontWeight: 'bold'
@@ -1879,9 +1755,9 @@ function App() {
                                   </span>
                                 ))
                               ) : (
-                                <span style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>
-                                  {f.equipment_name || t('newTagHint', data.language)}
-                                </span>
+                                 <span style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>
+                                   {f.equipment_name || t('newTagHint', data.language)}
+                                 </span>
                               )}
                             </div>
                           )}
@@ -1889,25 +1765,25 @@ function App() {
                       </td>
                       <td style={{ padding: '12px' }}>
                         {(f.is_parsed || (f as any).knowledgeCount > 0) ? (
-                          <span style={{
-                            padding: '2px 8px',
-                            background: 'rgba(16,185,129,0.1)',
-                            color: '#10B981',
-                            borderRadius: '12px',
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(16,185,129,0.1)', 
+                            color: '#10B981', 
+                            borderRadius: '12px', 
                             fontSize: '0.75rem',
                             border: '1px solid rgba(16,185,129,0.2)',
                             display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <Zap size={10} /> {t('parsedCount', data.language)} {((f as any).knowledgeCount > 0 || f.is_parsed) ? `(${(f as any).knowledgeCount || 0} ${t('itemsSuffix', data.language)})` : ''}
-                          </span>
+                             alignItems: 'center',
+                             gap: '4px'
+                           }}>
+                             <Zap size={10} /> {t('parsedCount', data.language)} {((f as any).knowledgeCount > 0 || f.is_parsed) ? `(${(f as any).knowledgeCount || 0} ${t('itemsSuffix', data.language)})` : ''}
+                           </span>
                         ) : (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' ? (
-                          <span style={{
-                            padding: '2px 8px',
-                            background: 'rgba(96,165,250,0.1)',
-                            color: '#60A5FA',
-                            borderRadius: '12px',
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(96,165,250,0.1)', 
+                            color: '#60A5FA', 
+                            borderRadius: '12px', 
                             fontSize: '0.75rem',
                             border: '1px solid rgba(96,165,250,0.2)',
                             display: 'inline-flex',
@@ -1918,11 +1794,11 @@ function App() {
                           </span>
                         ) : (f as any).parse_status === 'failed' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              background: 'rgba(239,68,68,0.1)',
-                              color: '#EF4444',
-                              borderRadius: '12px',
+                            <span style={{ 
+                              padding: '2px 8px', 
+                              background: 'rgba(239,68,68,0.1)', 
+                              color: '#EF4444', 
+                              borderRadius: '12px', 
                               fontSize: '0.75rem',
                               border: '1px solid rgba(239,68,68,0.2)',
                               display: 'inline-flex',
@@ -1939,11 +1815,11 @@ function App() {
                             )}
                           </div>
                         ) : (
-                          <span style={{
-                            padding: '2px 8px',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: '#888',
-                            borderRadius: '12px',
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(255,255,255,0.05)', 
+                            color: '#888', 
+                            borderRadius: '12px', 
                             fontSize: '0.75rem',
                             border: '1px solid rgba(255,255,255,0.1)',
                             display: 'inline-flex',
@@ -1977,24 +1853,24 @@ function App() {
             <div style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
               {t('totalProgress', data.language)} {cloudFiles.length} {t('items', data.language)}
             </div>
-      </div>
-    </div>
-  )}
+          </div>
+        </div>
+      )}
 
-      <UploadWizardModal
-        isOpen={showUploadWizard}
-        onClose={() => setShowUploadWizard(false)}
+      <UploadWizardModal 
+        isOpen={showUploadWizard} 
+        onClose={() => setShowUploadWizard(false)} 
         onMinimize={() => { setShowUploadWizard(false); }}
         isMinimized={isReparseMinimized}
-        data={data}
+        data={data} 
         language={data.language}
       />
 
       {/* V9.9: 全域任務監測膠囊 (Floating Task Capsule) */}
       {isReparseMinimized && (
-        <div
+        <div 
           onClick={() => setIsReparseMinimized(false)}
-          style={{
+          style={{ 
             position: 'fixed',
             bottom: '24px',
             right: '24px',
@@ -2021,7 +1897,7 @@ function App() {
               <Database size={16} color="var(--tuc-red)" />
             </div>
           )}
-
+          
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>
               {isReparsing ? `${t('processing', data.language)} ${reparseProgress}%` : t('cloudInspector', data.language)}
@@ -2038,117 +1914,12 @@ function App() {
         </div>
       )}
       {showManual && (
-        <ManualModal
-          isOpen={showManual}
-          onClose={() => setShowManual(false)}
-          language={data.language}
+        <ManualModal 
+          isOpen={showManual} 
+          onClose={() => setShowManual(false)} 
+          language={data.language} 
         />
       )}
-
-      <DiagnosticModal
-        isOpen={!!diagnosticTarget}
-        onClose={() => setDiagnosticTarget(null)}
-        diagnostic={diagnosticTarget ? getSafeDiagnostic(diagnosticTarget.error_message) : null}
-        fileName={diagnosticTarget?.original_name || ''}
-      />
-
-      {/* V18.6: 搬遷至此的全域清理彈窗 */}
-      {showCleanupModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 3000
-        }}>
-          <div className="glass-panel" style={{
-            width: '90%',
-            maxWidth: '500px',
-            background: 'rgba(20,20,20,0.98)',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid #EF4444',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <span style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                {t('cleanupLargeFiles', data.language)} (共 {largeFilesFound.length} 個)
-              </span>
-              <button onClick={() => setShowCleanupModal(false)} className="icon-btn"><X size={20} /></button>
-            </div>
-            
-            <div style={{
-              maxHeight: '300px',
-              overflowY: 'auto',
-              background: 'rgba(0,0,0,0.3)',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              marginBottom: '1rem',
-              fontSize: '0.85rem',
-              color: '#bbb',
-              border: '1px solid rgba(255,255,255,0.05)'
-            }}>
-              {largeFilesFound.map((f, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '8px 0' }}>
-                  <input
-                    type="checkbox"
-                    checked={f.checked}
-                    onChange={(e) => {
-                      const newList = [...largeFilesFound];
-                      newList[i].checked = e.target.checked;
-                      setLargeFilesFound(newList);
-                    }}
-                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                  />
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden', alignItems: 'center' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }} title={f.originalName || f.name}>
-                      {f.originalName || f.name}
-                    </span>
-                    <span style={{ color: '#888', flexShrink: 0 }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ fontSize: '0.8rem', color: '#F87171', marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '6px' }}>
-              ⚠️ {t('warningHighUsage', data.language)}<br/>
-              * 提醒：點擊確認後將一併刪除實體檔案、紀錄與知識庫內容。
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={executeCleanup}
-                disabled={isCleaning}
-                className="primary-button"
-                style={{ flex: 1, background: '#EF4444', borderColor: '#EF4444', height: '42px' }}
-              >
-                {isCleaning ? <Loader2 size={18} className="spin" /> : '確認徹底清理'}
-              </button>
-              <button
-                onClick={() => setShowCleanupModal(false)}
-                className="ghost-button"
-                style={{ height: '42px' }}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .unselectable-v {
-          user-select: none;
-          cursor: ns-resize !important;
-        }
-        .inspector-resizer:hover {
-          background: rgba(255,255,255,0.05) !important;
-        }
-      `}</style>
     </div>
   );
 }
