@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 4. Download file from Supabase Storage
     const storagePath = record.storage_path;
-    const { data: fileBlob, error: downloadError } = await supabase.storage.from('tuc_documents').download(storagePath);
+    const { data: fileBlob, error: downloadError } = await supabase.storage.from('spec-files').download(storagePath);
     
     if (downloadError || !fileBlob) {
       throw new Error(`Failed to download from storage: ${downloadError?.message}`);
