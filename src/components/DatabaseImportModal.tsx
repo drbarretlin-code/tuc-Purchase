@@ -34,8 +34,8 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     
     setIsTranslating(true);
     try {
-      // 翻譯前 30 筆以優化體驗
-      const itemsToTranslate = documents.slice(0, 30).map(d => ({
+      // 翻譯前 50 筆以優化體驗 (覆蓋絕大多數常用紀錄)
+      const itemsToTranslate = documents.slice(0, 50).map(d => ({
         id: d.docId,
         name: d.equipmentName
       }));
@@ -113,11 +113,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
   };
 
   const filteredDocs = (language === 'zh-TW' ? documents : translatedDocs).filter(d => 
-    d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    !d.equipmentName.includes('共通性法規') && 
-    !d.equipmentName.includes('技術標準') &&
-    !d.equipmentName.startsWith('KCG') &&
-    !(d.fileName || '').startsWith('KCG')
+    d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (!isOpen) return null;

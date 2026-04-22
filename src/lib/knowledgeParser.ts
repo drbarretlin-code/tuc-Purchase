@@ -811,10 +811,12 @@ export async function translateCloudMetadata(
     tags: item.tags || []
   }));
 
-  const prompt = `Translate the following equipment names and tags from Traditional Chinese into ${targetLabel}.
-Keep the response in a strict JSON format matching the input structure.
-Input: ${JSON.stringify(payload)}
-Return format: [{"idx": number, "name": "translated name", "tags": ["translated tag"]}]`;
+  const prompt = `You are a technical translator. Translate these equipment maintenance records and technical filenames from Traditional Chinese into ${targetLabel}.
+  - Translate machine names, parts (e.g., "roller", "platform"), and actions (e.g., "replacement", "repair").
+  - Maintain the file extension (e.g., .docx, .pdf) if present in the string.
+  - Return a strict JSON array of objects.
+  Input: ${JSON.stringify(payload)}
+  Return format: [{"idx": number, "name": "translated title", "tags": ["translated tag"]}]`;
 
   try {
     const result = await model.generateContent(prompt);
