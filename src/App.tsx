@@ -790,57 +790,90 @@ function App() {
 
     setIsReparsing(true);
     
-    // 分批送出（每批最多 5 筆），避免 Vercel Serverless 10s 逾時
-    const BATCH_SIZE = 5;
-    let enqueuedTotal = 0;
-    let failedBatches = 0;
-
     try {
-      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-        const batch = ids.slice(i, i + BATCH_SIZE);
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(ids.length / BATCH_SIZE);
-        
-        setReparseCurrentFile(`${t('queuePending', data.language)} ${batchNum}/${totalBatches}`);
-        setReparseProgress(Math.round((i / ids.length) * 100));
-        setReparseIndex(i);
-        setReparseTotal(ids.length);
+      const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+      for (let i = 0; i < targets.length; i++) {
+        const fileRecord = targets[i];
+        setReparseCurrentFile(fileRecord.original_name);
+        setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
+        setReparseIndex(i + 1);
+        setReparseTotal(targets.length);
 
         try {
-          // V17.2: 樂觀更新 - 在發送請求前先在本地標記為 pending，讓使用者有即時回饋
-          setCloudFiles(prev => prev.map(f => 
-            batch.includes(f.id) ? { ...f, parse_status: 'pending', error_message: null } : f
-          ));
+          // 1. 下載雲端檔案
+          const response = await fetch(fileRecord.public_url);
+          const blob = await response.blob();
+          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
-          const res = await fetch('/api/enqueue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              fileIds: batch,
-              language: data.language 
-            })
-          });
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            console.error(`[Enqueue Batch ${batchNum}] Error:`, errorData);
-            failedBatches++;
-          } else {
-            enqueuedTotal += batch.length;
+          // 2. 清理舊有紀錄
+          await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
+
+          // 3. 驅動本地 AI 解析引擎
+          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
+          const newAdded = parseResult?.added || 0;
+          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
+          
+          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
+          const updateData: any = { 
+            is_parsed: true, 
+            is_calibrated: true,
+            parsed_at: new Date().toISOString(),
+            equipment_name: currentDetectedLabel,
+            equipment_tags: [currentDetectedLabel],
+            display_name: newDisplayName,
+            parse_status: 'completed',
+            error_message: null
+          };
+
+          const { error: updateError } = await supabase.from('tuc_uploaded_files')
+            .update(updateData)
+            .eq('id', fileRecord.id);
+
+          if (updateError) {
+             throw new Error(`檔案狀態更新失敗 (RLS): ${updateError.message}`);
           }
+
+          if (currentDetectedLabel !== fileRecord.equipment_name) {
+            const { data: entries } = await supabase.from('tuc_history_knowledge').select('id, metadata').eq('source_file_name', fileRecord.original_name);
+            if (entries) {
+              for (const entry of entries) {
+                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
+                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
+              }
+            }
+          }
+
+          setCloudFiles(prev => prev.map(f => {
+            if (f.id === fileRecord.id) {
+              return { 
+                ...f, 
+                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded, 
+                is_parsed: true,
+                is_calibrated: true,
+                equipment_name: currentDetectedLabel,
+                equipment_tags: [currentDetectedLabel],
+                parse_status: 'completed',
+                error_message: null
+              };
+            }
+            return f;
+          }));
+
         } catch (err: any) {
-          console.error(`[Enqueue Batch ${batchNum}] Network error:`, err.message);
+          console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);
+          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: err.message } as any).eq('id', fileRecord.id);
+          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: err.message } : f));
           failedBatches++;
         }
 
-        // 批次間間隔 2 秒，避免瞬間壓力
-        if (i + BATCH_SIZE < ids.length) {
-          await new Promise(r => setTimeout(r, 2000));
+        if (i < targets.length - 1) {
+          await new Promise(r => setTimeout(r, 6000));
         }
       }
 
       const msg = failedBatches > 0
-        ? `已送出 ${enqueuedTotal} 筆，${failedBatches} 批次失敗。請稍後重試失敗的檔案。`
-        : `已成功將 ${enqueuedTotal} 筆檔案分批送入背景解析佇列！`;
+        ? `處理完畢，但有 ${failedBatches} 筆解析失敗。`
+        : `已成功由本地強制解析完成 ${targets.length} 筆檔案！`;
       alert(msg);
       await fetchCloudFiles();
       setSelectedFileIds([]);
