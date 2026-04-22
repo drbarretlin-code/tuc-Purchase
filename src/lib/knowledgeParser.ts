@@ -19,11 +19,8 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   // 優先順序策略 (由 2026 最新至穩定版)
   // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
   const priorityList = [
-    'gemini-3.1-flash',
-    'gemini-3.0-flash',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-1.5-flash'
+    'gemini-1.5-flash',
+    'gemini-1.5-pro'
   ];
 
   console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
@@ -240,6 +237,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
 
     const result = await model.generateContent({
       contents
+    }).catch(err => {
+      // V18.1: 精確識別 429 配額錯誤並向上拋出
+      if (err.message?.includes('429') || err.message?.includes('Quota') || err.message?.includes('exhausted')) {
+        const quotaErr = new Error('QUOTA_EXCEEDED');
+        (quotaErr as any).isQuota = true;
+        throw quotaErr;
+      }
+      throw err;
     });
     const responseText = result.response.text();
     if (!responseText) throw new Error(t('aiError', lang));

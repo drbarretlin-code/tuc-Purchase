@@ -148,6 +148,8 @@ function App() {
   // V17.3: 雲端查閱器動態內容翻譯
   useEffect(() => {
     if (cloudFiles.length > 0 && data.language !== 'zh-TW' && showCloudInspector) {
+      // V17.4: 只有在雲端檔案清單變動且長度減少（換頁或刪除）時才重新全量翻譯，避免解析過程中的頻繁閃爍
+      // 但我們需要一個機制來獲取增量翻譯
       translateCloudInspectorItems();
     } else {
       setTranslatedCloudFiles(cloudFiles);
@@ -862,9 +864,17 @@ function App() {
 
         } catch (err: any) {
           console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);
-          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: err.message } as any).eq('id', fileRecord.id);
-          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: err.message } : f));
+          const isQuota = err.isQuota || err.message?.includes('QUOTA_EXCEEDED');
+          const errorMsg = isQuota ? 'Gemini API 配額已達上限 (Free Tier 限制)' : err.message;
+          
+          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorMsg } as any).eq('id', fileRecord.id);
+          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorMsg } : f));
           failedBatches++;
+
+          if (isQuota) {
+            alert('偵測到 Gemini API 配額已耗盡 (每日或每分鐘限額)。為了保護您的帳號，系統已自動暫停後續解析作業。\n請至少等待 1 分鐘後再試，或更換 API Key。');
+            break; // 發生配額錯誤，立即中斷整個迴圈
+          }
         }
 
         if (i < targets.length - 1) {
@@ -929,7 +939,9 @@ function App() {
   };
 
   const filteredFiles = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles).filter(f => {
-    const matchesSearch = (f.display_name || '').includes(searchQuery) ||
+    // V17.9: 修正搜尋邏輯，同時支援原始檔名與翻譯檔名
+    const nameToSearch = f.display_name || f.original_name || '';
+    const matchesSearch = nameToSearch.includes(searchQuery) ||
       (f.equipment_name || '').includes(searchQuery) ||
       (f.requester || '').includes(searchQuery);
     if (!matchesSearch) return false;
@@ -1647,19 +1659,25 @@ function App() {
 
             {/* 分頁篩選標籤列 */}
             {(() => {
+              const listToCount = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles);
               const counts = {
-                all: cloudFiles.length,
-                parsed: cloudFiles.filter(f => getFileCategory(f) === 'parsed').length,
-                pending: cloudFiles.filter(f => getFileCategory(f) === 'pending').length,
-                processing: cloudFiles.filter(f => getFileCategory(f) === 'processing').length,
-                failed: cloudFiles.filter(f => getFileCategory(f) === 'failed').length,
+                all: listToCount.filter(f => {
+                  const name = f.display_name || f.original_name || '';
+                  return name.includes(searchQuery) || (f.equipment_name || '').includes(searchQuery) || (f.requester || '').includes(searchQuery);
+                }).length,
+                parsed: listToCount.filter(f => getFileCategory(f) === 'parsed').length,
+                pending: listToCount.filter(f => getFileCategory(f) === 'pending').length,
+                processing: listToCount.filter(f => getFileCategory(f) === 'processing').length,
+                failed: listToCount.filter(f => getFileCategory(f) === 'failed').length,
+                unparsed: listToCount.filter(f => getFileCategory(f) === 'unparsed').length
               };
-              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed'; labelKey: string; color: string }[] = [
+              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'; labelKey: string; color: string }[] = [
                 { key: 'all', labelKey: 'allFiles', color: '#888' },
                 { key: 'parsed', labelKey: 'queueParsed', color: '#10B981' },
                 { key: 'pending', labelKey: 'queuePending', color: '#F59E0B' },
                 { key: 'processing', labelKey: 'queueProcessing', color: '#60A5FA' },
                 { key: 'failed', labelKey: 'queueFailed', color: '#EF4444' },
+                { key: 'unparsed', labelKey: 'unparsed', color: '#888' },
               ];
               return (
                 <div style={{
