@@ -2,13 +2,26 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client } from '@upstash/qstash';
 import { createClient } from '@supabase/supabase-js';
 
-const qstashClient = new Client({
-  token: process.env.QSTASH_TOKEN || '',
-});
+// Initialize inside handler to avoid global crashes if env vars are missing
+let qstashClient: Client | null = null;
+try {
+  if (process.env.QSTASH_TOKEN) {
+    qstashClient = new Client({ token: process.env.QSTASH_TOKEN });
+  }
+} catch (e) {
+  console.warn('QSTASH_TOKEN initialization failed');
+}
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase: ReturnType<typeof createClient> | null = null;
+try {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  }
+} catch (e) {
+  console.warn('Supabase initialization failed');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS setup
@@ -41,6 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const workerUrl = `${protocol}://${host}/api/worker`;
 
+    if (!supabase) {
+      return res.status(500).json({ error: 'Supabase is not configured on the server. Please check environment variables.' });
+    }
+
     // 1. 更新資料庫狀態為 pending
     const { error: dbError } = await supabase
       .from('tuc_uploaded_files')
@@ -54,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. 推送任務至 QStash
     const results = [];
-    if (process.env.QSTASH_TOKEN) {
+    if (qstashClient) {
       for (const id of fileIds) {
         const response = await qstashClient.publishJSON({
           url: workerUrl,
@@ -63,6 +80,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
         results.push(response);
       }
+    } else {
+      console.warn('[Enqueue] QStash Client uninitialized. Did you forget to set QSTASH_TOKEN?');
+      return res.status(500).json({ error: 'QSTASH_TOKEN is not configured.' });
     }
 
     return res.status(200).json({ 
