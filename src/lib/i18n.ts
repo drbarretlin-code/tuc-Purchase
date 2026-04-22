@@ -119,6 +119,9 @@ export const translations: Record<string, any> = {
     'storageFiles': '檔案儲存數量 (個)',
     'safeLimit': '安全水位 (免費額度)',
     'warningHighUsage': '⚠️ 警告：資源使用量已接近免費額度上限，請及時清理重複或老舊檔案。',
+    'cleanupLargeFiles': '清理大檔案',
+    'sizeLimitLabel': '刪除大於',
+    'confirmDeleteLarge': '您確定要刪除所有大於 {n} MB 的檔案嗎？\n(系統偵測到共計 {count} 個檔案)',
 
     // Boilerplate Defaults
     'defaultDependingOnProcurement': '依請購內容而定',
@@ -602,6 +605,9 @@ export const translations: Record<string, any> = {
     'storageFiles': '档案储存数量 (个)',
     'safeLimit': '安全水位 (免费额度)',
     'warningHighUsage': '⚠️ 警告：资源使用量已接近免费额度上限，请及时清理重复或老旧文件。',
+    'cleanupLargeFiles': '清理大文件',
+    'sizeLimitLabel': '删除大于',
+    'confirmDeleteLarge': '您确定要删除所有大于 {n} MB 的文件吗？\n(系统检测到共计 {count} 个文件)',
 
     // Queue Status Dashboard
     'queueOverview': '队列状态总览',
@@ -909,6 +915,9 @@ export const translations: Record<string, any> = {
     'storageFiles': 'Stored Files (count)',
     'safeLimit': 'Safe Limit (Free Tier)',
     'warningHighUsage': '⚠️ Warning: Resource usage is approaching the free tier limit. Please clean up old files soon.',
+    'cleanupLargeFiles': 'Cleanup Large Files',
+    'sizeLimitLabel': 'Delete larger than',
+    'confirmDeleteLarge': 'Are you sure you want to delete all files larger than {n} MB?\n(Detected {count} files total)',
     'apiKeyLabel': 'Gemini API Key (for AI hints)',
     'apiKeyPlaceholder': 'Paste your API key here...',
     'changeAdminPwd': 'Change Admin Password',
@@ -1215,6 +1224,9 @@ export const translations: Record<string, any> = {
     'storageFiles': 'จำนวนไฟล์ที่จัดเก็บ (ไฟล์)',
     'safeLimit': 'ขีดจำกัดที่ปลอดภัย (ฟรี)',
     'warningHighUsage': '⚠️ คำเตือน: การใช้ทรัพยากรใกล้ถึงขีดจำกัดแล้ว โปรดล้างข้อมูลเก่าออกบ้าง',
+    'cleanupLargeFiles': 'ล้างไฟล์ขนาดใหญ่',
+    'sizeLimitLabel': 'ลบไฟล์ที่ใหญ่กว่า',
+    'confirmDeleteLarge': 'คุณแน่ใจหรือไม่ว่าต้องการลบไฟล์ทั้งหมดที่ใหญ่กว่า {n} MB?\n(ตรวจพบทั้งหมด {count} ไฟล์)',
     'noReqDesc': 'ไม่มีรายละเอียดความต้องการ',
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
     'parsedCount': 'วิเคราะห์แล้ว',

@@ -90,6 +90,7 @@ function App() {
   // V17.8: 資源水位預警狀態
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageCount, setStorageCount] = useState(0);
+  const [largeFileSizeLimit, setLargeFileSizeLimit] = useState(10); // 預設 10MB
 
   useEffect(() => {
     const handleResize = () => {
@@ -254,6 +255,57 @@ function App() {
       setStorageCount(sCount || 0);
     } catch (err) {
       console.error('Fetch usage stats error:', err);
+    }
+  };
+
+  const handleDeleteLargeFiles = async () => {
+    if (!supabase) return;
+    const limitBytes = largeFileSizeLimit * 1024 * 1024;
+
+    try {
+      // 1. 找出所有大於限制的檔案
+      // 因為 Storage API .list() 預設只回傳 100 筆，我們需要迴圈或簡單從資料庫紀錄推估
+      // 但正確做法是直接掃描 Storage。這裡為了簡便先用 list(1000)
+      const { data: files, error } = await supabase.storage.from('spec-files').list('', {
+        limit: 1000,
+        sortBy: { column: 'size', order: 'desc' }
+      });
+
+      if (error) throw error;
+
+      const largeFiles = (files || []).filter(f => f.metadata && f.metadata.size > limitBytes);
+
+      if (largeFiles.length === 0) {
+        alert('未偵測到任何大於 ' + largeFileSizeLimit + ' MB 的檔案。');
+        return;
+      }
+
+      const confirmMsg = t('confirmDeleteLarge', data.language)
+        .replace('{n}', largeFileSizeLimit.toString())
+        .replace('{count}', largeFiles.length.toString());
+      
+      if (!confirm(confirmMsg)) return;
+
+      // 2. 執行刪除 (Storage)
+      const pathsToRemove = largeFiles.map(f => f.name);
+      const { error: delError } = await supabase.storage.from('spec-files').remove(pathsToRemove);
+      if (delError) throw delError;
+
+      // 3. 執行刪除 (資料庫紀錄 - 匹配 storage_path)
+      // 注意：storage_path 通常存的是完整的路徑或檔名
+      const { error: dbError } = await supabase
+        .from('tuc_uploaded_files')
+        .delete()
+        .in('original_name', pathsToRemove); // 假設 original_name 與 storage 檔名一致
+      
+      if (dbError) throw dbError;
+
+      alert('清理成功！已移除 ' + largeFiles.length + ' 個大檔案。');
+      fetchCloudFiles();
+      fetchUsageStats();
+    } catch (err: any) {
+      console.error('Cleanup large files failed:', err);
+      alert('清理失敗: ' + err.message);
     }
   };
 
@@ -1240,7 +1292,44 @@ function App() {
                       <ShieldAlert size={16} color={isHighUsage ? '#EF4444' : '#60A5FA'} />
                       {t('resourceUsage', data.language)}
                     </span>
-                    <span style={{ fontSize: '0.7rem', color: '#888' }}>{t('safeLimit', data.language)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 4px' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#888', marginRight: '4px' }}>{t('sizeLimitLabel', data.language)}</span>
+                        <input 
+                          type="number" 
+                          value={largeFileSizeLimit} 
+                          onChange={(e) => setLargeFileSizeLimit(Number(e.target.value))}
+                          style={{ 
+                            width: '40px', 
+                            background: 'transparent', 
+                            border: 'none', 
+                            color: '#fff', 
+                            fontSize: '0.75rem', 
+                            textAlign: 'center',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '0.7rem', color: '#888' }}>MB</span>
+                      </div>
+                      <button 
+                        onClick={handleDeleteLargeFiles}
+                        style={{ 
+                          padding: '4px 8px', 
+                          background: '#EF4444', 
+                          border: 'none', 
+                          borderRadius: '4px', 
+                          color: '#fff', 
+                          fontSize: '0.7rem', 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title={t('cleanupLargeFiles', data.language)}
+                      >
+                        <Trash2 size={12} /> {t('cleanupLargeFiles', data.language)}
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
