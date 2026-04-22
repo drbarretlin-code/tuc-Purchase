@@ -811,10 +811,11 @@ export async function translateCloudMetadata(
     tags: item.tags || []
   }));
 
-  const prompt = `You are a technical translator. Translate these equipment maintenance records and technical filenames from Traditional Chinese into ${targetLabel}.
-  - Translate machine names, parts (e.g., "roller", "platform"), and actions (e.g., "replacement", "repair").
-  - Maintain the file extension (e.g., .docx, .pdf) if present in the string.
-  - Return a strict JSON array of objects.
+  const prompt = `You are a high-end technical translator. Translate these Traditional Chinese equipment maintenance titles and filenames into ${targetLabel}.
+  - MANDATORY: The output MUST NOT contain any Traditional Chinese characters.
+  - Translate machine parts: "滾輪" -> "Roller", "平台" -> "Platform", "導輪" -> "Guide Wheel".
+  - Translate actions: "更換" -> "Replacement", "修改" -> "Modification", "加裝" -> "Installation".
+  - Preserve specific model numbers (e.g., T8, T9) and file extensions (e.g., .docx).
   Input: ${JSON.stringify(payload)}
   Return format: [{"idx": number, "name": "translated title", "tags": ["translated tag"]}]`;
 

@@ -22,6 +22,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
   useEffect(() => {
     if (documents.length > 0 && language !== 'zh-TW') {
+      setTranslatedDocs([]); // 先清空舊語系的翻譯，避免看到原文
       translateList();
     } else {
       setTranslatedDocs(documents);
@@ -145,10 +146,10 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         </div>
 
         <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
-          {loading ? (
+          {loading || (isTranslating && translatedDocs.length === 0) ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <Loader2 className="animate-spin" style={{ margin: '0 auto 12px' }} />
-              {t('loadingCloud', language)}
+              {isTranslating ? t('aiTranslatingContent', language) : t('loadingCloud', language)}
             </div>
           ) : filteredDocs.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
