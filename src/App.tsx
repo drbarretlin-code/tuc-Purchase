@@ -792,6 +792,7 @@ function App() {
     
     try {
       const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+      let failedBatches = 0;
       for (let i = 0; i < targets.length; i++) {
         const fileRecord = targets[i];
         setReparseCurrentFile(fileRecord.original_name);
