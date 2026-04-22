@@ -59,6 +59,7 @@ function App() {
   
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
+  const [translatedCloudFiles, setTranslatedCloudFiles] = useState<any[]>([]);
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
@@ -128,6 +129,38 @@ function App() {
     
     return () => clearInterval(timer);
   }, [showCloudInspector, cloudFiles]);
+
+  // V17.3: 雲端查閱器動態內容翻譯
+  useEffect(() => {
+    if (cloudFiles.length > 0 && data.language !== 'zh-TW' && showCloudInspector) {
+      translateCloudInspectorItems();
+    } else {
+      setTranslatedCloudFiles(cloudFiles);
+    }
+  }, [cloudFiles, data.language, showCloudInspector]);
+
+  const translateCloudInspectorItems = async () => {
+    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+    if (!apiKey) return;
+    
+    // 翻譯前 50 筆，涵蓋大部分視窗範圍
+    const itemsToTranslate = cloudFiles.slice(0, 50).map(f => ({
+      id: f.id,
+      name: f.equipment_name || f.original_name,
+      tags: f.equipment_tags || []
+    }));
+
+    try {
+      const translated = await KP.translateCloudMetadata(itemsToTranslate, data.language, apiKey);
+      const newFiles = cloudFiles.map(f => {
+        const trans = translated.find(t => t.id === f.id);
+        return trans ? { ...f, equipment_name: trans.name, equipment_tags: trans.tags } : f;
+      });
+      setTranslatedCloudFiles(newFiles);
+    } catch (err) {
+      console.error('[AI Translation] App metadata translation failed:', err);
+    }
+  };
 
   const handleSaveConfig = () => {
     const cleanKey = tempKey.trim();
@@ -718,7 +751,7 @@ function App() {
     return 'unparsed';
   };
 
-  const filteredFiles = cloudFiles.filter(f => {
+  const filteredFiles = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles).filter(f => {
     const matchesSearch = (f.display_name || '').includes(searchQuery) ||
       (f.equipment_name || '').includes(searchQuery) ||
       (f.requester || '').includes(searchQuery);

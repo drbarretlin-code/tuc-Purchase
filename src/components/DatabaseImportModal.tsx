@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Database, X, Search, Loader2, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { assembleJsonFromExistingEntries } from '../lib/knowledgeParser';
+import { assembleJsonFromExistingEntries, translateCloudMetadata } from '../lib/knowledgeParser';
 import { t } from '../lib/i18n';
 import type { Language } from '../lib/i18n';
 
@@ -16,7 +16,41 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [documents, setDocuments] = useState<any[]>([]);
+  const [translatedDocs, setTranslatedDocs] = useState<any[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  useEffect(() => {
+    if (documents.length > 0 && language !== 'zh-TW') {
+      translateList();
+    } else {
+      setTranslatedDocs(documents);
+    }
+  }, [documents, language]);
+
+  const translateList = async () => {
+    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+    if (!apiKey || isTranslating) return;
+    
+    setIsTranslating(true);
+    try {
+      // 翻譯前 30 筆以優化體驗
+      const itemsToTranslate = documents.slice(0, 30).map(d => ({
+        id: d.docId,
+        name: d.equipmentName
+      }));
+      const translated = await translateCloudMetadata(itemsToTranslate, language, apiKey);
+      const newDocs = documents.map(d => {
+        const trans = translated.find(t => t.id === d.docId);
+        return trans ? { ...d, equipmentName: trans.name } : d;
+      });
+      setTranslatedDocs(newDocs);
+    } catch (err) {
+      console.error('Modal Translation Error:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -78,7 +112,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     }
   };
 
-  const filteredDocs = documents.filter(d => 
+  const filteredDocs = (language === 'zh-TW' ? documents : translatedDocs).filter(d => 
     d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) &&
     !d.equipmentName.includes('共通性法規') && 
     !d.equipmentName.includes('技術標準') &&
@@ -126,12 +160,15 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
               {t('noCloudMatch', language)}
             </div>
           ) : (
-            filteredDocs.map(doc => (
+            (searchQuery ? filteredDocs : translatedDocs).map(doc => (
               <div 
                 key={doc.docId} 
                 className="db-item-card"
                 onClick={() => !processingId && handleSelect(doc)}
-                style={{ opacity: processingId && processingId !== doc.docId ? 0.5 : 1 }}
+                style={{ 
+                  opacity: processingId && processingId !== doc.docId ? 0.5 : 1,
+                  position: 'relative'
+                }}
               >
                 <div className="db-item-info">
                   <h4>{doc.equipmentName}</h4>

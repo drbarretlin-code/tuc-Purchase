@@ -781,3 +781,58 @@ ${combinedText}`;
     return hints; // 失敗時保留原文
   }
 }
+
+/**
+ * V17.3: 雲端紀錄動態翻譯
+ * 將資料庫中的動態名稱與標籤翻譯為目標語系
+ */
+export async function translateCloudMetadata(
+  items: { id: string; name: string; tags?: string[] }[],
+  targetLang: string,
+  apiKey: string
+): Promise<{ id: string; name: string; tags?: string[] }[]> {
+  if (items.length === 0 || targetLang === 'zh-TW') return items;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelId = await getAutoSelectedModel(apiKey);
+  const model = genAI.getGenerativeModel({ model: modelId });
+
+  const langMap: Record<string, string> = {
+    'zh-CN': 'Simplified Chinese (简体中文)',
+    'en-US': 'English',
+    'th-TH': 'Thai (ภาษาไทย)'
+  };
+  const targetLabel = langMap[targetLang] || targetLang;
+
+  // 縮小翻譯範圍：僅翻譯名稱與標籤，並組合為單一 Prompt
+  const payload = items.map((item, idx) => ({
+    idx,
+    name: item.name,
+    tags: item.tags || []
+  }));
+
+  const prompt = `Translate the following equipment names and tags from Traditional Chinese into ${targetLabel}.
+Keep the response in a strict JSON format matching the input structure.
+Input: ${JSON.stringify(payload)}
+Return format: [{"idx": number, "name": "translated name", "tags": ["translated tag"]}]`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const translatedList = JSON.parse(cleanJson);
+
+    return items.map((item, idx) => {
+      const translated = translatedList.find((t: any) => t.idx === idx);
+      return translated ? { 
+        ...item, 
+        name: translated.name, 
+        tags: translated.tags 
+      } : item;
+    });
+  } catch (err) {
+    console.error('[AI Translation] Metadata translation failed:', err);
+    return items;
+  }
+}
+
