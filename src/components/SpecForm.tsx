@@ -958,9 +958,25 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
         isOpen={isDbImportModalOpen}
         onClose={() => setIsDbImportModalOpen(false)}
         onSelect={(importedData: any) => {
-          // V12.5: 強化防禦性，確保所有欄位都不是 null，避免後續 split() 等操作崩潰
+          // V12.6: 深度防禦 - 確保所有欄位型別安全，防止物件/陣列被誤傳給 .startsWith() 導致黑屏
+          const STRING_FIELDS = [
+            'equipmentName', 'requirementDesc', 'appearance', 'quantityUnit',
+            'equipmentScope', 'rangeRange', 'envRequirements', 'regRequirements',
+            'maintRequirements', 'safetyRequirements', 'elecSpecs', 'mechSpecs',
+            'physSpecs', 'relySpecs', 'installStandard', 'workPeriod',
+            'acceptanceDesc', 'complianceDesc', 'department', 'requester',
+            'extension', 'model', 'category', 'deliveryDate',
+            'applicantName', 'deptHeadName', 'needsDrawing', 'docId'
+          ];
           const cleanImported = Object.entries(importedData).reduce((acc: any, [key, value]) => {
-            acc[key] = value === null ? '' : value;
+            if (value === null || value === undefined) {
+              acc[key] = '';
+            } else if (STRING_FIELDS.includes(key) && typeof value !== 'string') {
+              // 物件或陣列欄位應為字串的，強制轉換
+              acc[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            } else {
+              acc[key] = value;
+            }
             return acc;
           }, {});
 

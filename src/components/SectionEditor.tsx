@@ -30,7 +30,8 @@ const SectionEditor: React.FC<Props> = ({
   searchStatus = 'none', addon, language
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
-  const displayValue = (value && value.startsWith('default')) ? t(value, language) : value;
+  const safeValue = (typeof value === 'string') ? value : (value != null ? String(value) : '');
+  const displayValue = (safeValue && safeValue.startsWith('default')) ? t(safeValue, language) : safeValue;
 
   return (
     <div className="section-editor" style={{ marginBottom: '1.5rem' }}>
