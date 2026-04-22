@@ -36,6 +36,7 @@ import { DatabaseImportModal } from './DatabaseImportModal';
 interface Props {
   data: FormState;
   onChange: (newData: FormState) => void;
+  isSyncBlocked?: boolean;
 }
 
 const CompactThreshold: React.FC<{ 
@@ -120,7 +121,7 @@ const CompactThreshold: React.FC<{
   );
 };
 
-const SpecForm: React.FC<Props> = ({ data, onChange }) => {
+const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) => {
   const [activeTab, setActiveTab] = React.useState(0);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -902,20 +903,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange }) => {
                     dangerouslySetInnerHTML={{ __html: t('syncDescription', data.language) }}
                   />
                   
-                  <button 
-                    onClick={handleSyncToKnowledge}
-                    disabled={isSyncing}
-                    className="primary-button"
-                    style={{ 
-                      width: 'auto', 
-                      padding: '1rem 3rem', 
-                      fontSize: '1.1rem',
-                      background: 'linear-gradient(135deg, #10B981, #059669)',
-                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
-                    }}
-                  >
-                    {isSyncing ? t('syncing', data.language) : t('finalizeSync', data.language)}
-                  </button>
+                  {!isSyncBlocked ? (
+                    <button 
+                      onClick={handleSyncToKnowledge}
+                      disabled={isSyncing}
+                      className="primary-button"
+                      style={{ 
+                        width: 'auto', 
+                        padding: '1rem 3rem', 
+                        fontSize: '1.1rem',
+                        background: 'linear-gradient(135deg, #10B981, #059669)',
+                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      {isSyncing ? t('syncing', data.language) : t('finalizeSync', data.language)}
+                    </button>
+                  ) : (
+                    <div style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '1.1rem', padding: '1rem' }}>
+                      {/* 當資源滿載時自動隱藏按鈕，並顯示系統限制訊息 */}
+                      ⚠️ {t('warningHighUsage', data.language)}
+                    </div>
+                  )}
 
                   {syncStatus.type && (
                     <div style={{ 

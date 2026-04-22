@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleAIFileManager } from "@google/generative-ai/server";
 import * as mammoth from 'mammoth';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -27,48 +26,22 @@ export async function processFileBackend(
       const resp = await mammoth.extractRawText({ buffer: Buffer.from(fileBuffer) });
       text = resp.value;
     } else if (fileName.toLowerCase().endsWith('.pdf')) {
-      // PDF handling: Use Google AI File Manager to handle large PDFs (up to 30MB)
-      const fileManager = new GoogleAIFileManager(apiKey);
-      const tmpFilePath = path.join(os.tmpdir(), `${docId}_${Date.now()}.pdf`);
-      
-      // Write to temp file
-      fs.writeFileSync(tmpFilePath, Buffer.from(fileBuffer));
-      
-      try {
-        console.log(`[Backend Parser] 上傳 PDF 至 Gemini File Manager: ${fileName}`);
-        const uploadResponse = await fileManager.uploadFile(tmpFilePath, {
-          mimeType: "application/pdf",
-          displayName: fileName,
-        });
-        
-        let file = uploadResponse.file;
-        console.log(`[Backend Parser] PDF 上傳成功, URI: ${file.uri}, 正在等待處理...`);
-        
-        // V17.6: 等待檔案處理完成 (Active 狀態)
-        let attempts = 0;
-        while (file.state === "PROCESSING" && attempts < 10) {
-          await new Promise(r => setTimeout(r, 2000));
-          file = await fileManager.getFile(file.name);
-          attempts++;
-        }
-        
-        if (file.state !== "ACTIVE") {
-          throw new Error(`PDF 檔案處理逾時或失敗: ${file.state}`);
-        }
-        
-        fileUri = file.uri;
-      } finally {
-        // Clean up temp file
-        if (fs.existsSync(tmpFilePath)) {
-          fs.unlinkSync(tmpFilePath);
-        }
+      // V19: 棄用 File Manager 輪詢機制以閃避 Vercel Serverless 10s 死亡倒數
+      // 改採 Inline Base64 暴力直穿投遞 (僅受限於 20MB Payload)
+      const MAX_INLINE_BYTES = 15 * 1024 * 1024; // 15MB
+      if (fileBuffer.byteLength > MAX_INLINE_BYTES) {
+        console.warn(`[Backend Parser] 檔案大小超過 15MB 建議上限，可能導致 PayloadTooLarge。 FileName: ${fileName}`);
       }
+      
+      const base64Data = Buffer.from(fileBuffer).toString('base64');
+      inlineData = { data: base64Data, mimeType: 'application/pdf' };
+      console.log(`[Backend Parser] PDF 原生視覺渲染啟動 (Bypass File API): ${fileName}`);
     } else {
       // Fallback binary extraction for .doc and others
       text = extractStringsFromBinary(fileBuffer);
     }
 
-    if (!text && !fileUri) throw new Error('無法擷取檔案內容');
+    if (!text && !inlineData) throw new Error('無法擷取檔案內容');
 
     const prompt = `
       你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範或技術標準檔案。
@@ -99,12 +72,9 @@ export async function processFileBackend(
     `;
 
     const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
-    if (fileUri) {
+    if (inlineData) {
       contents[0].parts.push({
-        fileData: {
-          mimeType: "application/pdf",
-          fileUri: fileUri
-        }
+        inlineData: inlineData
       });
     }
 

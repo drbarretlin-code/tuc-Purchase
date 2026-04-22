@@ -116,7 +116,7 @@ export const translations: Record<string, any> = {
     'itemsSuffix': '條',
     'resourceUsage': '資源水位預警',
     'knowledgeEntries': '知識庫條目數 (筆)',
-    'storageFiles': '檔案儲存數量 (個)',
+    'storageFiles': '儲存空間總量',
     'safeLimit': '安全水位 (免費額度)',
     'warningHighUsage': '⚠️ 警告：資源使用量已接近免費額度上限，請及時清理重複或老舊檔案。',
     'cleanupLargeFiles': '清理大檔案',
@@ -315,7 +315,8 @@ export const translations: Record<string, any> = {
     'statusProcessing': '伺服器解析中',
     'statusFailed': '解析失敗',
     'aiTranslatingContent': 'AI 深度轉譯中...',
-    'aiTranslatingHint': '正在將雲端紀錄內容轉譯為您的介面語系，請稍候'
+    'aiTranslatingHint': '正在將雲端紀錄內容轉譯為您的介面語系，請稍候',
+    'viewDiagnostic': '查看診斷報告'
   },
   'zh-CN': {
     'systemTitle': '采购验收规范建置表',
@@ -602,7 +603,7 @@ export const translations: Record<string, any> = {
     'itemsSuffix': '條',
     'resourceUsage': '资源水位预警',
     'knowledgeEntries': '知识库条目数 (条)',
-    'storageFiles': '档案储存数量 (个)',
+    'storageFiles': '储存空间总量',
     'safeLimit': '安全水位 (免费额度)',
     'warningHighUsage': '⚠️ 警告：资源使用量已接近免费额度上限，请及时清理重复或老旧文件。',
     'cleanupLargeFiles': '清理大文件',
@@ -624,9 +625,10 @@ export const translations: Record<string, any> = {
     'confirmReparseBatch': '确定要将这 {n} 筆档案送入云端背景重新解析吗？\n(系统将分批送出，避免超时)',
     'statusPending': '等待队列中',
     'statusProcessing': '服务器解析中',
-    'statusFailed': '解析失败',
+    'statusFailed': '解析失敗',
     'aiTranslatingContent': 'AI 深度转译中...',
-    'aiTranslatingHint': '正在将雲端紀錄内容转译为您的界面语系，请稍候'
+    'aiTranslatingHint': '正在將雲端紀錄内容转译为您的界面语系，请稍候',
+    'viewDiagnostic': '查看诊断报告'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -949,11 +951,12 @@ export const translations: Record<string, any> = {
     'enqueueUnparsed': 'Enqueue Failed/Unparsed',
     'batchReparse': 'Batch Reparse',
     'confirmReparseBatch': 'Are you sure you want to send these {n} files for background re-parsing?\n(System will send in batches to avoid timeout)',
-    'statusPending': 'Queued',
-    'statusProcessing': 'Server parsing',
-    'statusFailed': 'Parse failed',
+    'statusPending': 'Pending in Queue',
+    'statusProcessing': 'Server Processing',
+    'statusFailed': 'Parsing Failed',
     'aiTranslatingContent': 'AI Deep Translating...',
-    'aiTranslatingHint': 'Translating cloud content to your interface language, please wait.'
+    'aiTranslatingHint': 'Translating cloud content to your interface language, please wait.',
+    'viewDiagnostic': 'View Diagnostic'
   },
   'th-TH': {
     'systemTitle': 'แบบฟอร์มการสร้างข้อกำหนดการจัดซื้อและการรับมอบ',
