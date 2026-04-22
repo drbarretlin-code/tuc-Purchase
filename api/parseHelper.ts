@@ -14,7 +14,7 @@ export async function processFileBackend(
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Auto select model logic simplified for backend (always use 1.5 flash for stability & context window)
-  const modelId = 'gemini-1.5-flash';
+  const modelId = 'gemini-2.0-flash';
   const model = genAI.getGenerativeModel({ model: modelId });
 
   let text = '';
