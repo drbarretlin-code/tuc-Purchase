@@ -338,6 +338,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       });
     }
 
+    const docId = overrideDocId || crypto.randomUUID();
+
     if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq, fullJson, docId };
 
     if (forceRebuild) {
@@ -348,8 +350,6 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     let addedCount = 0;
     let skippedCount = 0;
     
-    const docId = overrideDocId || crypto.randomUUID();
-
     for (const item of indexData) {
       const safeCategory = item.category ? item.category.substring(0, 50) : '未分類';
       
