@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CloudUpload, Loader2, ExternalLink, CheckCircle2, History, Zap, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import * as KP from '../lib/knowledgeParser';
 import { t } from '../lib/i18n';
 import type { Language } from '../lib/i18n';
 import type { FormState } from '../types/form';
@@ -12,11 +11,10 @@ interface Props {
   onMinimize?: () => void;
   isMinimized?: boolean;
   data: FormState;
-  onApplyData?: (data: FormState) => void;
   language: Language;
 }
 
-const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data, onApplyData, language }) => {
+const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMinimized, data, language }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesInQueue, setFilesInQueue] = useState(0);
@@ -60,7 +58,6 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
     setUploadProgress(0);
     setCurrentUploadingName('');
     setFilesInQueue(fileList.length);
-    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     
     // V7.0: 產生單次工作唯一的 Session ID 用於佇列識別
     const sessionId = Math.random().toString(36).substring(2, 10);
@@ -162,7 +159,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             requester: data.requester || t('unknown', language),
             equipment_tags: [data.equipmentName || t('unnamedEq', language)],
             requirement_desc: data.requirementDesc || t('noReqDesc', language),
-            is_parsed: false
+            is_parsed: false,
+            parse_status: 'pending' // 標記為等待解析中
           }).select('id').single();
   
           if (insertError) throw insertError;
@@ -181,46 +179,28 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
         console.warn(`[Upload Warning] ${failedUploadsCount} files were skipped due to size limits or upload errors.`);
       }
 
-      // --- 第四階段：智慧解析 ---
-      const completedNames: string[] = [];
-      for (let i = 0; i < uploadResults.length; i++) {
-        const { file, url, id } = uploadResults[i];
-        setCurrentUploadingName(file.name);
-        setFilesInQueue(uploadResults.length - i);
-
-        const result = await KP.processFileToKnowledge(file, userApiKey, data.equipmentName, id);
-        const finalDetectedEq = result?.detectedEquipment || data.equipmentName || t('unnamedEq', language);
- 
-        totalAdded += result?.added || 0;
-        totalSkipped += result?.skipped || 0;
- 
-        // V9.2: 更新標籤陣列 (優先使用 AI 偵測結果)
-        const newDisplayName = `${file.name} (${finalDetectedEq})`;
-        await client.from('tuc_uploaded_files')
-          .update({ 
-            equipment_tags: [finalDetectedEq], 
-            display_name: newDisplayName,
-            is_parsed: true,
-            is_calibrated: true, // V12: 上傳即完成校準
-            parsed_at: new Date().toISOString(),
-            full_json_data: result.fullJson
-          })
-          .eq('id', id);
-
-        console.log(`[Sync] File ${file.name} status and tag (${finalDetectedEq}) synced to cloud.`);
-
-        completedNames.push(file.name);
-        localStorage.setItem('tuc_active_upload_job', JSON.stringify({ total: fileList.length, completed: completedNames }));
-        newUploads.push({ name: file.name, url, displayName: newDisplayName });
-        setUploadProgress(Math.round(((i + 1) / uploadResults.length) * 100));
-
-        if (result?.fullJson) {
-          setLastParsedJson(result.fullJson);
-          setLastParsedName(file.name);
+      // --- 第四階段：推送至後端解析佇列 ---
+      setCurrentUploadingName('正在將檔案推入雲端解析佇列...');
+      const fileIdsToEnqueue = uploadResults.map(r => r.id);
+      if (fileIdsToEnqueue.length > 0) {
+        try {
+          const res = await fetch('/api/enqueue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileIds: fileIdsToEnqueue })
+          });
+          if (!res.ok) throw new Error('Enqueue API failed');
+          console.log('[Queue] 檔案已成功送入背景佇列');
+        } catch (err) {
+          console.error('[Queue Error]', err);
+          alert('將檔案送入背景解析佇列時發生錯誤，請稍後至雲端歷史查閱器手動重試。');
         }
-
-        if (i < uploadResults.length - 1) await new Promise(r => setTimeout(r, 2000));
       }
+
+      uploadResults.forEach(({ file, url, displayName }) => {
+        newUploads.push({ name: file.name, url, displayName });
+      });
+      setUploadProgress(100);
 
       // --- 第五階段：完成佇列解除 ---
       await client.from('tuc_system_queue').update({ status: 'completed' }).eq('owner_session', sessionId);
@@ -245,9 +225,6 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       setCurrentUploadingName('');
     }
   };
-
-  const [lastParsedJson, setLastParsedJson] = useState<any>(null);
-  const [lastParsedName, setLastParsedName] = useState('');
 
   if (!isOpen) return null;
 
@@ -353,15 +330,6 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--tuc-red)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Zap size={14} /> <b>{t('expertTip', language)}</b> {t('jsonStored', language)}
           </p>
-          {lastParsedJson && onApplyData && (
-            <button 
-              onClick={() => { onApplyData(lastParsedJson); onClose(); }}
-              className="primary-button"
-              style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
-            >
-              {t('loadAiResultPrefix', language)}{lastParsedName}{t('loadAiResultSuffix', language)}
-            </button>
-          )}
         </div>
       </div>
     </div>

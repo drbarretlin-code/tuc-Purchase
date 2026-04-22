@@ -617,103 +617,36 @@ function App() {
     const targets = cloudFiles.filter(f => ids.includes(f.id));
     if (targets.length === 0) return;
     
-    if (!confirm(`確定要強制重新解析這 ${targets.length} 筆檔案嗎？\n此操作將清空該檔的舊有知識並重新擷取，不會略過已解析之檔案。`)) return;
+    if (!confirm(`確定要將這 ${targets.length} 筆檔案送入雲端背景重新解析嗎？\n(請確保已設定好背景佇列，檔案將進入排隊流程)`)) return;
 
     setIsReparsing(true);
-    setReparseProgress(0);
-    setReparseTotal(targets.length);
-    setReparseIndex(0);
-    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
-
     try {
-      const totalCount = targets.length;
-      for (let i = 0; i < totalCount; i++) {
-        const fileRecord = targets[i];
-        setReparseIndex(i + 1);
-        setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
-        setReparseCurrentFile(fileRecord.original_name);
-        
-        try {
-          // 1. Download
-          const response = await fetch(fileRecord.public_url);
-          const blob = await response.blob();
-          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
-
-          // 2. AI Parse (傳入 forceRebuild = true 讓 AI 解析成功後才進行安全刪除)
-          console.log(`[Force Reparse] 啟動重新解析程序: ${fileRecord.original_name}`);
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id, true);
-          const newAdded = parseResult?.added || 0;
-          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
-          
-          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = { 
-            is_parsed: true, 
-            is_calibrated: true,
-            parsed_at: new Date().toISOString(),
-            equipment_name: currentDetectedLabel,
-            equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName
-          };
-
-          const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update(updateData)
-            .eq('id', fileRecord.id);
-
-          if (updateError) {
-            throw new Error(`狀態更新失敗，請檢查 UPDATE 權限 (RLS): ${updateError.message}`);
-          }
-
-          if (currentDetectedLabel !== fileRecord.equipment_name) {
-            const { data: entries } = await supabase
-              .from('tuc_history_knowledge')
-              .select('id, metadata')
-              .eq('source_file_name', fileRecord.original_name);
-            
-            if (entries) {
-              for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
-                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
-              }
-            }
-          }
-
-          setCloudFiles(prev => prev.map(f => {
-            if (f.id === fileRecord.id) {
-              return { 
-                ...f, 
-                knowledgeCount: newAdded, // 覆寫成新的總數
-                is_parsed: true,
-                is_calibrated: true,
-                equipment_name: currentDetectedLabel,
-                equipment_tags: [currentDetectedLabel]
-              };
-            }
-            return f;
-          }));
-
-          await new Promise(r => setTimeout(r, 100));
-        } catch (fileErr: any) {
-          console.error(`[Force Reparse] 檔案 ${fileRecord.original_name} 強制解析失敗:`, fileErr);
-          if (fileErr.message && fileErr.message.includes('RLS')) alert(fileErr.message);
-          continue; 
-        }
-
-        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
-      }
-
-      await new Promise(r => setTimeout(r, 1000));
-      await fetchCloudFiles(); 
+      const res = await fetch('/api/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileIds: ids })
+      });
+      if (!res.ok) throw new Error('Enqueue API failed');
+      
+      alert(`已成功將 ${ids.length} 筆檔案送入背景解析佇列！請稍後重整網頁檢視最新狀態。`);
+      await fetchCloudFiles();
       setSelectedFileIds([]);
-      alert('強制多檔再解析任務已完成！');
     } catch (err: any) {
-      alert('處理出錯: ' + err.message);
+      alert('無法送入解析佇列: ' + err.message);
     } finally {
       setIsReparsing(false);
-      setReparseProgress(0);
-      setReparseTotal(0);
-      setReparseIndex(0);
-      setReparseCurrentFile('');
     }
+  };
+
+  const handleEnqueueUnparsed = async () => {
+    if (!supabase) return;
+    const targets = cloudFiles.filter(f => !f.is_parsed || (f as any).parse_status === 'failed');
+    if (targets.length === 0) {
+      alert('沒有需要解析或過去解析失敗的檔案。');
+      return;
+    }
+    const ids = targets.map(t => t.id);
+    handleForceReparseFiles(ids);
   };
 
   const handleExportAll = (format: 'csv') => {
@@ -1038,7 +971,7 @@ function App() {
                         opacity: isReparsing ? 0.5 : 1
                       }}
                     >
-                      <Repeat size={14} /> 強制再解析 ({selectedFileIds.length})
+                      <Repeat size={14} /> 批次重新解析 ({selectedFileIds.length})
                     </button>
                     <button 
                       className="primary-button" 
@@ -1054,6 +987,23 @@ function App() {
                       <Trash2 size={14} /> {t('batchDelete', data.language)} ({selectedFileIds.length})
                     </button>
                   </>
+                )}
+                {selectedFileIds.length === 0 && (
+                  <button 
+                    className="primary-button" 
+                    onClick={handleEnqueueUnparsed}
+                    disabled={isReparsing}
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      padding: '6px 12px', 
+                      background: '#10B981', 
+                      borderColor: '#10B981',
+                      marginRight: '0.5rem',
+                      opacity: isReparsing ? 0.5 : 1
+                    }}
+                  >
+                    <Sparkles size={14} /> 解析失敗/未解析送入佇列
+                  </button>
                 )}
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
                   <Download size={16} /> {t('exportCsv', data.language)}
@@ -1264,6 +1214,34 @@ function App() {
                            }}>
                              <Zap size={10} /> {t('parsedCount', data.language)} {((f as any).knowledgeCount > 0 || f.is_parsed) ? `(${(f as any).knowledgeCount || 0} ${t('itemsSuffix', data.language)})` : ''}
                            </span>
+                        ) : (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' ? (
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(96,165,250,0.1)', 
+                            color: '#60A5FA', 
+                            borderRadius: '12px', 
+                            fontSize: '0.75rem',
+                            border: '1px solid rgba(96,165,250,0.2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? '等待佇列中' : '伺服器解析中'}
+                          </span>
+                        ) : (f as any).parse_status === 'failed' ? (
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(239,68,68,0.1)', 
+                            color: '#EF4444', 
+                            borderRadius: '12px', 
+                            fontSize: '0.75rem',
+                            border: '1px solid rgba(239,68,68,0.2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }} title={(f as any).error_message}>
+                            <ShieldAlert size={10} /> 解析失敗
+                          </span>
                         ) : (
                           <span style={{ 
                             padding: '2px 8px', 
@@ -1313,7 +1291,6 @@ function App() {
         onMinimize={() => { setShowUploadWizard(false); }}
         isMinimized={isReparseMinimized}
         data={data} 
-        onApplyData={setData}
         language={data.language}
       />
 

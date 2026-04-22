@@ -1,0 +1,78 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Client } from '@upstash/qstash';
+import { createClient } from '@supabase/supabase-js';
+
+const qstashClient = new Client({
+  token: process.env.QSTASH_TOKEN || '',
+});
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS setup
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { fileIds } = req.body;
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      return res.status(400).json({ error: 'fileIds array is required' });
+    }
+
+    if (!process.env.QSTASH_TOKEN) {
+      console.warn('[Enqueue] QSTASH_TOKEN 尚未配置，將跳過推播，僅更新資料庫狀態');
+    }
+
+    // Determine base URL for Webhook callback
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const workerUrl = `${protocol}://${host}/api/worker`;
+
+    // 1. 更新資料庫狀態為 pending
+    const { error: dbError } = await supabase
+      .from('tuc_uploaded_files')
+      .update({ parse_status: 'pending', error_message: null })
+      .in('id', fileIds);
+
+    if (dbError) {
+      console.error('[Enqueue] 更新狀態失敗:', dbError);
+      return res.status(500).json({ error: 'Database update failed', details: dbError });
+    }
+
+    // 2. 推送任務至 QStash
+    const results = [];
+    if (process.env.QSTASH_TOKEN) {
+      for (const id of fileIds) {
+        const response = await qstashClient.publishJSON({
+          url: workerUrl,
+          body: { fileId: id },
+          retries: 3,
+        });
+        results.push(response);
+      }
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      enqueued: fileIds.length,
+      qstashResults: results 
+    });
+
+  } catch (error: any) {
+    console.error('[Enqueue API Error]:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+}
