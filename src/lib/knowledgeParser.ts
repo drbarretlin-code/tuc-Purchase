@@ -15,23 +15,23 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // V16: 模型搜尋機制
-  // 優先順序策略 (由 2026 最新至穩定版)
-  // 注意：gemini-2.0-flash 對新用戶已失效，故排除或置後
+  // V18.2: 修正模型清單 — 僅使用 Google 確認仍在線的模型
+  // gemini-1.5-flash / gemini-1.5-pro 已從 v1beta 下架 (404)
+  // gemini-2.5-flash / gemini-2.5-flash-lite 確認存在 (429 = 存在但限流)
   const priorityList = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
   ];
 
   console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
 
   for (const mId of priorityList) {
     try {
-      // 必須使用 generateContent 進行試驗，因為 countTokens 可能在已禁用模型上仍然成功
       const model = genAI.getGenerativeModel({ model: mId });
       await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        generationConfig: { maxOutputTokens: 1 } // 極小消耗
+        generationConfig: { maxOutputTokens: 1 }
       });
       cachedModelId = mId;
       console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
@@ -40,33 +40,41 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
       
+      // V18.2 關鍵修正：429 代表「模型存在，只是暫時限流」
+      // 應該鎖定此模型，而非跳過
       if (
-        errMsg.includes('404') || 
-        status === 404 || 
         errMsg.includes('429') || 
         status === 429 || 
-        errMsg.toLowerCase().includes('not found') ||
         errMsg.toLowerCase().includes('resource_exhausted') ||
         errMsg.toLowerCase().includes('quota') ||
         errMsg.toLowerCase().includes('rate limit')
       ) {
-        console.warn(`[AI Discovery] 模型 ${mId} 暫時不可用 (404/429/Quota)，嘗試下一個...`);
+        cachedModelId = mId;
+        console.log(`[AI Discovery] 模型 ${mId} 存在但暫時限流 (429)，鎖定此模型。`);
+        break;
+      }
+
+      // 404 = 模型不存在，跳過
+      if (
+        errMsg.includes('404') || 
+        status === 404 || 
+        errMsg.toLowerCase().includes('not found')
+      ) {
+        console.warn(`[AI Discovery] 模型 ${mId} 不存在 (404)，嘗試下一個...`);
         continue;
       }
       
-      // 處理「新使用者受限」的特殊報錯
       if (errMsg.includes('no longer available to new users')) {
         console.warn(`[AI Discovery] 模型 ${mId} 受限 (僅限舊用戶)，跳過...`);
         continue;
       }
 
       console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
-      // 若為授權錯誤 (401)，則不需要再試驗其他模型
       if (status === 401 || errMsg.includes('API key not valid')) break;
     }
   }
 
-  return cachedModelId || 'gemini-1.5-flash';
+  return cachedModelId || 'gemini-2.5-flash';
 }
 
 /**
