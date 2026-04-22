@@ -91,6 +91,9 @@ function App() {
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageCount, setStorageCount] = useState(0);
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState(10); // 預設 10MB
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
+  const [isCleaning, setIsCleaning] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -261,11 +264,9 @@ function App() {
   const handleDeleteLargeFiles = async () => {
     if (!supabase) return;
     const limitBytes = largeFileSizeLimit * 1024 * 1024;
+    setIsCleaning(true);
 
     try {
-      // 1. 找出所有大於限制的檔案
-      // 因為 Storage API .list() 預設只回傳 100 筆，我們需要迴圈或簡單從資料庫紀錄推估
-      // 但正確做法是直接掃描 Storage。這裡為了簡便先用 list(1000)
       const { data: files, error } = await supabase.storage.from('spec-files').list('', {
         limit: 1000,
         sortBy: { column: 'size', order: 'desc' }
@@ -273,39 +274,59 @@ function App() {
 
       if (error) throw error;
 
-      const largeFiles = (files || []).filter(f => f.metadata && f.metadata.size > limitBytes);
-
-      if (largeFiles.length === 0) {
+      const filtered = (files || []).filter(f => f.metadata && f.metadata.size > limitBytes);
+      
+      if (filtered.length === 0) {
         alert('未偵測到任何大於 ' + largeFileSizeLimit + ' MB 的檔案。');
+        setIsCleaning(false);
         return;
       }
 
-      const confirmMsg = t('confirmDeleteLarge', data.language)
-        .replace('{n}', largeFileSizeLimit.toString())
-        .replace('{count}', largeFiles.length.toString());
-      
-      if (!confirm(confirmMsg)) return;
+      setLargeFilesFound(filtered);
+      setShowCleanupModal(true);
+    } catch (err: any) {
+      console.error('Scan large files failed:', err);
+      alert('掃描失敗: ' + err.message);
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
-      // 2. 執行刪除 (Storage)
-      const pathsToRemove = largeFiles.map(f => f.name);
-      const { error: delError } = await supabase.storage.from('spec-files').remove(pathsToRemove);
-      if (delError) throw delError;
+  const executeCleanup = async () => {
+    if (!supabase || largeFilesFound.length === 0) return;
+    setIsCleaning(true);
 
-      // 3. 執行刪除 (資料庫紀錄 - 匹配 storage_path)
-      // 注意：storage_path 通常存的是完整的路徑或檔名
-      const { error: dbError } = await supabase
+    try {
+      const fileNames = largeFilesFound.map(f => f.name);
+
+      // 1. 刪除 Storage 實體檔案
+      const { error: storageError } = await supabase.storage.from('spec-files').remove(fileNames);
+      if (storageError) throw storageError;
+
+      // 2. 刪除上傳紀錄 (tuc_uploaded_files)
+      const { error: uploadError } = await supabase
         .from('tuc_uploaded_files')
         .delete()
-        .in('original_name', pathsToRemove); // 假設 original_name 與 storage 檔名一致
-      
-      if (dbError) throw dbError;
+        .in('original_name', fileNames);
+      if (uploadError) throw uploadError;
 
-      alert('清理成功！已移除 ' + largeFiles.length + ' 個大檔案。');
+      // 3. 刪除知識庫條文 (tuc_history_knowledge)
+      const { error: knowledgeError } = await supabase
+        .from('tuc_history_knowledge')
+        .delete()
+        .in('source_file_name', fileNames);
+      if (knowledgeError) throw knowledgeError;
+
+      alert('清理完成！已徹底移除 ' + fileNames.length + ' 個檔案及其所有關聯紀錄。');
+      setShowCleanupModal(false);
+      setLargeFilesFound([]);
       fetchCloudFiles();
       fetchUsageStats();
     } catch (err: any) {
-      console.error('Cleanup large files failed:', err);
-      alert('清理失敗: ' + err.message);
+      console.error('Execute cleanup failed:', err);
+      alert('執行清理時發生錯誤: ' + err.message);
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -1285,8 +1306,66 @@ function App() {
                   marginBottom: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem'
+                  gap: '0.75rem',
+                  position: 'relative'
                 }}>
+                  {/* 清理確認彈窗 (內嵌) */}
+                  {showCleanupModal && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(20,20,20,0.95)',
+                      borderRadius: '10px',
+                      zIndex: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '1rem',
+                      border: '1px solid #EF4444'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                          {t('cleanupLargeFiles', data.language)} (共 {largeFilesFound.length} 個)
+                        </span>
+                        <button onClick={() => setShowCleanupModal(false)} className="icon-btn"><X size={16} /></button>
+                      </div>
+                      <div style={{ 
+                        flex: 1, 
+                        overflowY: 'auto', 
+                        background: 'rgba(0,0,0,0.3)', 
+                        borderRadius: '6px', 
+                        padding: '0.5rem',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: '#aaa'
+                      }}>
+                        {largeFilesFound.map((f, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '4px 0' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{f.name}</span>
+                            <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#EF4444', marginBottom: '0.5rem' }}>
+                        * 提醒：點擊確認後將一併刪除「實體檔案」、「上傳紀錄」與「知識庫所有條文」，且無法復原。
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                          onClick={executeCleanup} 
+                          disabled={isCleaning}
+                          style={{ flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {isCleaning ? <Loader2 size={16} className="spin" /> : '確認徹底清理'}
+                        </button>
+                        <button 
+                          onClick={() => setShowCleanupModal(false)}
+                          style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <ShieldAlert size={16} color={isHighUsage ? '#EF4444' : '#60A5FA'} />
@@ -1313,6 +1392,7 @@ function App() {
                       </div>
                       <button 
                         onClick={handleDeleteLargeFiles}
+                        disabled={isCleaning}
                         style={{ 
                           padding: '4px 8px', 
                           background: '#EF4444', 
@@ -1327,7 +1407,8 @@ function App() {
                         }}
                         title={t('cleanupLargeFiles', data.language)}
                       >
-                        <Trash2 size={12} /> {t('cleanupLargeFiles', data.language)}
+                        {isCleaning ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />} 
+                        {t('cleanupLargeFiles', data.language)}
                       </button>
                     </div>
                   </div>
