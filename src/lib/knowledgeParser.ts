@@ -1,12 +1,8 @@
 import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
 import { t } from './i18n';
-
-// 設定 PDF.js Worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 /**
  * V13: 動態模型管理系統 (2026 最新版)
@@ -190,30 +186,17 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     text = extractStringsFromBinary(arrayBuffer);
     console.log(`[AI Parser] .doc (Legacy) 字串掃描成功: ${text.length} 字`);
   } else if (file.name.endsWith('.pdf')) {
-    const arrayBuffer = await file.arrayBuffer();
-    // V13.1: 修正 PDF.js cMap 配置
-    const pdf = await pdfjsLib.getDocument({ 
-      data: arrayBuffer,
-      cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
-      cMapPacked: true
-    }).promise;
-    
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += content.items.map((item: any) => item.str).join(' ');
+    // V18: 徹底移除不穩定的 pdfjs-dist CDN Worker，全面啟用 Gemini 原生多模態 PDF 視覺解析。
+    // 這能完美保留表格結構、繞過加密字體提取失敗，並解決大部分 CDN 逾時問題。
+    const MAX_BASE64_SIZE = 15 * 1024 * 1024; // 15MB 上限 (Base64 會膨脹 33%，約佔 20MB Payload)
+    if (file.size > MAX_BASE64_SIZE) {
+      console.warn(`[AI Multimodal] PDF 檔案超過單次請求上限 (15MB)，嘗試擷取... : ${file.name}`);
+      // 這裡理論上可以呼叫 File API 分割，但目前先直上，由外圍 Catch 接住超限報錯。
     }
-    
-    // V13.6: 自動回退機制 - 若提取文字過少，嘗試多模態解析
-    if (!fullText || fullText.trim().length < 50) {
-      console.warn(`[AI Multimodal] PDF 文字提取內容不足 (${fullText?.length || 0} 字)，自動切換至多模態附件模式: ${file.name}`);
-      const base64 = await fileToBase64(file);
-      inlineData = { data: base64, mimeType: 'application/pdf' };
-      text = ''; 
-    } else {
-      text = fullText;
-    }
+    const base64 = await fileToBase64(file);
+    inlineData = { data: base64, mimeType: 'application/pdf' };
+    text = ''; 
+    console.log(`[AI Multimodal] PDF 原生視覺渲染啟動: ${file.name}`);
   }
 
   if (!text && !inlineData) throw new Error(t('parseError', lang));
