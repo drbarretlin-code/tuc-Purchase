@@ -22,7 +22,7 @@ This system uses the **BYOK (Bring Your Own Key)** model to ensure efficient dat
 ## 2. File Operations & Uploads
 In the **(File Options 📁)** area at the top of the main interface, you can perform the following:
 
-- **(Upload ☁️) Upload New Spec**: Drag and drop PDF or Docx files. The system will automatically trigger the "Extreme Mining" engine for analysis.
+- **(Cloud ☁️) Load from Cloud**: Search database history files and import them directly into the main editor to continue editing.
 - **(Import 📂) Load Local JSON**: Import previously saved specification drafts to continue editing.
 - **(Export 💾) Export File**: Export completed specifications as JSON for archiving and exchange.
 
