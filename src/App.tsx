@@ -133,20 +133,34 @@ function App() {
       
       if (fileError) throw fileError;
 
-      // 2. 優化統計：分次或分頁獲取條目數 (預防 1000 筆限制)
-      // 若資料量極大，此處僅作為視覺參考，核心邏輯應依賴 is_parsed
-      const { data: knowledgeStats, error: countError } = await supabase
-        .from('tuc_history_knowledge')
-        .select('source_file_name')
-        .limit(5000); // 擴大抓取上限至 5000 條做簡易統計
-      
-      if (countError) console.error('無法統計解析條目:', countError);
-
+      // 2. 優化統計：分頁獲取所有條目以進行準確統計 (解決 5000 筆上限截斷的問題)
       const countMap: Record<string, number> = {};
-      knowledgeStats?.forEach(item => {
-        const name = item.source_file_name;
-        countMap[name] = (countMap[name] || 0) + 1;
-      });
+      let offset = 0;
+      const pageSize = 5000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: statsBatch, error: countError } = await supabase
+          .from('tuc_history_knowledge')
+          .select('source_file_name')
+          .range(offset, offset + pageSize - 1);
+        
+        if (countError) {
+          console.error('無法統計解析條目:', countError);
+          break;
+        }
+        
+        if (statsBatch && statsBatch.length > 0) {
+          statsBatch.forEach(item => {
+            const name = item.source_file_name;
+            countMap[name] = (countMap[name] || 0) + 1;
+          });
+          offset += pageSize;
+          if (statsBatch.length < pageSize) hasMore = false;
+        } else {
+          hasMore = false;
+        }
+      }
 
       // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
@@ -625,15 +639,9 @@ function App() {
           const blob = await response.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
-          // 2. Force delete
-          console.log(`[Force Reparse] 正在強制清理檔案 ${fileRecord.original_name} 的舊有紀錄...`);
-          const { error: deleteError } = await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
-          if (deleteError) {
-            throw new Error(`清除舊紀錄失敗，請檢查 DELETE 權限 (RLS): ${deleteError.message}`);
-          }
-
-          // 3. AI Parse
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
+          // 2. AI Parse (傳入 forceRebuild = true 讓 AI 解析成功後才進行安全刪除)
+          console.log(`[Force Reparse] 啟動重新解析程序: ${fileRecord.original_name}`);
+          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id, true);
           const newAdded = parseResult?.added || 0;
           const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
           

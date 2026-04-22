@@ -157,7 +157,7 @@ const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
   }
 };
 
-export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string) => {
+export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string, forceRebuild?: boolean) => {
   const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   const finalKey = rawKey.trim();
   
@@ -338,7 +338,12 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       });
     }
 
-    if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq };
+    if (!supabase) return { added: 0, skipped: 0, detectedEquipment: detectedEq, fullJson, docId };
+
+    if (forceRebuild) {
+      console.log(`[AI Parser] 執行強制重建，刪除舊有紀錄: ${file.name}`);
+      await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', file.name);
+    }
 
     let addedCount = 0;
     let skippedCount = 0;
