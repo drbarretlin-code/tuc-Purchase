@@ -675,6 +675,15 @@ function App() {
     }
   };
 
+  // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 failed > processing > pending > parsed
+  const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
+    if (f.parse_status === 'failed') return 'failed';
+    if (f.parse_status === 'processing') return 'processing';
+    if (f.parse_status === 'pending' && !f.is_parsed && !f.knowledgeCount) return 'pending';
+    if (f.knowledgeCount > 0 || f.is_parsed) return 'parsed';
+    return 'unparsed';
+  };
+
   const filteredFiles = cloudFiles.filter(f => {
     const matchesSearch = (f.display_name || '').includes(searchQuery) ||
       (f.equipment_name || '').includes(searchQuery) ||
@@ -682,11 +691,7 @@ function App() {
     if (!matchesSearch) return false;
     
     if (queueFilterTab === 'all') return true;
-    if (queueFilterTab === 'parsed') return (f as any).knowledgeCount > 0 || f.is_parsed;
-    if (queueFilterTab === 'pending') return (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount;
-    if (queueFilterTab === 'processing') return (f as any).parse_status === 'processing';
-    if (queueFilterTab === 'failed') return (f as any).parse_status === 'failed';
-    return true;
+    return getFileCategory(f) === queueFilterTab;
   });
 
   return (
@@ -1067,10 +1072,10 @@ function App() {
 
             {/* 佇列狀態總覽面板 */}
             {(() => {
-              const completedCount = cloudFiles.filter(f => (f as any).knowledgeCount > 0 || f.is_parsed).length;
-              const pendingCount = cloudFiles.filter(f => (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount).length;
-              const processingCount = cloudFiles.filter(f => (f as any).parse_status === 'processing').length;
-              const failedCount = cloudFiles.filter(f => (f as any).parse_status === 'failed').length;
+              const completedCount = cloudFiles.filter(f => getFileCategory(f) === 'parsed').length;
+              const pendingCount = cloudFiles.filter(f => getFileCategory(f) === 'pending').length;
+              const processingCount = cloudFiles.filter(f => getFileCategory(f) === 'processing').length;
+              const failedCount = cloudFiles.filter(f => getFileCategory(f) === 'failed').length;
               const totalFiles = cloudFiles.length;
               const progressPct = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
               const hasActiveJobs = pendingCount > 0 || processingCount > 0;
@@ -1163,10 +1168,10 @@ function App() {
             {(() => {
               const counts = {
                 all: cloudFiles.length,
-                parsed: cloudFiles.filter(f => (f as any).knowledgeCount > 0 || f.is_parsed).length,
-                pending: cloudFiles.filter(f => (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount).length,
-                processing: cloudFiles.filter(f => (f as any).parse_status === 'processing').length,
-                failed: cloudFiles.filter(f => (f as any).parse_status === 'failed').length,
+                parsed: cloudFiles.filter(f => getFileCategory(f) === 'parsed').length,
+                pending: cloudFiles.filter(f => getFileCategory(f) === 'pending').length,
+                processing: cloudFiles.filter(f => getFileCategory(f) === 'processing').length,
+                failed: cloudFiles.filter(f => getFileCategory(f) === 'failed').length,
               };
               const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed'; labelKey: string; color: string }[] = [
                 { key: 'all', labelKey: 'allFiles', color: '#888' },
