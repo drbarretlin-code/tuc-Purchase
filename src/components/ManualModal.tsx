@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Book, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Book, ExternalLink, Loader2, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { t } from '../lib/i18n';
 import type { Language } from '../lib/i18n';
@@ -34,6 +34,52 @@ const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, language }) 
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const styles = `
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; color: #333; }
+      h1 { color: #000; border-bottom: 2px solid #FF3B30; padding-bottom: 10px; }
+      h2 { color: #FF9500; margin-top: 30px; }
+      h3 { color: #444; margin-top: 20px; }
+      p { margin-bottom: 15px; }
+      ul { padding-left: 20px; margin-bottom: 20px; }
+      li { margin-bottom: 8px; }
+      code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; color: #FF3B30; }
+      hr { border: none; border-top: 1px solid #ddd; margin: 30px 0; }
+      blockquote { border-left: 4px solid #FF3B30; padding-left: 20px; margin: 20px 0; color: #666; font-style: italic; }
+      @media print {
+        body { padding: 0; }
+        .no-print { display: none; }
+      }
+    `;
+
+    // 這裡我們需要渲染 Markdown 為 HTML，簡單起見，我們借用一個隱藏的 div 或直接用 markdown-body 的內容
+    const contentHtml = document.querySelector('.manual-content')?.innerHTML || '';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${t('userManual', language)}</title>
+          <style>${styles}</style>
+        </head>
+        <body>
+          <div class="manual-content">
+            ${contentHtml}
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   if (!isOpen) return null;
@@ -72,9 +118,20 @@ const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, language }) 
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>V17.6 System Documentation</p>
             </div>
           </div>
-          <button onClick={onClose} className="icon-btn">
-            <X size={24} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button 
+              onClick={handlePrint} 
+              className="icon-btn" 
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px' }}
+              title={t('exportPdf', language)}
+            >
+              <Download size={20} />
+              <span style={{ fontSize: '0.85rem' }}>{t('exportPdf', language)}</span>
+            </button>
+            <button onClick={onClose} className="icon-btn">
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

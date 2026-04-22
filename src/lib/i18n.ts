@@ -112,6 +112,7 @@ export const translations: Record<string, any> = {
     'tagUpdateFail': '標籤更新失敗:',
     'confirmCalibrate': '系統將分析全課檔案內容，自動辨別並校準正確的「設備標籤」。\n這將修正如「大明剪床」被誤植至 RTO 等錯誤關聯，確定執行嗎？',
     'deleteRecord': '刪除紀錄',
+    'exportPdf': '匯出 PDF',
     'itemsSuffix': '條',
 
     // Boilerplate Defaults
@@ -589,6 +590,7 @@ export const translations: Record<string, any> = {
     'tagUpdateFail': '标签更新失败:',
     'confirmCalibrate': '系统将分析全课档案内容，自动辨别并校正正确的「设备标签」。\n这将修正如「大明剪床」被误植至 RTO 等错误关联，确定执行吗？',
     'deleteRecord': '删除纪录',
+    'exportPdf': '导出 PDF',
     'itemsSuffix': '条',
 
     // Queue Status Dashboard
@@ -890,6 +892,7 @@ export const translations: Record<string, any> = {
     'tagUpdateFail': 'Tag update failed:',
     'confirmCalibrate': 'System will analyze all document contents to automatically identify and calibrate correct "Equipment Tags".\nThis will fix incorrect associations, confirm execution?',
     'deleteRecord': 'Delete Record',
+    'exportPdf': 'Export PDF',
     'itemsSuffix': 'entries',
     'apiKeyLabel': 'Gemini API Key (for AI hints)',
     'apiKeyPlaceholder': 'Paste your API key here...',
@@ -1190,6 +1193,7 @@ export const translations: Record<string, any> = {
     
     'languageLabel': 'ภาษา:',
     'deleteRecord': 'ลบบันทึก',
+    'exportPdf': 'ส่งออก PDF',
     'itemsSuffix': 'รายการ',
     'noReqDesc': 'ไม่มีรายละเอียดความต้องการ',
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
