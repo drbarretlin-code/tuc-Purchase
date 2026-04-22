@@ -1006,7 +1006,7 @@ function App() {
                       opacity: isReparsing ? 0.5 : 1
                     }}
                   >
-                    <Sparkles size={14} /> 解析失敗/未解析送入佇列
+                    <Sparkles size={14} /> {t('enqueueUnparsed', data.language)}
                   </button>
                 )}
                 <button className="ghost-button" onClick={() => handleExportAll('csv')} style={{ fontSize: '0.8rem' }}>
@@ -1078,29 +1078,29 @@ function App() {
                   gap: '0.75rem'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>佇列狀態總覽</span>
+                    <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>{t('queueOverview', data.language)}</span>
                     {hasActiveJobs && (
                       <span style={{ fontSize: '0.7rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Loader2 size={10} className="spin" /> 背景處理中，每 15 秒自動更新
+                        <Loader2 size={10} className="spin" /> {t('autoRefreshHint', data.language)}
                       </span>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
-                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>已解析 <b style={{ color: '#10B981' }}>{completedCount}</b></span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueParsed', data.language)} <b style={{ color: '#10B981' }}>{completedCount}</b></span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
-                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>等待中 <b style={{ color: '#F59E0B' }}>{pendingCount}</b></span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queuePending', data.language)} <b style={{ color: '#F59E0B' }}>{pendingCount}</b></span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#60A5FA' }} />
-                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>解析中 <b style={{ color: '#60A5FA' }}>{processingCount}</b></span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueProcessing', data.language)} <b style={{ color: '#60A5FA' }}>{processingCount}</b></span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
-                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>失敗 <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{t('queueFailed', data.language)} <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
                     </div>
                   </div>
                   <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -1113,7 +1113,7 @@ function App() {
                     }} />
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#555', textAlign: 'right' }}>
-                    總完成率：{progressPct}% ({completedCount}/{totalFiles})
+                    {t('completionRate', data.language)}：{progressPct}% ({completedCount}/{totalFiles})
                   </div>
                 </div>
               );
@@ -1293,7 +1293,7 @@ function App() {
                             alignItems: 'center',
                             gap: '4px'
                           }}>
-                            <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? '等待佇列中' : '伺服器解析中'}
+                            <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? t('statusPending', data.language) : t('statusProcessing', data.language)}
                           </span>
                         ) : (f as any).parse_status === 'failed' ? (
                           <span style={{ 
@@ -1307,7 +1307,7 @@ function App() {
                             alignItems: 'center',
                             gap: '4px'
                           }} title={(f as any).error_message}>
-                            <ShieldAlert size={10} /> 解析失敗
+                            <ShieldAlert size={10} /> {t('statusFailed', data.language)}
                           </span>
                         ) : (
                           <span style={{ 

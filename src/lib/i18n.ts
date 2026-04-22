@@ -274,7 +274,20 @@ export const translations: Record<string, any> = {
     'clickToEditTags': '點擊編輯標籤',
     'newTagHint': '點擊新增標籤...',
     'noReqDesc': '無需求說明',
-    'systemSubtitle': 'TUC 採購規範產生器'
+    'systemSubtitle': 'TUC 採購規範產生器',
+
+    // Queue Status Dashboard
+    'queueOverview': '佇列狀態總覽',
+    'autoRefreshHint': '背景處理中，每 15 秒自動更新',
+    'queueParsed': '已解析',
+    'queuePending': '等待中',
+    'queueProcessing': '解析中',
+    'queueFailed': '失敗',
+    'completionRate': '總完成率',
+    'enqueueUnparsed': '解析失敗/未解析送入佇列',
+    'statusPending': '等待佇列中',
+    'statusProcessing': '伺服器解析中',
+    'statusFailed': '解析失敗'
   },
   'zh-CN': {
     'systemTitle': '采购验收规范建置表',
@@ -544,7 +557,20 @@ export const translations: Record<string, any> = {
     'parsedCount': '已解析',
     'viewFull': '在新标签页查看',
     'deleteRecord': '删除纪录',
-    'itemsSuffix': '条'
+    'itemsSuffix': '条',
+
+    // Queue Status Dashboard
+    'queueOverview': '队列状态总览',
+    'autoRefreshHint': '后台处理中，每 15 秒自动更新',
+    'queueParsed': '已解析',
+    'queuePending': '等待中',
+    'queueProcessing': '解析中',
+    'queueFailed': '失败',
+    'completionRate': '总完成率',
+    'enqueueUnparsed': '解析失败/未解析送入队列',
+    'statusPending': '等待队列中',
+    'statusProcessing': '服务器解析中',
+    'statusFailed': '解析失败'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -831,6 +857,19 @@ export const translations: Record<string, any> = {
     'newTagHint': 'Add tag...',
     'noReqDesc': 'No requirement description',
     'systemSubtitle': 'TUC Procurement Spec Generator',
+
+    // Queue Status Dashboard
+    'queueOverview': 'Queue Status',
+    'autoRefreshHint': 'Processing in background, auto-refresh every 15s',
+    'queueParsed': 'Parsed',
+    'queuePending': 'Pending',
+    'queueProcessing': 'Processing',
+    'queueFailed': 'Failed',
+    'completionRate': 'Completion',
+    'enqueueUnparsed': 'Enqueue Failed/Unparsed',
+    'statusPending': 'Queued',
+    'statusProcessing': 'Server parsing',
+    'statusFailed': 'Parse failed'
   },
   'th-TH': {
     'systemTitle': 'แบบฟอร์มการสร้างข้อกำหนดการจัดซื้อและการรับมอบ',
@@ -1097,6 +1136,19 @@ export const translations: Record<string, any> = {
     'systemSubtitle': 'เครื่องมือสร้างข้อกำหนดการจัดซื้อ TUC',
     'parsedCount': 'วิเคราะห์แล้ว',
     'viewFull': 'ดูในแท็บใหม่',
+
+    // Queue Status Dashboard
+    'queueOverview': 'สถานะคิว',
+    'autoRefreshHint': 'กำลังประมวลผลเบื้องหลัง อัปเดตทุก 15 วินาที',
+    'queueParsed': 'วิเคราะห์แล้ว',
+    'queuePending': 'รอดำเนินการ',
+    'queueProcessing': 'กำลังวิเคราะห์',
+    'queueFailed': 'ล้มเหลว',
+    'completionRate': 'อัตราสำเร็จ',
+    'enqueueUnparsed': 'ส่งรายการล้มเหลว/ยังไม่วิเคราะห์เข้าคิว',
+    'statusPending': 'อยู่ในคิว',
+    'statusProcessing': 'เซิร์ฟเวอร์กำลังวิเคราะห์',
+    'statusFailed': 'วิเคราะห์ล้มเหลว'
   }
 };
 
