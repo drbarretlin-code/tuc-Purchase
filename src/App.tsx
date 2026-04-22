@@ -87,6 +87,10 @@ function App() {
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [tempTags, setTempTags] = useState<string>('');
 
+  // V17.8: 資源水位預警狀態
+  const [knowledgeCount, setKnowledgeCount] = useState(0);
+  const [storageCount, setStorageCount] = useState(0);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
@@ -231,10 +235,31 @@ function App() {
     }
   };
 
+  const fetchUsageStats = async () => {
+    if (!supabase) return;
+    try {
+      // 獲取知識條目總數
+      const { count: kCount } = await supabase
+        .from('tuc_history_knowledge')
+        .select('*', { count: 'exact', head: true });
+      
+      // 獲取檔案總數
+      const { count: sCount } = await supabase
+        .from('tuc_uploaded_files')
+        .select('*', { count: 'exact', head: true });
+      
+      setKnowledgeCount(kCount || 0);
+      setStorageCount(sCount || 0);
+    } catch (err) {
+      console.error('Fetch usage stats error:', err);
+    }
+  };
+
   const handleOpenInspector = () => {
     setSelectedFileIds([]); // 開啟時重置選擇
     if (isCloudAuthed) {
       fetchCloudFiles();
+      fetchUsageStats();
       setShowCloudInspector(true);
     } else {
       setShowPasswordPrompt(true);
@@ -1187,6 +1212,84 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* V17.8: 資源水位預警面板 */}
+            {(() => {
+              const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
+              const storageLimit = 500;    // 500個檔案設為警戒線 (約佔 1GB)
+              const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
+              const sUsage = Math.min(Math.round((storageCount / storageLimit) * 100), 100);
+              const isHighUsage = kUsage > 80 || sUsage > 80;
+
+              return (
+                <div style={{ 
+                  background: 'rgba(0,0,0,0.2)', 
+                  border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`, 
+                  borderRadius: '10px', 
+                  padding: '1rem', 
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShieldAlert size={16} color={isHighUsage ? '#EF4444' : '#60A5FA'} />
+                      {t('resourceUsage', data.language)}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: '#888' }}>{t('safeLimit', data.language)}</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    {/* 知識庫條目 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>{t('knowledgeEntries', data.language)}</span>
+                        <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()}</span>
+                      </div>
+                      <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${kUsage}%`, 
+                          height: '100%', 
+                          background: kUsage > 80 ? '#EF4444' : '#60A5FA', 
+                          transition: 'width 0.5s ease-out'
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* 檔案數量 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>{t('storageFiles', data.language)}</span>
+                        <span style={{ color: sUsage > 80 ? '#EF4444' : '#fff' }}>{storageCount} / {storageLimit}</span>
+                      </div>
+                      <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${sUsage}%`, 
+                          height: '100%', 
+                          background: sUsage > 80 ? '#EF4444' : '#10B981', 
+                          transition: 'width 0.5s ease-out'
+                        }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {isHighUsage && (
+                    <div style={{ 
+                      marginTop: '4px',
+                      padding: '8px', 
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      borderRadius: '4px', 
+                      fontSize: '0.75rem', 
+                      color: '#EF4444',
+                      borderLeft: '3px solid #EF4444'
+                    }}>
+                      {t('warningHighUsage', data.language)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 佇列狀態總覽面板 */}
             {(() => {
