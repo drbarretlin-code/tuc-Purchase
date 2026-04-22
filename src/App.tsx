@@ -1578,7 +1578,6 @@ function App() {
               );
             })()}
             </div>
-          </div>
 
 
             {isReparsing && (
@@ -1636,7 +1635,8 @@ function App() {
                   borderBottom: '1px solid var(--border-color)',
                   background: 'rgba(255,255,255,0.02)',
                   borderRadius: '8px 8px 0 0',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  flexShrink: 0
                 }}>
                   {tabs.map(tab => (
                     <button
@@ -1677,7 +1677,8 @@ function App() {
               );
             })()}
 
-            <div style={{ flex: 1, minHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+            {/* Content List Table Container with specific layout boundaries to prevent parent overflow */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
@@ -1883,6 +1884,7 @@ function App() {
             <div style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
               {t('totalProgress', data.language)} {cloudFiles.length} {t('items', data.language)}
             </div>
+          </div>
         </div>
       )}
 
