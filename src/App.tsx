@@ -117,6 +117,9 @@ function App() {
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
   const [isCleaning, setIsCleaning] = useState(false);
+  // V18.6: 雲端查閱器垂直調整器狀態
+  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(380);
+  const [isInspectorResizing, setIsInspectorResizing] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -152,6 +155,38 @@ function App() {
     };
   }, [isResizing, showPreview, isMobile]);
 
+  // V18.6: 雲端查閱器垂直調整邏輯
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isInspectorResizing) return;
+      // 計算相對於 modal-content 的 Y 軸偏移
+      const modalContent = document.querySelector('.modal-content.inspector-modal');
+      if (modalContent) {
+        const rect = modalContent.getBoundingClientRect();
+        const newHeight = e.clientY - rect.top - 60; // 扣除 Header 高度
+        if (newHeight > 150 && newHeight < rect.height - 200) {
+          setInspectorDashboardHeight(newHeight);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsInspectorResizing(false);
+      document.body.classList.remove('unselectable-v');
+    };
+
+    if (isInspectorResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.classList.add('unselectable-v');
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isInspectorResizing]);
+
   // 自動刷新：當雲端查閱器開啟且有佇列任務時，每 15 秒自動更新狀態
   useEffect(() => {
     if (!showCloudInspector) return;
@@ -167,6 +202,11 @@ function App() {
 
     return () => clearInterval(timer);
   }, [showCloudInspector, cloudFiles]);
+
+  // V18.5: 初始載入時獲取資源使用量 (確保第五章節同步按鈕狀態正確)
+  useEffect(() => {
+    fetchUsageStats();
+  }, []);
 
   // V17.3: 雲端查閱器動態內容翻譯
   useEffect(() => {
@@ -1091,7 +1131,10 @@ function App() {
       }}>
         {(!isMobile || mobileAppTab === 'edit') && (
           <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
-            <SpecForm data={data} onChange={setData} />
+            {(() => {
+              const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
+              return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
+            })()}
           </div>
         )}
 
@@ -1298,7 +1341,7 @@ function App() {
 
       {showCloudInspector && (
         <div className="modal-overlay" style={{ zIndex: 1200, display: isReparseMinimized ? 'none' : 'flex' }}>
-          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '90vw', maxWidth: '1000px', height: '85vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-panel modal-content inspector-modal" style={{ padding: '2rem', width: '95vw', maxWidth: '1200px', height: '90vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <BookOpen size={24} color="var(--tuc-red)" /> {t('cloudInspector', data.language)}
@@ -1399,97 +1442,28 @@ function App() {
               </div>
             </div>
 
-            {/* 系統中控面板區域 (Grid) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem', flexShrink: 0 }}>
-              {/* V17.8: 資源水位預警面板 */}
-              {(() => {
-                const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
-                const storageLimitBytes = 1 * 1024 * 1024 * 1024;    // 1 GB
-                const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
-                const sUsage = Math.min(Math.round((storageSize / storageLimitBytes) * 100), 100);
-                const isHighUsage = kUsage > 80 || sUsage > 80;
+            {/* 系統中控面板區域 (與下方列表可調整高度) */}
+            <div style={{ height: inspectorDashboardHeight, display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
+                {/* V17.8: 資源水位預警面板 */}
+                {(() => {
+                  const knowledgeLimit = 100000; // 10萬條設為警戒線 (約佔 100MB+)
+                  const storageLimitBytes = 1 * 1024 * 1024 * 1024;    // 1 GB
+                  const kUsage = Math.min(Math.round((knowledgeCount / knowledgeLimit) * 100), 100);
+                  const sUsage = Math.min(Math.round((storageSize / storageLimitBytes) * 100), 100);
+                  const isHighUsage = kUsage > 80 || sUsage > 80;
 
-                return (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.2)',
-                    border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`,
-                    borderRadius: '10px',
-                    padding: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    position: 'relative'
-                  }}>
-                    {/* 清理確認彈窗 (內嵌) */}
-                    {showCleanupModal && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        background: 'rgba(20,20,20,0.95)',
-                        borderRadius: '10px',
-                        zIndex: 10,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '1rem',
-                        border: '1px solid #EF4444'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                            {t('cleanupLargeFiles', data.language)} (共 {largeFilesFound.length} 個)
-                          </span>
-                          <button onClick={() => setShowCleanupModal(false)} className="icon-btn"><X size={16} /></button>
-                        </div>
-                        <div style={{
-                          flex: 1,
-                          overflowY: 'auto',
-                          background: 'rgba(0,0,0,0.3)',
-                          borderRadius: '6px',
-                          padding: '0.5rem',
-                          marginBottom: '0.5rem',
-                          fontSize: '0.75rem',
-                          color: '#aaa'
-                        }}>
-                          {largeFilesFound.map((f, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0' }}>
-                              <input
-                                type="checkbox"
-                                checked={f.checked}
-                                onChange={(e) => {
-                                  const newList = [...largeFilesFound];
-                                  newList[i].checked = e.target.checked;
-                                  setLargeFilesFound(newList);
-                                }}
-                                style={{ cursor: 'pointer' }}
-                              />
-                              <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }} title={f.originalName || f.name}>
-                                  {f.originalName || f.name}
-                                </span>
-                                <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: '#EF4444', marginBottom: '0.5rem' }}>
-                          * 提醒：點擊確認後將一併刪除「實體檔案」、「上傳紀錄」與「知識庫所有條文」，且無法復原。
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button
-                            onClick={executeCleanup}
-                            disabled={isCleaning}
-                            style={{ flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-                          >
-                            {isCleaning ? <Loader2 size={16} className="spin" /> : '確認徹底清理'}
-                          </button>
-                          <button
-                            onClick={() => setShowCleanupModal(false)}
-                            style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  return (
+                    <div style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      border: `1px solid ${isHighUsage ? '#EF4444' : 'var(--border-color)'}`,
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      position: 'relative'
+                    }}>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1670,6 +1644,27 @@ function App() {
               })()}
             </div>
 
+            {/* V18.6: 垂直 Resizer 調整條 */}
+            <div 
+              onMouseDown={() => setIsInspectorResizing(true)}
+              style={{
+                height: '8px',
+                width: '100%',
+                cursor: 'ns-resize',
+                background: isInspectorResizing ? 'rgba(230,0,18,0.2)' : 'transparent',
+                borderTop: '1px solid var(--border-color)',
+                borderBottom: '1px solid var(--border-color)',
+                margin: '4px 0',
+                transition: 'background 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10
+              }}
+              className="inspector-resizer"
+            >
+              <div style={{ width: '30px', height: '2px', background: 'rgba(255,255,255,0.2)', borderRadius: '10px' }} />
+            </div>
 
             {isReparsing && (
               <div style={{
@@ -2055,6 +2050,104 @@ function App() {
         diagnostic={diagnosticTarget ? getSafeDiagnostic(diagnosticTarget.error_message) : null}
         fileName={diagnosticTarget?.original_name || ''}
       />
+
+      {/* V18.6: 搬遷至此的全域清理彈窗 */}
+      {showCleanupModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '500px',
+            background: 'rgba(20,20,20,0.98)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            border: '1px solid #EF4444',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <span style={{ color: '#EF4444', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                {t('cleanupLargeFiles', data.language)} (共 {largeFilesFound.length} 個)
+              </span>
+              <button onClick={() => setShowCleanupModal(false)} className="icon-btn"><X size={20} /></button>
+            </div>
+            
+            <div style={{
+              maxHeight: '300px',
+              overflowY: 'auto',
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              marginBottom: '1rem',
+              fontSize: '0.85rem',
+              color: '#bbb',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}>
+              {largeFilesFound.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '8px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={f.checked}
+                    onChange={(e) => {
+                      const newList = [...largeFilesFound];
+                      newList[i].checked = e.target.checked;
+                      setLargeFilesFound(newList);
+                    }}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden', alignItems: 'center' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }} title={f.originalName || f.name}>
+                      {f.originalName || f.name}
+                    </span>
+                    <span style={{ color: '#888', flexShrink: 0 }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: '0.8rem', color: '#F87171', marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '6px' }}>
+              ⚠️ {t('warningHighUsage', data.language)}<br/>
+              * 提醒：點擊確認後將一併刪除實體檔案、紀錄與知識庫內容。
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={executeCleanup}
+                disabled={isCleaning}
+                className="primary-button"
+                style={{ flex: 1, background: '#EF4444', borderColor: '#EF4444', height: '42px' }}
+              >
+                {isCleaning ? <Loader2 size={18} className="spin" /> : '確認徹底清理'}
+              </button>
+              <button
+                onClick={() => setShowCleanupModal(false)}
+                className="ghost-button"
+                style={{ height: '42px' }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .unselectable-v {
+          user-select: none;
+          cursor: ns-resize !important;
+        }
+        .inspector-resizer:hover {
+          background: rgba(255,255,255,0.05) !important;
+        }
+      `}</style>
     </div>
   );
 }
