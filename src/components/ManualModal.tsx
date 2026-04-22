@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Book, ExternalLink, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { t } from '../lib/i18n';
+import { t, Language } from '../lib/i18n';
 
 interface ManualModalProps {
   isOpen: boolean;
   onClose: () => void;
-  language: string;
+  language: Language;
 }
 
 const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, language }) => {
