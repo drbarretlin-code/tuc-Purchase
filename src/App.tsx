@@ -112,6 +112,22 @@ function App() {
     };
   }, [isResizing, showPreview, isMobile]);
 
+  // 自動刷新：當雲端查閱器開啟且有佇列任務時，每 15 秒自動更新狀態
+  useEffect(() => {
+    if (!showCloudInspector) return;
+    const hasActiveJobs = cloudFiles.some(f => 
+      (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing'
+    );
+    if (!hasActiveJobs) return;
+    
+    const timer = setInterval(() => {
+      console.log('[AutoRefresh] 偵測到佇列任務，自動刷新狀態...');
+      fetchCloudFiles();
+    }, 15000);
+    
+    return () => clearInterval(timer);
+  }, [showCloudInspector, cloudFiles]);
+
   const handleSaveConfig = () => {
     const cleanKey = tempKey.trim();
     setApiKey(cleanKey);
@@ -1039,6 +1055,69 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* 佇列狀態總覽面板 */}
+            {(() => {
+              const completedCount = cloudFiles.filter(f => (f as any).knowledgeCount > 0 || f.is_parsed).length;
+              const pendingCount = cloudFiles.filter(f => (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount).length;
+              const processingCount = cloudFiles.filter(f => (f as any).parse_status === 'processing').length;
+              const failedCount = cloudFiles.filter(f => (f as any).parse_status === 'failed').length;
+              const totalFiles = cloudFiles.length;
+              const progressPct = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
+              const hasActiveJobs = pendingCount > 0 || processingCount > 0;
+
+              return (
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.02)', 
+                  border: `1px solid ${hasActiveJobs ? 'rgba(96,165,250,0.3)' : 'var(--border-color)'}`, 
+                  borderRadius: '10px', 
+                  padding: '1rem 1.2rem', 
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>佇列狀態總覽</span>
+                    {hasActiveJobs && (
+                      <span style={{ fontSize: '0.7rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Loader2 size={10} className="spin" /> 背景處理中，每 15 秒自動更新
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>已解析 <b style={{ color: '#10B981' }}>{completedCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>等待中 <b style={{ color: '#F59E0B' }}>{pendingCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#60A5FA' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>解析中 <b style={{ color: '#60A5FA' }}>{processingCount}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>失敗 <b style={{ color: '#EF4444' }}>{failedCount}</b></span>
+                    </div>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${progressPct}%`, 
+                      height: '100%', 
+                      background: 'linear-gradient(90deg, #10B981, #34D399)', 
+                      transition: 'width 0.5s ease-out',
+                      borderRadius: '3px'
+                    }} />
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', textAlign: 'right' }}>
+                    總完成率：{progressPct}% ({completedCount}/{totalFiles})
+                  </div>
+                </div>
+              );
+            })()}
 
             {isReparsing && (
               <div style={{ 
