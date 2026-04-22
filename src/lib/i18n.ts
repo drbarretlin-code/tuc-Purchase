@@ -278,6 +278,7 @@ export const translations: Record<string, any> = {
 
     // Queue Status Dashboard
     'queueOverview': '佇列狀態總覽',
+    'allFiles': '全部',
     'autoRefreshHint': '背景處理中，每 15 秒自動更新',
     'queueParsed': '已解析',
     'queuePending': '等待中',
@@ -561,6 +562,7 @@ export const translations: Record<string, any> = {
 
     // Queue Status Dashboard
     'queueOverview': '队列状态总览',
+    'allFiles': '全部',
     'autoRefreshHint': '后台处理中，每 15 秒自动更新',
     'queueParsed': '已解析',
     'queuePending': '等待中',
@@ -860,6 +862,7 @@ export const translations: Record<string, any> = {
 
     // Queue Status Dashboard
     'queueOverview': 'Queue Status',
+    'allFiles': 'All',
     'autoRefreshHint': 'Processing in background, auto-refresh every 15s',
     'queueParsed': 'Parsed',
     'queuePending': 'Pending',
@@ -1139,6 +1142,7 @@ export const translations: Record<string, any> = {
 
     // Queue Status Dashboard
     'queueOverview': 'สถานะคิว',
+    'allFiles': 'ทั้งหมด',
     'autoRefreshHint': 'กำลังประมวลผลเบื้องหลัง อัปเดตทุก 15 วินาที',
     'queueParsed': 'วิเคราะห์แล้ว',
     'queuePending': 'รอดำเนินการ',

@@ -70,6 +70,7 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
+  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed'>('all');
   
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
@@ -674,11 +675,19 @@ function App() {
     }
   };
 
-  const filteredFiles = cloudFiles.filter(f => 
-    (f.display_name || '').includes(searchQuery) ||
-    (f.equipment_name || '').includes(searchQuery) ||
-    (f.requester || '').includes(searchQuery)
-  );
+  const filteredFiles = cloudFiles.filter(f => {
+    const matchesSearch = (f.display_name || '').includes(searchQuery) ||
+      (f.equipment_name || '').includes(searchQuery) ||
+      (f.requester || '').includes(searchQuery);
+    if (!matchesSearch) return false;
+    
+    if (queueFilterTab === 'all') return true;
+    if (queueFilterTab === 'parsed') return (f as any).knowledgeCount > 0 || f.is_parsed;
+    if (queueFilterTab === 'pending') return (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount;
+    if (queueFilterTab === 'processing') return (f as any).parse_status === 'processing';
+    if (queueFilterTab === 'failed') return (f as any).parse_status === 'failed';
+    return true;
+  });
 
   return (
     <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1150,7 +1159,72 @@ function App() {
               </div>
             )}
 
-            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+            {/* 分頁篩選標籤列 */}
+            {(() => {
+              const counts = {
+                all: cloudFiles.length,
+                parsed: cloudFiles.filter(f => (f as any).knowledgeCount > 0 || f.is_parsed).length,
+                pending: cloudFiles.filter(f => (f as any).parse_status === 'pending' && !f.is_parsed && !(f as any).knowledgeCount).length,
+                processing: cloudFiles.filter(f => (f as any).parse_status === 'processing').length,
+                failed: cloudFiles.filter(f => (f as any).parse_status === 'failed').length,
+              };
+              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed'; labelKey: string; color: string }[] = [
+                { key: 'all', labelKey: 'allFiles', color: '#888' },
+                { key: 'parsed', labelKey: 'queueParsed', color: '#10B981' },
+                { key: 'pending', labelKey: 'queuePending', color: '#F59E0B' },
+                { key: 'processing', labelKey: 'queueProcessing', color: '#60A5FA' },
+                { key: 'failed', labelKey: 'queueFailed', color: '#EF4444' },
+              ];
+              return (
+                <div style={{
+                  display: 'flex',
+                  gap: '2px',
+                  marginBottom: '0',
+                  borderBottom: '1px solid var(--border-color)',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '8px 8px 0 0',
+                  overflow: 'hidden'
+                }}>
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => { setQueueFilterTab(tab.key); setSelectedFileIds([]); }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 8px',
+                        background: queueFilterTab === tab.key ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        border: 'none',
+                        borderBottom: queueFilterTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
+                        color: queueFilterTab === tab.key ? tab.color : '#666',
+                        fontSize: '0.78rem',
+                        fontWeight: queueFilterTab === tab.key ? 600 : 400,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {t(tab.labelKey, data.language)}
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        background: queueFilterTab === tab.key ? `${tab.color}22` : 'rgba(255,255,255,0.05)',
+                        color: queueFilterTab === tab.key ? tab.color : '#555',
+                        fontWeight: 600
+                      }}>
+                        {counts[tab.key]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
