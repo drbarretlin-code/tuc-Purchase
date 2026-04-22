@@ -822,14 +822,24 @@ export async function translateCloudMetadata(
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    const cleanJson = text.replace(/```json|```/g, '').trim();
+    
+    // V17.5: 強化 JSON 提取器，確保能處理包含 preamble 的回應
+    let cleanJson = text;
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    } else {
+      cleanJson = text.replace(/```json|```/g, '').trim();
+    }
+    
     const translatedList = JSON.parse(cleanJson);
 
     return items.map((item, idx) => {
-      const translated = translatedList.find((t: any) => t.idx === idx);
+      // 優先使用 idx 匹配，備援使用 id 匹配
+      const translated = translatedList.find((t: any) => t.idx === idx || t.id === item.id);
       return translated ? { 
         ...item, 
-        name: translated.name, 
+        name: translated.name || translated.title, 
         tags: translated.tags 
       } : item;
     });

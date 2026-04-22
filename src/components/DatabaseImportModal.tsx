@@ -22,12 +22,11 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
   useEffect(() => {
     if (documents.length > 0 && language !== 'zh-TW') {
-      setTranslatedDocs([]); // 先清空舊語系的翻譯，避免看到原文
       translateList();
     } else {
       setTranslatedDocs(documents);
     }
-  }, [documents, language]);
+  }, [documents, language, searchQuery]); // 當搜尋關鍵字變更時，重新觸發翻譯邏輯
 
   const translateList = async () => {
     const apiKey = localStorage.getItem('tuc_gemini_key') || '';
@@ -35,17 +34,47 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     
     setIsTranslating(true);
     try {
-      // 翻譯前 50 筆以優化體驗 (覆蓋絕大多數常用紀錄)
-      const itemsToTranslate = documents.slice(0, 50).map(d => ({
+      // V17.5: 動態過濾翻譯 - 優先翻譯搜尋結果
+      const currentFiltered = documents.filter(d => 
+        d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      // 僅翻譯當前可見或搜尋到的前 30 筆，避免消耗過多 Token 與 API 逾時
+      const itemsToTranslate = currentFiltered.slice(0, 30).map(d => ({
         id: d.docId,
         name: d.equipmentName
       }));
+
+      if (itemsToTranslate.length === 0) {
+        setIsTranslating(false);
+        return;
+      }
+
       const translated = await translateCloudMetadata(itemsToTranslate, language, apiKey);
-      const newDocs = documents.map(d => {
-        const trans = translated.find(t => t.id === d.docId);
-        return trans ? { ...d, equipmentName: trans.name } : d;
+      
+      // 採用「累計式」更新：保留既有已翻譯內容，並加入新的翻譯結果
+      setTranslatedDocs(prev => {
+        const updated = [...prev];
+        translated.forEach(trans => {
+          const idx = updated.findIndex(d => d.docId === trans.id);
+          if (idx !== -1) {
+            updated[idx] = { ...updated[idx], equipmentName: trans.name };
+          } else {
+            // 如果 prev 裡還沒有（例如初始狀態），則從 documents 找
+            const doc = documents.find(d => d.docId === trans.id);
+            if (doc) updated.push({ ...doc, equipmentName: trans.name });
+          }
+        });
+        
+        // 確保沒有在 prev 裡的原始文件也能出現在 translatedDocs（雖然是原文）
+        documents.forEach(doc => {
+          if (!updated.some(u => u.docId === doc.docId)) {
+            updated.push(doc);
+          }
+        });
+
+        return updated;
       });
-      setTranslatedDocs(newDocs);
     } catch (err) {
       console.error('Modal Translation Error:', err);
     } finally {
