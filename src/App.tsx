@@ -283,8 +283,9 @@ function App() {
       // 預設全部勾選要刪除
       setLargeFilesFound(filtered.map(f => {
         // 從目前的 cloudFiles (tuc_uploaded_files) 找到對應的展示名稱
-        const dbRecord = cloudFiles.find(cf => cf.file_path === f.name || cf.id === f.name.split('_')[0]);
-        const displayName = dbRecord ? (dbRecord.display_name || dbRecord.original_name) : f.name;
+        const dbRecord = cloudFiles.find(cf => cf.storage_path === f.name);
+        // 如果找不到記錄（可能為孤兒檔案），則顯示原儲存名稱
+        const displayName = dbRecord ? (dbRecord.original_name || dbRecord.display_name) : f.name;
         
         return { 
           ...f, 
