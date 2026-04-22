@@ -72,12 +72,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2. 推送任務至 QStash
     const results = [];
     if (qstashClient) {
-      for (const id of fileIds) {
-        const response = await qstashClient.publishJSON({
+      for (let i = 0; i < fileIds.length; i++) {
+        const id = fileIds[i];
+        
+        // 為了相容 Gemini Free Tier (15 RPM)，如果是批次上傳，強制加上時間間隔 (每個延遲 20 秒)
+        const delaySeconds = i * 20;
+        const publishOptions: any = {
           url: workerUrl,
           body: { fileId: id },
           retries: 3,
-        });
+        };
+        
+        if (delaySeconds > 0) {
+          publishOptions.delay = `${delaySeconds}s`;
+        }
+
+        const response = await qstashClient.publishJSON(publishOptions);
         results.push(response);
       }
     } else {
