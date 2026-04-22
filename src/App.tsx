@@ -281,7 +281,17 @@ function App() {
       }
 
       // 預設全部勾選要刪除
-      setLargeFilesFound(filtered.map(f => ({ ...f, checked: true })));
+      setLargeFilesFound(filtered.map(f => {
+        // 從目前的 cloudFiles (tuc_uploaded_files) 找到對應的展示名稱
+        const dbRecord = cloudFiles.find(cf => cf.file_path === f.name || cf.id === f.name.split('_')[0]);
+        const displayName = dbRecord ? (dbRecord.display_name || dbRecord.original_name) : f.name;
+        
+        return { 
+          ...f, 
+          checked: true,
+          originalName: displayName
+        };
+      }));
       setShowCleanupModal(true);
     } catch (err: any) {
       console.error('Scan large files failed:', err);
@@ -1355,7 +1365,9 @@ function App() {
                               style={{ cursor: 'pointer' }}
                             />
                             <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{f.name}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }} title={f.originalName || f.name}>
+                                {f.originalName || f.name}
+                              </span>
                               <span style={{ color: '#888' }}>{(f.metadata.size / 1024 / 1024).toFixed(2)} MB</span>
                             </div>
                           </div>
@@ -1388,23 +1400,26 @@ function App() {
                       {t('resourceUsage', data.language)}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 4px' }}>
-                        <span style={{ fontSize: '0.7rem', color: '#888', marginRight: '4px' }}>{t('sizeLimitLabel', data.language)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '2px 6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#888', marginRight: '6px' }}>{t('sizeLimitLabel', data.language)}</span>
                         <input 
                           type="number" 
                           value={largeFileSizeLimit} 
                           onChange={(e) => setLargeFileSizeLimit(e.target.value)}
                           style={{ 
-                            width: '40px', 
-                            background: 'transparent', 
-                            border: 'none', 
+                            width: '45px', 
+                            background: 'rgba(0,0,0,0.5)', 
+                            border: '1px solid rgba(96,165,250,0.5)', 
+                            borderRadius: '4px',
                             color: '#fff', 
                             fontSize: '0.75rem', 
                             textAlign: 'center',
-                            outline: 'none'
+                            outline: 'none',
+                            padding: '2px'
                           }}
+                          title="可手動輸入要刪除的容量設定"
                         />
-                        <span style={{ fontSize: '0.7rem', color: '#888' }}>MB</span>
+                        <span style={{ fontSize: '0.7rem', color: '#888', marginLeft: '6px' }}>MB</span>
                       </div>
                       <button 
                         onClick={handleDeleteLargeFiles}
