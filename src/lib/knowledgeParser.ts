@@ -10,6 +10,23 @@ import { t } from './i18n';
  */
 let cachedModelId: string | null = null;
 
+export interface DiagnosticResult {
+  code: 'QUOTA_EXCEEDED' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
+  message: string;
+  rawError?: string;
+  timestamp: string;
+  suggestion?: string;
+}
+
+export class DiagnosticError extends Error {
+  diagnostic: DiagnosticResult;
+  constructor(diag: DiagnosticResult) {
+    super(diag.message);
+    this.name = 'DiagnosticError';
+    this.diagnostic = diag;
+  }
+}
+
 async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
@@ -246,11 +263,26 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     const result = await model.generateContent({
       contents
     }).catch(err => {
-      // V18.1: 精確識別 429 配額錯誤並向上拋出
-      if (err.message?.includes('429') || err.message?.includes('Quota') || err.message?.includes('exhausted')) {
-        const quotaErr = new Error('QUOTA_EXCEEDED');
-        (quotaErr as any).isQuota = true;
-        throw quotaErr;
+      const msg = err.message || '';
+      // V18.1: 精確識別 429 配額錯誤
+      if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
+        throw new DiagnosticError({
+          code: 'QUOTA_EXCEEDED',
+          message: 'Gemini API 每日或每分鐘配額已耗盡。',
+          rawError: msg,
+          timestamp: new Date().toISOString(),
+          suggestion: '請等待 1 分鐘後再試，或更換 API Key。如果您使用的是免費版，每日限制通常為 20-50 次。'
+        });
+      }
+      // 安全攔截
+      if (msg.toLowerCase().includes('safety') || msg.toLowerCase().includes('blocked')) {
+        throw new DiagnosticError({
+          code: 'AI_SAFETY_REJECT',
+          message: 'AI 安全審查攔截了此檔案內容。',
+          rawError: msg,
+          timestamp: new Date().toISOString(),
+          suggestion: '檔案中可能包含敏感字眼或格式被誤判為有害。請嘗試重新掃描或手動節錄關鍵技術條款。'
+        });
       }
       throw err;
     });

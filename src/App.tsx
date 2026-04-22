@@ -6,10 +6,11 @@ import SpecPreview from './components/SpecPreview';
 import { ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
+import ManualModal from './components/ManualModal';
+import DiagnosticModal from './components/DiagnosticModal';
 import UploadWizardModal from './components/UploadModal';
 import { t } from './lib/i18n';
 import type { Language } from './lib/i18n';
-import ManualModal from './components/ManualModal';
 
 function App() {
   const [data, setData] = useState<FormState>(() => {
@@ -64,6 +65,27 @@ function App() {
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [translatedCloudFiles, setTranslatedCloudFiles] = useState<any[]>([]);
+  // V18.3: 診斷數據安全解析助手
+  const getSafeDiagnostic = (errorMsg: string | null): KP.DiagnosticResult | null => {
+    if (!errorMsg) return null;
+    try {
+      if (errorMsg.startsWith('{')) {
+        return JSON.parse(errorMsg);
+      }
+      return {
+        code: 'UNKNOWN',
+        message: errorMsg,
+        timestamp: new Date().toISOString(),
+        suggestion: '這是一個舊有的錯誤紀錄。請嘗試重新解析以獲取精確診斷。'
+      };
+    } catch {
+      return {
+        code: 'UNKNOWN',
+        message: errorMsg,
+        timestamp: new Date().toISOString()
+      };
+    }
+  };
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
@@ -79,6 +101,8 @@ function App() {
   
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [diagnosticTarget, setDiagnosticTarget] = useState<any | null>(null);
   
   // V17.6: 操作說明書狀態
   const [showManual, setShowManual] = useState(false);
@@ -864,16 +888,31 @@ function App() {
 
         } catch (err: any) {
           console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);
-          const isQuota = err.isQuota || err.message?.includes('QUOTA_EXCEEDED');
-          const errorMsg = isQuota ? 'Gemini API 配額已達上限 (Free Tier 限制)' : err.message;
           
-          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorMsg } as any).eq('id', fileRecord.id);
-          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorMsg } : f));
+          let diag: any = {
+            code: 'UNKNOWN',
+            message: err.message,
+            timestamp: new Date().toISOString()
+          };
+
+          if (err.diagnostic) {
+            diag = err.diagnostic;
+          } else if (err.message?.includes('QUOTA_EXCEEDED')) {
+            diag.code = 'QUOTA_EXCEEDED';
+            diag.message = 'Gemini API 配額已耗盡';
+            diag.suggestion = '請等待 1 分鐘後再試。';
+          }
+
+          const errorStorageString = JSON.stringify(diag);
+          const displayError = diag.message || err.message;
+          
+          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorStorageString } as any).eq('id', fileRecord.id);
+          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorStorageString } : f));
           failedBatches++;
 
-          if (isQuota) {
+          if (diag.code === 'QUOTA_EXCEEDED') {
             alert('偵測到 Gemini API 配額已耗盡 (每日或每分鐘限額)。為了保護您的帳號，系統已自動暫停後續解析作業。\n請至少等待 1 分鐘後再試，或更換 API Key。');
-            break; // 發生配額錯誤，立即中斷整個迴圈
+            break; 
           }
         }
 
@@ -2003,6 +2042,13 @@ function App() {
           language={data.language} 
         />
       )}
+
+      <DiagnosticModal 
+        isOpen={!!diagnosticTarget}
+        onClose={() => setDiagnosticTarget(null)}
+        diagnostic={diagnosticTarget ? getSafeDiagnostic(diagnosticTarget.error_message) : null}
+        fileName={diagnosticTarget?.original_name || ''}
+      />
     </div>
   );
 }
