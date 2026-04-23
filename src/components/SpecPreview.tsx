@@ -19,7 +19,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
-      width: '210mm', minHeight: '297mm', background: 'white', padding: '25mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '30mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
     }}>
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
@@ -359,7 +359,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             min-height: 297mm !important;
             display: block !important;
             margin: 0 auto !important;
-            padding: 20mm !important; /* 使用內部 Padding 補回美觀邊距 */
+            padding: 30mm 20mm !important; /* 加深內部 Padding，確保內容遠離紙張物理邊緣 */
             box-shadow: none !important;
             border: none !important;
             page-break-after: always !important;
@@ -370,7 +370,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             width: 210mm !important;
             min-height: 297mm !important;
             margin: 0 auto !important; 
-            padding: 20mm !important;
+            padding: 30mm 20mm !important;
             box-shadow: none !important;
             border: none !important;
             page-break-after: always !important;
