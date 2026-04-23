@@ -19,7 +19,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
-      width: '210mm', minHeight: '297mm', background: 'white', padding: '20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '25mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
     }}>
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
@@ -328,6 +328,10 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             size: A4;
             margin: 0; /* 設為 0 以強制取消瀏覽器預設的頁眉頁腳標籤 */
           }
+          /* V19.1: 修正分頁間距美觀度 */
+          .doc-section {
+            margin-bottom: 25px !important;
+          }
           /* 隱藏瀏覽器預設的網址、日期、標題 */
           html, body {
             margin: 0 !important;
@@ -354,14 +358,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             width: 210mm !important;
             display: block !important;
             margin: 0 auto !important;
-            padding: 15mm 20mm !important; /* 確保內容有內距且不觸發瀏覽器標籤 */
+            padding: 25mm 20mm !important; /* 加大上下邊距，改善多頁美觀度 */
           }
           
           #preview-paper { 
             position: static !important;
             width: 210mm !important; 
             margin: 0 auto !important; 
-            padding: 20mm !important;
+            padding: 25mm 20mm !important;
             box-shadow: none !important;
             border: none !important;
             display: ${translatedData ? 'none' : 'block'} !important;
