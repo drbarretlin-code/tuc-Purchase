@@ -326,18 +326,16 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           
           /* 若有 translated-paper，則優先顯示它 */
           #translated-paper {
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+            position: static !important;
+            width: 210mm !important;
             display: block !important;
-            z-index: 9999;
+            margin: 0 auto !important;
           }
           
           #preview-paper { 
             position: static !important;
-            width: 100% !important; 
-            margin: 0 !important; 
+            width: 210mm !important; 
+            margin: 0 auto !important; 
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
