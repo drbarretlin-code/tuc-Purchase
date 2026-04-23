@@ -1167,7 +1167,7 @@ function App() {
           <div style={{
             minWidth: 0,
             height: '100%',
-            opacity: (!isMobile && !showPreview) ? 0 : 1,
+            display: (!isMobile && !showPreview) ? 'none' : 'block',
             pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
             transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'auto',
@@ -1459,7 +1459,6 @@ function App() {
                 </button>
               </div>
             </div>
-
             {/* 系統中控面板區域 (V19.3: 調整高度配比，確保下方列表有充足空間) */}
             <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
@@ -1660,7 +1659,6 @@ function App() {
                   </div>
                 );
               })()}
-            </div>
             </div>
 
             {/* V18.6: 垂直 Resizer 調整條 */}
