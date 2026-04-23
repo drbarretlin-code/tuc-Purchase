@@ -1,9 +1,218 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, ZoomIn, FileJson, Download } from 'lucide-react';
+import { FileText, ZoomIn, FileJson, Download, Loader2 } from 'lucide-react';
 import { t } from '../lib/i18n';
 import type { FormState } from '../types/form';
 import { exportToWord, exportToPDF } from '../logic/exporter';
 import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';
+
+interface PaperProps {
+  data: FormState;
+  totalPages?: number;
+  previewRef?: React.RefObject<HTMLDivElement>;
+  id?: string;
+}
+
+const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }) => {
+  const hasImages = data.images.length > 0;
+  const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
+  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
+
+  return (
+    <div id={id} ref={previewRef} className="preview-content" style={{ 
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+    }}>
+      {/* Header */}
+      <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
+        <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
+        <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>{t('docCompanyEnglish', data.language)}</h2>
+        <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+          <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
+          <div style={{ position: 'absolute', right: 0, bottom: 0, textAlign: 'right' }}>
+            <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
+            <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages || 1}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '10pt' }}>
+        <div>{t('docDept', data.language)}{data.department || 'NA'}</div>
+        <div>{t('docRequester', data.language)}{data.requester || 'NA'} {data.extension ? `(${t('docExtension', data.language)}: ${data.extension})` : ''}</div>
+      </div>
+
+      {/* Sections I - X */}
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection1', data.language)}<span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
+        <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
+          <strong>{t('reqDesc', data.language)}：</strong>
+          <div style={{ whiteSpace: 'pre-wrap', color: '#333' }}>{data.requirementDesc || 'NA'}</div>
+        </div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection2', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{v(data.appearance)}</div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection3', data.language)}<span style={{ fontWeight: 'normal' }}>{v(data.quantityUnit)}</span></h4>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection4', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem' }}>{v(data.equipmentName)}</div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection5', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.rangeRange)}</div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection6', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem' }}>
+          <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_1', data.language)}</strong> {v(data.envRequirements)}</div>
+          <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_2', data.language)}</strong> {v(data.regRequirements)}</div>
+          <div style={{ whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_3', data.language)}</strong> {v(data.maintRequirements)}</div>
+        </div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection7', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.safetyRequirements)}</div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection8', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
+          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_1', data.language)}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.elecSpecs)}</div>
+          </div>
+          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_2', data.language)}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.mechSpecs)}</div>
+          </div>
+          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_3', data.language)}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.physSpecs)}</div>
+          </div>
+          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_4', data.language)}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.relySpecs)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection9', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem' }}>
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.installStandard))}</div>
+          <div style={{ margin: '8px 0' }}><strong>{t('docSub9_date', data.language)}</strong> {data.deliveryDate || 'NA'} | <strong>{t('docSub9_period', data.language)}</strong> {data.workPeriod || 'NA'}</div>
+          <strong>{t('docSub9_acceptance', data.language)}</strong>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{v(data.acceptanceDesc)}</div>
+        </div>
+      </div>
+
+      <div className="doc-section">
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection10', data.language)}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.complianceDesc))}</div>
+      </div>
+
+      {/* Conditional Sections XI & XII */}
+      {hasImages && (
+        <>
+          <div className="doc-section" style={{ pageBreakBefore: 'always' }}>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection11', data.language)}</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '10px' }}>
+              {data.images.map(img => (
+                <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px' }}>
+                  <img src={img.url} style={{ width: '100%', height: '180px', objectFit: 'contain' }} alt="" />
+                  <div style={{ fontSize: '9pt', marginTop: '4px' }}>{img.caption}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="doc-section">
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection12', data.language)}</h4>
+            <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '9pt' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5' }}>
+                  <th style={{ border: '1px solid black' }}>{t('docTblCat', data.language)}</th>
+                  <th style={{ border: '1px solid black' }}>{t('docTblItem', data.language)}</th>
+                  <th style={{ border: '1px solid black' }}>{t('docTblSpec', data.language)}</th>
+                  <th style={{ border: '1px solid black' }}>{t('docTblMethod', data.language)}</th>
+                  <th style={{ border: '1px solid black' }}>{t('docTblCount', data.language)}</th>
+                  <th style={{ border: '1px solid black' }}>{t('docTblConfirm', data.language)}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.tableData.map((row, i) => (
+                  <tr key={i}>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category?.startsWith('default') ? t(row.category, data.language) : row.category}</td>
+                    <td style={{ border: '1px solid black' }}>{row.item?.startsWith('default') ? t(row.item, data.language) : row.item}</td>
+                    <td style={{ border: '1px solid black' }}>{row.spec}</td>
+                    <td style={{ border: '1px solid black' }}>{row.method}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.confirmation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/*規格確認及會簽*/}
+      <div className="doc-section" style={{ marginTop: '30px', pageBreakInside: 'avoid' }}>
+        <h4 style={{ textAlign: 'center', fontSize: '12pt', fontWeight: 'bold', marginBottom: '15px' }}>{t('docSignTitle', data.language)}</h4>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid black' }}>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>{t('docSignApplicant', data.language)}</td>
+              <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.applicantName}</td>
+              <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>{t('docSignDeptHead', data.language)}</td>
+              <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.deptHeadName}</td>
+            </tr>
+            <tr>
+              <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, 30px)' }}>
+                  {data.signOffGrid.map((row, ri) => 
+                    row.map((cell, ci) => (
+                      <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
+                        {cell}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </td>
+              <td style={{ border: '1px solid black', padding: '8px', verticalAlign: 'top' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '9pt', borderBottom: '1px solid #eee', paddingBottom: '4px', marginBottom: '4px' }}>{t('docSignVendor', data.language)}</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="doc-section" style={{ marginTop: '20px', pageBreakInside: 'avoid' }}>
+        <div style={{ color: '#E60012', fontSize: '9pt', marginBottom: '8px', fontWeight: 'bold' }}>
+          {t('docBottomNote1', data.language)}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '10pt' }}>
+          <span>{t('docBottomNote2', data.language)}</span>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'YES' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('yes', data.language)}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'NO' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('no', data.language)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface Props {
   data: FormState;
@@ -46,17 +255,86 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     }
   }, [data, scale]);
 
-  const hasImages = data.images.length > 0;
-  const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [exportLang, setExportLang] = useState(data.language);
+  const [translatedData, setTranslatedData] = useState<FormState | null>(null);
+
+  useEffect(() => {
+    setExportLang(data.language);
+  }, [data.language]);
+
+  const handleExportPdf = async () => {
+    if (exportLang === data.language) {
+      exportToPDF('preview-paper', data);
+      return;
+    }
+
+    // 啟動即時轉譯
+    setIsTranslating(true);
+    try {
+      const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+      const { translateFullSpec } = await import('../lib/knowledgeParser');
+      const translated = await translateFullSpec(data, exportLang, apiKey);
+      
+      // 確保轉譯後的資料帶有正確的語系標記
+      const finalData = { ...translated, language: exportLang };
+      
+      // 設定臨時資料供隱藏渲染
+      setTranslatedData(finalData);
+      
+      // 等待 React 渲染完成
+      setTimeout(() => {
+        exportToPDF('translated-paper', finalData);
+        setTranslatedData(null);
+      }, 100);
+
+    } catch (err) {
+      console.error('Export translation failed:', err);
+      alert('Translation failed. Exporting original version.');
+      exportToPDF('preview-paper', data);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
 
   return (
-    <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
+      {isTranslating && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.7)', zIndex: 1000, 
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <Loader2 size={40} className="spin" color="#60A5FA" style={{ marginBottom: '1rem' }} />
+          <div style={{ color: '#60A5FA', fontWeight: 'bold' }}>{t('translating', data.language)}</div>
+        </div>
+      )}
+
+      {/* 隱藏的列印專用語系渲染區 */}
+      {translatedData && (
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+          <PaperContent data={translatedData} id="translated-paper" />
+        </div>
+      )}
+
       <style>{`
         @media print {
           body * { visibility: hidden; }
-          #preview-paper, #preview-paper * { visibility: visible; }
+          #preview-paper, #preview-paper *, #translated-paper, #translated-paper * { visibility: visible; }
+          
+          /* 若有 translated-paper，則優先顯示它 */
+          #translated-paper {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            z-index: 9999;
+          }
+          
           #preview-paper { 
             position: static !important;
             width: 100% !important; 
@@ -64,7 +342,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
-            display: block !important;
+            display: ${translatedData ? 'none' : 'block'} !important;
           }
           .no-print { display: none !important; }
           * { box-sizing: border-box !important; }
@@ -89,11 +367,29 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             </select>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <span style={{ fontSize: '0.7rem', color: '#888' }}>{t('exportPdf', data.language)}:</span>
+            <select 
+              value={exportLang}
+              onChange={(e) => setExportLang(e.target.value as any)}
+              style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '0.75rem', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="zh-TW">繁體中文</option>
+              <option value="en-US">English</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="th-TH">ภาษาไทย</option>
+            </select>
+          </div>
           <button onClick={() => exportToWord(data, data.language)} className="icon-btn">
             <FileJson size={18} /><span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>{t('docExportWord', data.language)}</span>
           </button>
-          <button onClick={() => exportToPDF('preview-paper', data)} className="primary-button" style={{ padding: '0.4rem 1rem' }}>
+          <button 
+            onClick={handleExportPdf} 
+            className="primary-button" 
+            style={{ padding: '0.4rem 1rem' }}
+            disabled={isTranslating}
+          >
             <Download size={16} /><span style={{ marginLeft: '4px' }}>{t('docExportPdf', data.language)}</span>
           </button>
         </div>
@@ -110,199 +406,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         justifyContent: 'center'
       }}>
         <div className="preview-zoom-container" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
-          <div id="preview-paper" ref={previewRef} className="preview-content" style={{ 
-            width: '210mm', minHeight: '297mm', background: 'white', padding: '20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
-          }}>
-            {/* Header */}
-            <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
-              <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
-              <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>{t('docCompanyEnglish', data.language)}</h2>
-              <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
-                <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
-                <div style={{ position: 'absolute', right: 0, bottom: 0, textAlign: 'right' }}>
-                  <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
-                  <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages}</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '10pt' }}>
-              <div>{t('docDept', data.language)}{data.department || 'NA'}</div>
-              <div>{t('docRequester', data.language)}{data.requester || 'NA'} {data.extension ? `(${t('docExtension', data.language)}: ${data.extension})` : ''}</div>
-            </div>
-
-            {/* Sections I - X */}
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection1', data.language)}<span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
-              <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
-                <strong>{t('reqDesc', data.language)}：</strong>
-                <div style={{ whiteSpace: 'pre-wrap', color: '#333' }}>{data.requirementDesc || 'NA'}</div>
-              </div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection2', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{v(data.appearance)}</div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection3', data.language)}<span style={{ fontWeight: 'normal' }}>{v(data.quantityUnit)}</span></h4>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection4', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem' }}>{v(data.equipmentName)}</div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection5', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.rangeRange)}</div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection6', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem' }}>
-                <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_1', data.language)}</strong> {v(data.envRequirements)}</div>
-                <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_2', data.language)}</strong> {v(data.regRequirements)}</div>
-                <div style={{ whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_3', data.language)}</strong> {v(data.maintRequirements)}</div>
-              </div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection7', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.safetyRequirements)}</div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection8', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_1', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.elecSpecs)}</div>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_2', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.mechSpecs)}</div>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_3', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.physSpecs)}</div>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-                  <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_4', data.language)}</span>
-                  <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.relySpecs)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection9', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem' }}>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.installStandard))}</div>
-                <div style={{ margin: '8px 0' }}><strong>{t('docSub9_date', data.language)}</strong> {data.deliveryDate || 'NA'} | <strong>{t('docSub9_period', data.language)}</strong> {data.workPeriod || 'NA'}</div>
-                <strong>{t('docSub9_acceptance', data.language)}</strong>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{v(data.acceptanceDesc)}</div>
-              </div>
-            </div>
-
-            <div className="doc-section">
-              <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection10', data.language)}</h4>
-              <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.complianceDesc))}</div>
-            </div>
-
-            {/* Conditional Sections XI & XII */}
-            {hasImages && (
-              <>
-                <div className="doc-section" style={{ pageBreakBefore: 'always' }}>
-                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection11', data.language)}</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '10px' }}>
-                    {data.images.map(img => (
-                      <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px' }}>
-                        <img src={img.url} style={{ width: '100%', height: '180px', objectFit: 'contain' }} />
-                        <div style={{ fontSize: '9pt', marginTop: '4px' }}>{img.caption}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="doc-section">
-                  <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection12', data.language)}</h4>
-                  <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '9pt' }}>
-                    <thead>
-                      <tr style={{ background: '#f5f5f5' }}>
-                        <th style={{ border: '1px solid black' }}>{t('docTblCat', data.language)}</th>
-                        <th style={{ border: '1px solid black' }}>{t('docTblItem', data.language)}</th>
-                        <th style={{ border: '1px solid black' }}>{t('docTblSpec', data.language)}</th>
-                        <th style={{ border: '1px solid black' }}>{t('docTblMethod', data.language)}</th>
-                        <th style={{ border: '1px solid black' }}>{t('docTblCount', data.language)}</th>
-                        <th style={{ border: '1px solid black' }}>{t('docTblConfirm', data.language)}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.tableData.map((row, i) => (
-                        <tr key={i}>
-                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category?.startsWith('default') ? t(row.category, data.language) : row.category}</td>
-                          <td style={{ border: '1px solid black' }}>{row.item?.startsWith('default') ? t(row.item, data.language) : row.item}</td>
-                          <td style={{ border: '1px solid black' }}>{row.spec}</td>
-                          <td style={{ border: '1px solid black' }}>{row.method}</td>
-                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>
-                          <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.confirmation}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-
-            {/*規格確認及會簽*/}
-            <div className="doc-section" style={{ marginTop: '30px', pageBreakInside: 'avoid' }}>
-              <h4 style={{ textAlign: 'center', fontSize: '12pt', fontWeight: 'bold', marginBottom: '15px' }}>{t('docSignTitle', data.language)}</h4>
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid black' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>{t('docSignApplicant', data.language)}</td>
-                    <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.applicantName}</td>
-                    <td style={{ border: '1px solid black', padding: '8px', width: '15%', background: '#f9f9f9' }}>{t('docSignDeptHead', data.language)}</td>
-                    <td style={{ border: '1px solid black', padding: '8px', width: '35%' }}>{data.deptHeadName}</td>
-                  </tr>
-                  <tr>
-                    <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, 30px)' }}>
-                        {data.signOffGrid.map((row, ri) => 
-                          row.map((cell, ci) => (
-                            <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
-                              {cell}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ border: '1px solid black', padding: '8px', verticalAlign: 'top' }}>
-                      <div style={{ fontWeight: 'bold', fontSize: '9pt', borderBottom: '1px solid #eee', paddingBottom: '4px', marginBottom: '4px' }}>{t('docSignVendor', data.language)}</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="doc-section" style={{ marginTop: '20px', pageBreakInside: 'avoid' }}>
-              <div style={{ color: '#E60012', fontSize: '9pt', marginBottom: '8px', fontWeight: 'bold' }}>
-                {t('docBottomNote1', data.language)}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '10pt' }}>
-                <span>{t('docBottomNote2', data.language)}</span>
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'YES' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('yes', data.language)}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'NO' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('no', data.language)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PaperContent data={data} totalPages={totalPages} previewRef={previewRef} id="preview-paper" />
         </div>
       </div>
     </div>

@@ -1694,7 +1694,7 @@ function App() {
                     <Loader2 size={14} className="spin" /> {t('processing', data.language)}: <b>{reparseCurrentFile}</b>
                   </span>
                   <span style={{ color: '#888' }}>
-                    {t('progress', data.language)}: <b style={{ color: '#60A5FA' }}>{Math.min(reparseIndex + 5, reparseTotal)} / {reparseTotal}</b> ({reparseProgress}%)
+                    {t('progress', data.language)}: <b style={{ color: '#60A5FA' }}>{reparseIndex} / {reparseTotal}</b> ({reparseProgress}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>

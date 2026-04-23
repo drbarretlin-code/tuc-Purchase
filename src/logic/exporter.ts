@@ -17,10 +17,25 @@ import { t } from '../lib/i18n';
 import type { Language } from '../lib/i18n';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
-export const exportToPDF = async (_elementId: string, _data: FormState) => {
+export const exportToPDF = async (elementId: string, data: FormState) => {
   // 對於高品質、可搜尋、且具有完美分頁邏輯的需求，呼叫瀏覽器原生列印對話框是最穩定的方案。
-  // 注意：CSS 的 @media print 樣式已在 index.css 中配置完成。
+  // 若傳入的 data 與當前語系不同，表示為即時轉譯版本。
+  
+  // 保存原標題
+  const originalTitle = document.title;
+  const timestamp = new Date().getTime();
+  const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
+  
+  // 設定列印時的檔名 (透過修改 document.title)
+  document.title = filename;
+
+  // 執行列印
   window.print();
+
+  // 恢復原標題
+  setTimeout(() => {
+    document.title = originalTitle;
+  }, 1000);
 };
 
 const formatDate = (date: Date) => {
