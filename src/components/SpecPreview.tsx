@@ -26,12 +26,6 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
         <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
         <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>{t('docCompanyEnglish', data.language)}</h2>
         
-        {/* 日期與頁碼容器 - 使用絕對定位固定在右側 */}
-        <div style={{ position: 'absolute', right: 0, bottom: '0.8rem', textAlign: 'right' }}>
-          <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
-          <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages || 1}</div>
-        </div>
-
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
         </div>

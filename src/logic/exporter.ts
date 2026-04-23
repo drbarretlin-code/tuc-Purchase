@@ -127,7 +127,7 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   // V9.9: 修復頂部資訊列表擠壓 (DXA 為單位，總長約 9066)
   const infoTable = new Table({
     width: { size: 9066, type: WidthType.DXA },
-    columnWidths: [3022, 3022, 3022],
+    columnWidths: [4533, 4533],
     borders: {
       top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
       left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
@@ -137,8 +137,7 @@ export const exportToWord = async (data: FormState, lang: Language) => {
       new TableRow({
         children: [
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docDept', lang)}${data.department || 'NA'}`, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docRequester', lang)}${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docDate', lang)}${dateStr}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docRequester', lang)}${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
         ]
       })
     ]
