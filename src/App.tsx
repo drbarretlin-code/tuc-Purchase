@@ -1054,7 +1054,7 @@ function App() {
   });
 
   return (
-    <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', minHeight: '100vh', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+    <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
         <div role="banner" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
           <div style={{
