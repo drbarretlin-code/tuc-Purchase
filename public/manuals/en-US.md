@@ -1,62 +1,66 @@
-# TUC Purchase Specification & Knowledge Base - User Manual
+# TUC Procurement Specs & Knowledge Base - User Manual
 
-Welcome to the TUC Intelligent Procurement System. This manual will guide you through the core features to achieve efficient and standardized specification building.
+Welcome to the TUC Intelligent Procurement Specification System. This manual will guide you through the core functions to achieve efficient and standardized specification creation.
 
 ---
 
-## 1. Gemini API Key Configuration (Priority Step)
-This system uses the **BYOK (Bring Your Own Key)** model to ensure efficient data processing and privacy.
+## 1. Gemini API Key Configuration (Crucial Step)
+This system operates on a **BYOK (Bring Your Own Key)** model, ensuring efficient data processing and privacy.
 
-### Why use the Free Tier?
+### Why Use the Free Tier?
 - **Zero Cost**: Apply via Google AI Studio for free, perfect for daily operations.
-- **High Performance**: Powerful technical specification parsing and multi-lingual translation capabilities.
-- **Importance**: Without a Key, AI generation, Extreme Mining, and dynamic translation features will be unavailable.
+- **High Performance**: Powerful technical specification parsing and multi-language translation.
+- **Importance**: Without an API Key, you cannot use AI Auto-Generation, Deep Parsing, or the "Instant Translation Export" feature.
 
-### How to apply and set up?
+### How to Set Up
 1. Go to **[Google AI Studio](https://aistudio.google.com/app/apikey)**.
-2. After logging in, click **"Create API key"** and copy it.
-3. Click the **(Settings ⚙️)** icon at the top right of the system, paste the key into the field, and save.
+2. Log in and click **"Create API key"**, then copy it.
+3. Click the **(Settings ⚙️)** icon in the top right, paste the key, and save.
 
 ---
 
 ## 2. File Operations & Uploads
-In the **(File Options 📁)** area at the top of the main interface, you can perform the following:
+In the **(File Options 📁)** area at the top of the interface, you can:
 
-- **(Cloud ☁️) Load from Cloud**: Search database history files and import them directly into the main editor to continue editing.
-- **(Import 📂) Load Local JSON**: Import previously saved specification drafts to continue editing.
-- **(Export 💾) Export File**: Export completed specifications as JSON for archiving and exchange.
-
----
-
-## 3. Main Editor: AI Extraction & Usage Tips
-When filling out technical specifications, you can utilize the **AI Assistant Panel** on the right:
-
-- **History Data Matching**: Based on the "Equipment Name" you enter, the system automatically retrieves maintenance records for similar equipment from the cloud.
-- **Technical Standards Reference**: For specific components or engineering tasks, AI recommends relevant KCG standards or industry norms.
-- **Usage Tips**:
-    - Adjust the **(Threshold ⚡)**: Increase the percentage for more precise matches; decrease it for broader references.
-    - Click the **(Apply ➕)** button next to suggested items to fill them directly into the corresponding fields, significantly reducing typing time.
+- **(Import 📂) Load Local JSON**: Import previously saved specification drafts.
+- **(Export 💾) Export JSON**: Export completed specs as JSON for future editing.
+- **(Upload 📤) Upload for Parsing**: Upload PDF/Word files to the cloud knowledge base. The system will automatically run "AI Deep Parsing" in the background to structure raw content into a searchable technical library.
 
 ---
 
-## 4. Preview Area & Verification
-Click **(Show Preview 👁️)** in the header to enter split-screen mode:
+## 3. Dashboard & Resource Monitoring
+Click **(Dashboard 📊)** in the top left to enter the real-time monitoring interface:
 
-- **Real-time Rendering**: Edits on the left are immediately reflected in the formal specification format on the right.
-- **Calibration Labels**: The system marks calibrated items with a **(Check ✅)** icon.
-- **PDF Generation**: Once verified, you can download the official PDF acceptance specification directly from the preview area.
+- **Parsing Progress**: Real-time tracking of file status (Pending, Parsing, Completed, Failed).
+- **Resource Levels**: Monitor total knowledge entries and cloud storage usage.
+- **Auto-Sync**: Dashboard data updates automatically as parsing tasks finish.
+
+---
+
+## 4. Main Editor: AI Suggestion & Reference Tips
+Utilize the **AI Assistant Panel** on the right while filling in specs:
+
+- **Precision Matching**: Automatically matches historical records based on "Equipment Name" or technical regulations based on "Requirement Description."
+- **Threshold Adjustment (Threshold ⚡)**: Increase for high-precision suggestions; decrease for a broader range of references.
+- **One-Click Apply**: Click **(Apply ➕)** next to a suggestion to fill it directly into the field, saving typing time.
 
 ---
 
-## 5. Cloud History Inspector (Operations)
-The **(Cloud History ☁️)** located in the sidebar or bottom toolbar is the system's knowledge core:
+## 5. Preview & Multi-Language PDF Export
+Click **(Show Preview 👁️)** to enter the official specification preview mode:
 
-- **Status Tracking**:
-    - **(Pending 🔵)**: File is in queue waiting for AI analysis.
-    - **(Completed 🟢)**: Parsing complete, technical index established.
-    - **(Failed 🔴)**: Parsing failed, usually due to encryption or incomplete content.
-- **Force Reparse**: For failed or sparse files, select them and click **(Repeat 🔄)** to force AI into a deep scan.
-- **Multi-lingual Reference**: In non-Traditional Chinese modes, the inspector dynamically translates filenames. Click a file to translate its technical content into the current language and import it into the form.
+- **Language Selection**: Choose between "Traditional Chinese, English, Simplified Chinese, and Thai" next to the export button.
+- **Instant Translation Export**: If you select a language different from your current editor language, the system triggers **AI Instant Translation** and generates a PDF in the target language.
+- **Auto-Pagination**: Exported PDFs are automatically optimized for multi-page layouts and font formatting.
 
 ---
-*Version: V17.6 | Tech Support: Dr. Barret Lin*
+
+## 6. Cloud History & Maintenance
+The **(Cloud History ☁️)** at the bottom is the core of the system's knowledge:
+
+- **Force Reparse**: If the parsed content is insufficient, check the file and click **(Repeat 🔄)** to force AI to re-scan deeply.
+- **Resource Cleanup**: Use **(Delete 🗑️)** for old files to free up database space and reduce storage costs.
+- **Multi-Language Lookup**: The history viewer automatically translates filenames based on your UI language for global collaboration.
+
+---
+*Version: V18.8 | Update Date: 2026-04-23 | Tech Support: Dr. Barret Lin*
