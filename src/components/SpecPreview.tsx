@@ -326,7 +326,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 10mm; /* 設定適度邊距，讓瀏覽器自動處理分頁緩衝，同時配合下方 CSS 隱藏標籤 */
+            margin: 0 !important; /* 絕對設為 0 以殺死瀏覽器預設的網址、日期標籤 */
           }
           /* V19.1: 修正分頁間距美觀度 */
           .doc-section {
@@ -355,19 +355,25 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           
           #translated-paper {
             position: static !important;
-            width: 100% !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
             display: block !important;
-            margin: 0 !important;
-            padding: 5mm 10mm !important; /* 配合 @page margin，達成總計約 20mm 的邊距 */
+            margin: 0 auto !important;
+            padding: 20mm !important; /* 使用內部 Padding 補回美觀邊距 */
+            box-shadow: none !important;
+            border: none !important;
+            page-break-after: always !important;
           }
           
           #preview-paper { 
             position: static !important;
-            width: 100% !important; 
-            margin: 0 !important; 
-            padding: 5mm 10mm !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
+            margin: 0 auto !important; 
+            padding: 20mm !important;
             box-shadow: none !important;
             border: none !important;
+            page-break-after: always !important;
             display: ${translatedData ? 'none' : 'block'} !important;
           }
           .no-print { display: none !important; }
