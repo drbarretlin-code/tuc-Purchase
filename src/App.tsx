@@ -1144,11 +1144,13 @@ function App() {
         gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'),
         gap: 0,
         flex: 1,
+        minHeight: 0,
+        height: '100%',
         overflow: 'hidden',
         paddingBottom: isMobile ? '70px' : '0'
       }}>
         {(!isMobile || mobileAppTab === 'edit') && (
-          <div style={{ minWidth: 0, height: '100%', overflow: 'hidden' }}>
+          <div style={{ minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {(() => {
               const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
               return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
@@ -1166,8 +1168,9 @@ function App() {
         {(!isMobile || mobileAppTab === 'preview') && (
           <div style={{
             minWidth: 0,
+            minHeight: 0,
             height: '100%',
-            display: (!isMobile && !showPreview) ? 'none' : 'block',
+            opacity: (!isMobile && !showPreview) ? 0 : 1,
             pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
             transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'auto',
@@ -1659,6 +1662,7 @@ function App() {
                   </div>
                 );
               })()}
+            </div>
             </div>
 
             {/* V18.6: 垂直 Resizer 調整條 */}
