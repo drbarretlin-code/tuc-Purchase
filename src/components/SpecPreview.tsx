@@ -326,7 +326,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 0; /* 設為 0 以強制取消瀏覽器預設的頁眉頁腳標籤 */
+            margin: 10mm; /* 設定適度邊距，讓瀏覽器自動處理分頁緩衝，同時配合下方 CSS 隱藏標籤 */
           }
           /* V19.1: 修正分頁間距美觀度 */
           .doc-section {
@@ -355,17 +355,17 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           
           #translated-paper {
             position: static !important;
-            width: 210mm !important;
+            width: 100% !important;
             display: block !important;
-            margin: 0 auto !important;
-            padding: 25mm 20mm !important; /* 加大上下邊距，改善多頁美觀度 */
+            margin: 0 !important;
+            padding: 5mm 10mm !important; /* 配合 @page margin，達成總計約 20mm 的邊距 */
           }
           
           #preview-paper { 
             position: static !important;
-            width: 210mm !important; 
-            margin: 0 auto !important; 
-            padding: 25mm 20mm !important;
+            width: 100% !important; 
+            margin: 0 !important; 
+            padding: 5mm 10mm !important;
             box-shadow: none !important;
             border: none !important;
             display: ${translatedData ? 'none' : 'block'} !important;

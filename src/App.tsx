@@ -1457,8 +1457,8 @@ function App() {
               </div>
             </div>
 
-            {/* 系統中控面板區域 (與下方列表可調整高度) */}
-            <div style={{ height: inspectorDashboardHeight, display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0, overflow: 'hidden' }}>
+            {/* 系統中控面板區域 (V19.3: 調整高度配比，確保下方列表有充足空間) */}
+            <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
                 {/* V17.8: 資源水位預警面板 */}
                 {(() => {
@@ -1785,8 +1785,8 @@ function App() {
               );
             })()}
 
-            {/* Content List Table Container (V19.2: 加入 flex-grow 以填滿剩餘空間，確保至少顯示 5 筆) */}
-            <div style={{ flex: 1, minHeight: '350px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,0.1)' }}>
+            {/* Content List Table Container (V19.3: 提高最小高度並優化捲軸體驗，確保至少顯示 5-8 筆) */}
+            <div style={{ flex: 1, minHeight: '450px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,0.15)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
