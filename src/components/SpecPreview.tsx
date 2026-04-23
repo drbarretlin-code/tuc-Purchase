@@ -25,12 +25,15 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
         <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
         <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>{t('docCompanyEnglish', data.language)}</h2>
-        <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+        
+        {/* 日期與頁碼容器 - 使用絕對定位固定在右側 */}
+        <div style={{ position: 'absolute', right: 0, bottom: '0.8rem', textAlign: 'right' }}>
+          <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
+          <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages || 1}</div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
-          <div style={{ position: 'absolute', right: 0, bottom: 0, textAlign: 'right' }}>
-            <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
-            <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages || 1}</div>
-          </div>
         </div>
       </div>
 
@@ -323,11 +326,13 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 0;
+            margin: 15mm 0; /* 垂直邊距確保不被瀏覽器標籤蓋住，水平 0 配合 PaperContent 的 20mm padding */
           }
-          body {
-            margin: 0;
-            padding: 0;
+          /* 隱藏瀏覽器預設的網址、日期、標題 */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
           }
           body * { visibility: hidden; }
           
@@ -351,6 +356,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             margin: 0 auto !important;
             box-shadow: none !important;
             border: none !important;
+            padding: 20mm !important; /* 確保內容有內距 */
           }
           
           #preview-paper { 
@@ -363,7 +369,11 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             display: ${translatedData ? 'none' : 'block'} !important;
           }
           .no-print { display: none !important; }
-          * { box-sizing: border-box !important; }
+          * { 
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important;
+          }
         }
       `}</style>
 
