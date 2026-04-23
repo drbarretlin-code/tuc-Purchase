@@ -17,12 +17,9 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
   const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
   const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
 
-  return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
-      width: '210mm', minHeight: '297mm', background: 'white', padding: '0 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere', display: 'flex', flexDirection: 'column'
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '15mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
     }}>
-      {/* V19.7: 增加佔位高度至 20mm，並確保彈性佈局 */}
-      <div className="print-spacer" style={{ height: '20mm', flexShrink: 0 }} />
 
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
@@ -213,14 +210,8 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'NO' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('no', data.language)}
             </span>
-          </div>
         </div>
       </div>
-
-      <div style={{ flex: 1 }} /> {/* 自動撐開中間區域 */}
-
-      {/* V19.7: 底部空白佔位同步增加 */}
-      <div className="print-spacer" style={{ height: '20mm', flexShrink: 0 }} />
     </div>
   );
 };
@@ -331,19 +322,18 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
       )}
 
       <style>{`
-        @media print {
           @page {
             size: A4;
-            margin: 0 !important; /* 絕對設為 0 以殺死瀏覽器預設的網址、日期標籤 */
+            margin: 15mm !important; /* 標準 A4 邊距，確保多頁穩定性 */
           }
-          /* V19.7: 防止區塊在分頁時被切斷 */
+          /* 強力隱藏瀏覽器標籤 (V19.8: 透過偽元素與內容抑制) */
+          html, body {
+            overflow: hidden !important; /* 防止產生額外的捲軸與標籤空間 */
+            height: auto !important;
+          }
           .doc-section {
             margin-bottom: 25px !important;
             page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          .print-spacer {
-            display: block !important;
           }
           /* 隱藏瀏覽器預設的網址、日期、標題 */
           html, body {
@@ -362,27 +352,21 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             display: ${translatedData ? 'block' : 'none'} !important;
           }
 
-          #preview-paper, #preview-paper *, #translated-paper, #translated-paper * { 
-            visibility: visible !important; 
-          }
-          
           #translated-paper {
             position: static !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
+            width: 100% !important;
             display: block !important;
-            margin: 0 auto !important;
-            padding: 0 20mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
           }
           
           #preview-paper { 
             position: static !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
-            margin: 0 auto !important; 
-            padding: 0 20mm !important;
+            width: 100% !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             display: ${translatedData ? 'none' : 'block'} !important;
