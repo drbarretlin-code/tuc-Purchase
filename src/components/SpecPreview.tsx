@@ -286,15 +286,17 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
       setTimeout(() => {
         exportToPDF(finalData);
         setTranslatedData(null);
-      }, 100);
+        setIsTranslating(false);
+      }, 500);
 
+      setIsTranslating(false);
     } catch (err) {
       console.error('Export translation failed:', err);
       alert('Translation failed. Exporting original version.');
       exportToPDF(data);
-    } finally {
       setIsTranslating(false);
     }
+  };
 
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
