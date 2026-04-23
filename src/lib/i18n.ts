@@ -127,7 +127,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTuc': '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
     'defaultAccordingToTucShort': '依台燿規定',
     'defaultNationalRegs': '符合國家法規',
-    'defaultSafetyRegs': '設計與安裝符合職業安全衛生法令規範',
+    'defaultSafetyRegs': '依台燿規定',
     'defaultInstallStd': `1. PLC以及人機程式修改，施工當天即提供修改前後程式備份
 2. PLC程式修改，原則保留原始程式，另新增輔助接點作新舊功能切替使用，達到可快速復原功能
 3. 工程依職業安全衛生法令規範作業
@@ -422,7 +422,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTuc': '依台燿规定(承揽商管理规范、承揽商安全卫生管理規則、承揽商作業危害因素告知單等)',
     'defaultAccordingToTucShort': '依台燿规定',
     'defaultNationalRegs': '符合国家法规',
-    'defaultSafetyRegs': '设计与安装符合职业安全卫生法令规范',
+    'defaultSafetyRegs': '依台燿规定',
     'defaultInstallStd': `1. PLC以及人机程序修改，施工当天即提供修改前後程序备份
 2. PLC程序修改，原则保留原始程序，另新增辅助接点作新旧功能切替使用，达到可快速复原功能
 3. 工程依职业安全卫生法令规范作业
@@ -733,7 +733,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTuc': 'According to TUC regulations (Vendor mgmt, safety rules, etc.)',
     'defaultAccordingToTucShort': 'According to TUC regulations',
     'defaultNationalRegs': 'Compliant with national regulations',
-    'defaultSafetyRegs': 'Design/Install compliant with safety laws',
+    'defaultSafetyRegs': 'According to TUC regulations',
     'defaultInstallStd': `1. Backup PLC/HMI programs before and after modification on construction day.
 2. Maintain original PLC logic; use auxiliary relay for new features for quick restoration.
 3. Operations follow occupational safety laws.
@@ -1060,7 +1060,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTuc': 'ตามข้อกำหนดของ Taiwan Union (การจัดการผู้รับเหมา, กฎความปลอดภัย, ฯลฯ)',
     'defaultAccordingToTucShort': 'ตามข้อกำหนดของ Taiwan Union',
     'defaultNationalRegs': 'ปฏิบัติตามกฎหมายระดับประเทศ',
-    'defaultSafetyRegs': 'การออกแบบและติดตั้งเป็นไปตามกฎหมายความปลอดภัยและอาชีวอนามัย',
+    'defaultSafetyRegs': 'ตามกฎระเบียบของ TUC',
     'defaultInstallStd': `1. ต้องจัดเตรียมข้อมูลสำรองของโปรแกรม PLC และ HMI ก่อนและหลังการแก้ไขในวันที่ก่อสร้าง
 2. โดยหลักการแล้ว ให้รักษาโปรแกรม PLC เดิมไว้ และใช้จุดช่วยสำหรับฟังก์ชันใหม่เพื่อให้สามารถกู้คืนได้อย่างรวดเร็ว
 3. การก่อสร้างต้องเป็นไปตามกฎระเบียบด้านความปลอดภัยและอาชีวอนามัย
