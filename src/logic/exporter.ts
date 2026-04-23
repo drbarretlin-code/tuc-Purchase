@@ -53,6 +53,9 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
   const hasImages = data.images.length > 0;
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString(lang === 'en-US' ? 'en-US' : (lang === 'th-TH' ? 'th-TH' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
+
   const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
 
   const bodyContent = [
@@ -124,7 +127,7 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   // V9.9: 修復頂部資訊列表擠壓 (DXA 為單位，總長約 9066)
   const infoTable = new Table({
     width: { size: 9066, type: WidthType.DXA },
-    columnWidths: [4533, 4533],
+    columnWidths: [3022, 3022, 3022],
     borders: {
       top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
       left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
@@ -134,7 +137,8 @@ export const exportToWord = async (data: FormState, lang: Language) => {
       new TableRow({
         children: [
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docDept', lang)}${data.department || 'NA'}`, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docRequester', lang)}${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docRequester', lang)}${data.requester || 'NA'} (${data.extension || ''})`, size: 20 })], alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${t('docDate', lang)}${dateStr}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
         ]
       })
     ]

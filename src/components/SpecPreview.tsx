@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, ZoomIn, FileJson, Download, Loader2 } from 'lucide-react';
 import { t } from '../lib/i18n';
+import type { Language } from '../lib/i18n';
 import type { FormState } from '../types/form';
 import { exportToWord, exportToPDF } from '../logic/exporter';
 import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';
@@ -12,9 +13,10 @@ interface PaperProps {
   id?: string;
 }
 
-const PaperContent: React.FC<PaperProps> = ({ data, previewRef, id }) => {
+const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }) => {
   const hasImages = data.images.length > 0;
-  const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
+  const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
+  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
@@ -27,6 +29,12 @@ const PaperContent: React.FC<PaperProps> = ({ data, previewRef, id }) => {
         
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
+        </div>
+
+        {/* 日期與頁碼容器 - 使用絕對定位固定在右側 */}
+        <div style={{ position: 'absolute', right: 0, bottom: '0.8rem', textAlign: 'right' }}>
+          <div style={{ fontSize: '9pt', color: '#666', marginBottom: '2px' }}>{t('docDate', data.language)}{currentDate}</div>
+          <div style={{ fontSize: '11pt' }}>{t('docPage', data.language)}1 / {totalPages || 1}</div>
         </div>
       </div>
 
