@@ -867,6 +867,9 @@ function App() {
     try {
       const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
       let failedBatches = 0;
+
+      // V19.4: 立即將所有目標檔案標記為 'pending'，確保儀表板計數器正確顯示總量
+      setCloudFiles(prev => prev.map(f => ids.includes(f.id) ? { ...f, parse_status: 'pending', is_parsed: false } : f));
       for (let i = 0; i < targets.length; i++) {
         const fileRecord = targets[i];
         
@@ -1356,7 +1359,7 @@ function App() {
 
       {showCloudInspector && (
         <div className="modal-overlay" style={{ zIndex: 1200, display: isReparseMinimized ? 'none' : 'flex' }}>
-          <div className="glass-panel modal-content inspector-modal" style={{ padding: '2rem', width: '95vw', maxWidth: '1200px', height: '90vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div className="glass-panel modal-content inspector-modal" style={{ padding: '1.5rem', width: '95vw', maxWidth: '1300px', height: '92vh', maxHeight: '98vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <BookOpen size={24} color="var(--tuc-red)" /> {t('cloudInspector', data.language)}
