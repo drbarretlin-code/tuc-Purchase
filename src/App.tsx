@@ -1661,6 +1661,7 @@ function App() {
                 );
               })()}
             </div>
+            </div>
 
             {/* V18.6: 垂直 Resizer 調整條 */}
             <div 
@@ -1994,9 +1995,9 @@ function App() {
             <div style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
               {t('totalProgress', data.language)} {cloudFiles.length} {t('items', data.language)}
             </div>
-      </div>
-    </div>
-  )}
+          </div>
+        </div>
+      )}
 
       <UploadWizardModal
         isOpen={showUploadWizard}
