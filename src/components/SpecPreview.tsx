@@ -19,8 +19,11 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
-      width: '210mm', minHeight: '297mm', background: 'white', padding: '30mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '0 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
     }}>
+      {/* V19.6: 頂部空白斷行佔位 (比照 Word 版面) */}
+      <div className="print-spacer" style={{ height: '15mm' }} />
+
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
         <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
@@ -213,6 +216,9 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
           </div>
         </div>
       </div>
+
+      {/* V19.6: 底部空白斷行佔位 (比照 Word 版面) */}
+      <div className="print-spacer" style={{ height: '15mm' }} />
     </div>
   );
 };
@@ -326,15 +332,14 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 15mm 20mm; /* 回復實體邊距，讓瀏覽器自動處理多頁分頁邏輯 */
-          }
-          /* 強力抑制瀏覽器標籤 (V19.5: 透過 0 內容與邊距微調達成) */
-          @page :first {
-            margin-top: 10mm;
+            margin: 0 !important; /* 絕對設為 0 以殺死瀏覽器預設的網址、日期標籤 */
           }
           /* V19.1: 修正分頁間距美觀度 */
           .doc-section {
             margin-bottom: 25px !important;
+          }
+          .print-spacer {
+            display: block !important;
           }
           /* 隱藏瀏覽器預設的網址、日期、標題 */
           html, body {
@@ -359,19 +364,21 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           
           #translated-paper {
             position: static !important;
-            width: 100% !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
             display: block !important;
-            margin: 0 !important;
-            padding: 0 !important; /* 邊距改由 @page 統一控制，確保每一頁都一致 */
+            margin: 0 auto !important;
+            padding: 0 20mm !important;
             box-shadow: none !important;
             border: none !important;
           }
           
           #preview-paper { 
             position: static !important;
-            width: 100% !important; 
-            margin: 0 !important; 
-            padding: 0 !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
+            margin: 0 auto !important; 
+            padding: 0 20mm !important;
             box-shadow: none !important;
             border: none !important;
             display: ${translatedData ? 'none' : 'block'} !important;
