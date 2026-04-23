@@ -326,7 +326,11 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 0 !important; /* 絕對設為 0 以殺死瀏覽器預設的網址、日期標籤 */
+            margin: 15mm 20mm; /* 回復實體邊距，讓瀏覽器自動處理多頁分頁邏輯 */
+          }
+          /* 強力抑制瀏覽器標籤 (V19.5: 透過 0 內容與邊距微調達成) */
+          @page :first {
+            margin-top: 10mm;
           }
           /* V19.1: 修正分頁間距美觀度 */
           .doc-section {
@@ -355,25 +359,21 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           
           #translated-paper {
             position: static !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
+            width: 100% !important;
             display: block !important;
-            margin: 0 auto !important;
-            padding: 30mm 20mm !important; /* 加深內部 Padding，確保內容遠離紙張物理邊緣 */
+            margin: 0 !important;
+            padding: 0 !important; /* 邊距改由 @page 統一控制，確保每一頁都一致 */
             box-shadow: none !important;
             border: none !important;
-            page-break-after: always !important;
           }
           
           #preview-paper { 
             position: static !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
-            margin: 0 auto !important; 
-            padding: 30mm 20mm !important;
+            width: 100% !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
-            page-break-after: always !important;
             display: ${translatedData ? 'none' : 'block'} !important;
           }
           .no-print { display: none !important; }
