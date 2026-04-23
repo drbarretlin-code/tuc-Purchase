@@ -117,8 +117,8 @@ function App() {
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
   const [isCleaning, setIsCleaning] = useState(false);
-  // V18.6: 雲端查閱器垂直調整器狀態
-  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(380);
+  // V18.6: 雲端查閱器垂直調整器狀態 (V19.2: 預設調降高度以增加下方列表能見度)
+  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(280);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
 
   useEffect(() => {
@@ -164,7 +164,7 @@ function App() {
       if (modalContent) {
         const rect = modalContent.getBoundingClientRect();
         const newHeight = e.clientY - rect.top - 60; // 扣除 Header 高度
-        if (newHeight > 150 && newHeight < rect.height - 200) {
+        if (newHeight > 120 && newHeight < rect.height - 300) {
           setInspectorDashboardHeight(newHeight);
         }
       }
@@ -1785,8 +1785,8 @@ function App() {
               );
             })()}
 
-            {/* Content List Table Container with specific layout boundaries to prevent parent overflow */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+            {/* Content List Table Container (V19.2: 加入 flex-grow 以填滿剩餘空間，確保至少顯示 5 筆) */}
+            <div style={{ flex: 1, minHeight: '350px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,0.1)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
