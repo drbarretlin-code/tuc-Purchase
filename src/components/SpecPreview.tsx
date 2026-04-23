@@ -236,9 +236,10 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           const containerHeight = containerRef.current.offsetHeight - 40;
           const targetWidth = 210 * 3.78; 
           const targetHeight = 297 * 3.78;
+          if (containerWidth <= 0 || containerHeight <= 0) return; // V19.9: 防止高度塌陷導致比例為 0
           const scaleW = containerWidth / targetWidth;
           const scaleH = containerHeight / targetHeight;
-          setScale(Math.min(scaleW, scaleH, 1));
+          setScale(Math.max(0.1, Math.min(scaleW, scaleH, 1)));
         } else {
           setScale(zoomMode);
         }
