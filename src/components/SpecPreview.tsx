@@ -16,7 +16,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
   const hasImages = data.images.length > 0;
   const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
   const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
-
+  return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
       width: '210mm', minHeight: '297mm', background: 'white', padding: '15mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
     }}>
@@ -210,6 +210,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: '12px', height: '12px', border: '1px solid black', borderRadius: '50%', background: data.needsDrawing === 'NO' ? 'black' : 'transparent', display: 'inline-block' }} /> {t('no', data.language)}
             </span>
+          </div>
         </div>
       </div>
     </div>
