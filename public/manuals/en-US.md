@@ -64,7 +64,7 @@ The **(Cloud History ☁️)** in the dashboard is the core of the system's know
 
 ---
 
-## 7. "Upload File 📤"
+## 7. "Upload Database 📤"
 Upload PDF/Word raw files to the cloud knowledge base. The system will automatically run "AI Deep Parsing 🧠" in the background to structure raw content into a searchable technical library.
 
 ---

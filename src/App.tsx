@@ -47,7 +47,6 @@ function App() {
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
   const [tempKey, setTempKey] = useState(apiKey);
   const [isResizing, setIsResizing] = useState(false);
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
@@ -131,7 +130,7 @@ function App() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !showPreview || isMobile) return;
+      if (!isResizing || isMobile) return;
       const newPercentage = (e.clientX / window.innerWidth) * 100;
       if (newPercentage > 20 && newPercentage < 80) {
         setSplitPercentage(newPercentage);
@@ -153,7 +152,7 @@ function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, showPreview, isMobile]);
+  }, [isResizing, isMobile]);
 
   // V18.6: 雲端查閱器垂直調整邏輯
   useEffect(() => {
@@ -1092,21 +1091,7 @@ function App() {
             </select>
           </div>
 
-          {!isMobile && (
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="icon-btn"
-              aria-label={showPreview ? "Switch to Edit Mode" : "Switch to Preview Mode"}
-              style={{
-                padding: '0.5rem 1rem',
-                background: showPreview ? 'rgba(255,255,255,0.05)' : 'var(--tuc-red)',
-                borderColor: showPreview ? '#333' : 'var(--tuc-red)',
-                color: 'white'
-              }}
-            >
-              {showPreview ? <span className="header-btn-text">{t('hidePreview', data.language)}</span> : <span className="header-btn-text">{t('showPreview', data.language)}</span>}
-            </button>
-          )}
+
 
           <button
             onClick={() => setShowManual(true)}
@@ -1141,7 +1126,7 @@ function App() {
       </header>
 
       <main className="main-grid" style={{
-        gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'),
+        gridTemplateColumns: isMobile ? '100%' : `${splitPercentage}% 6px 1fr`,
         gridTemplateRows: '100%',
         gap: 0,
         flex: 1,
@@ -1158,7 +1143,7 @@ function App() {
           </div>
         )}
 
-        {!isMobile && showPreview && (
+        {!isMobile && (
           <div
             className={`layout-resizer ${isResizing ? 'active' : ''}`}
             onMouseDown={() => setIsResizing(true)}
@@ -1170,15 +1155,13 @@ function App() {
             minWidth: 0,
             minHeight: 0,
             height: '100%',
-            opacity: (!isMobile && !showPreview) ? 0 : 1,
-            pointerEvents: (!isMobile && !showPreview) ? 'none' : 'auto',
             transition: (isResizing || isMobile) ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'auto',
             background: isMobile ? 'white' : 'transparent',
             position: 'relative'
           }}>
             {/* V7.0: 資料庫管理入口遷移至此 */}
-            {!isMobile && showPreview && (
+            {!isMobile && (
               <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, padding: '0.75rem 1.5rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button

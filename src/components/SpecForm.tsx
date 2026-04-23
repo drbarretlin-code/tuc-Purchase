@@ -124,7 +124,7 @@ const CompactThreshold: React.FC<{
 const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) => {
   const [activeTab, setActiveTab] = React.useState(0);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
   const [isImportTranslating, setIsImportTranslating] = React.useState(false);
 
   // V14: 遷移舊有硬編碼中文至 i18n 標籤 (Migration Logic)
