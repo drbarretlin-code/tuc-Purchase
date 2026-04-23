@@ -869,6 +869,10 @@ function App() {
       let failedBatches = 0;
       for (let i = 0; i < targets.length; i++) {
         const fileRecord = targets[i];
+        
+        // V18.8: 立即更新本地狀態為解析中，確保儀表板計數器正確顯示
+        setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'processing' } : f));
+        
         setReparseCurrentFile(fileRecord.original_name);
         setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
         setReparseIndex(i + 1);
