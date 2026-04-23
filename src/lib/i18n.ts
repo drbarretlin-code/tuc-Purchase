@@ -288,6 +288,7 @@ export const translations: Record<string, any> = {
     'maxImages': '最多上傳 6 張圖片',
     'captionPlaceholder': '輸入圖說...',
     'clickToUpload': '點擊上傳圖片',
+    'languageLabel': '語系:',
     
     // Additional App labels
     'noEntries': '未偵測到條目',
@@ -296,7 +297,7 @@ export const translations: Record<string, any> = {
     'clickToEditTags': '點擊編輯標籤',
     'newTagHint': '點擊新增標籤...',
     'noReqDesc': '無需求說明',
-    'systemSubtitle': 'TUC 採購規範產生器',
+    'systemSubtitle': '採購規範產生器',
 
     // Queue Status Dashboard
     'queueOverview': '佇列狀態總覽',
