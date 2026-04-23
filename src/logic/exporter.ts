@@ -17,7 +17,7 @@ import { t } from '../lib/i18n';
 import type { Language } from '../lib/i18n';
 import { getFullSpecName, processAutoNumbering } from './specGenerator';
 
-export const exportToPDF = async (elementId: string, data: FormState) => {
+export const exportToPDF = async (data: FormState) => {
   // 對於高品質、可搜尋、且具有完美分頁邏輯的需求，呼叫瀏覽器原生列印對話框是最穩定的方案。
   // 若傳入的 data 與當前語系不同，表示為即時轉譯版本。
   

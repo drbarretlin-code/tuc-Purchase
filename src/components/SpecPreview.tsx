@@ -8,7 +8,7 @@ import { getFullSpecName, processAutoNumbering } from '../logic/specGenerator';
 interface PaperProps {
   data: FormState;
   totalPages?: number;
-  previewRef?: React.RefObject<HTMLDivElement>;
+  previewRef?: React.RefObject<HTMLDivElement | null>;
   id?: string;
 }
 
@@ -265,7 +265,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
 
   const handleExportPdf = async () => {
     if (exportLang === data.language) {
-      exportToPDF('preview-paper', data);
+      exportToPDF(data);
       return;
     }
 
@@ -284,20 +284,17 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
       
       // 等待 React 渲染完成
       setTimeout(() => {
-        exportToPDF('translated-paper', finalData);
+        exportToPDF(finalData);
         setTranslatedData(null);
       }, 100);
 
     } catch (err) {
       console.error('Export translation failed:', err);
       alert('Translation failed. Exporting original version.');
-      exportToPDF('preview-paper', data);
+      exportToPDF(data);
     } finally {
       setIsTranslating(false);
     }
-  };
-
-  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
 
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
