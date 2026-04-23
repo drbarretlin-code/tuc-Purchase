@@ -364,6 +364,9 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               box-shadow: none !important;
               border: none !important;
             }
+            #translated-paper, #translated-paper * {
+              visibility: visible !important;
+            }
             
             #preview-paper { 
               position: static !important;
@@ -373,6 +376,9 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               box-shadow: none !important;
               border: none !important;
               display: ${translatedData ? 'none' : 'block'} !important;
+            }
+            #preview-paper, #preview-paper * {
+              visibility: visible !important;
             }
             .no-print { display: none !important; }
             * { 

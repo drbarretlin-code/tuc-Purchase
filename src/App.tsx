@@ -1179,10 +1179,7 @@ function App() {
           }}>
             {/* V7.0: 資料庫管理入口遷移至此 */}
             {!isMobile && showPreview && (
-              <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, padding: '0.75rem 1.5rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Eye size={16} /> {t('officialPreview', data.language)}
-                </span>
+              <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, padding: '0.75rem 1.5rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     onClick={() => setShowUploadWizard(true)}
