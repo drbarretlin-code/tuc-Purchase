@@ -19,10 +19,10 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
-      width: '210mm', minHeight: '297mm', background: 'white', padding: '0 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
+      width: '210mm', minHeight: '297mm', background: 'white', padding: '0 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere', display: 'flex', flexDirection: 'column'
     }}>
-      {/* V19.6: 頂部空白斷行佔位 (比照 Word 版面) */}
-      <div className="print-spacer" style={{ height: '15mm' }} />
+      {/* V19.7: 增加佔位高度至 20mm，並確保彈性佈局 */}
+      <div className="print-spacer" style={{ height: '20mm', flexShrink: 0 }} />
 
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
@@ -217,8 +217,10 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
         </div>
       </div>
 
-      {/* V19.6: 底部空白斷行佔位 (比照 Word 版面) */}
-      <div className="print-spacer" style={{ height: '15mm' }} />
+      <div style={{ flex: 1 }} /> {/* 自動撐開中間區域 */}
+
+      {/* V19.7: 底部空白佔位同步增加 */}
+      <div className="print-spacer" style={{ height: '20mm', flexShrink: 0 }} />
     </div>
   );
 };
@@ -334,9 +336,11 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             size: A4;
             margin: 0 !important; /* 絕對設為 0 以殺死瀏覽器預設的網址、日期標籤 */
           }
-          /* V19.1: 修正分頁間距美觀度 */
+          /* V19.7: 防止區塊在分頁時被切斷 */
           .doc-section {
             margin-bottom: 25px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .print-spacer {
             display: block !important;
