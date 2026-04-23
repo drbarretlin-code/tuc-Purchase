@@ -938,8 +938,8 @@ function App() {
             return f;
           }));
 
-          // V18.7: 每處理完一筆即觸發資源水位刷新
-          fetchUsageStats();
+          // V18.9: 在迴圈內部確保 UI 狀態同步，並在延遲後才進入下一筆
+          await fetchUsageStats();
 
         } catch (err: any) {
           console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);

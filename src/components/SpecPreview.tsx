@@ -326,7 +326,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
         @media print {
           @page {
             size: A4;
-            margin: 15mm 0; /* 垂直邊距確保不被瀏覽器標籤蓋住，水平 0 配合 PaperContent 的 20mm padding */
+            margin: 0; /* 設為 0 以強制取消瀏覽器預設的頁眉頁腳標籤 */
           }
           /* 隱藏瀏覽器預設的網址、日期、標題 */
           html, body {
@@ -354,9 +354,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             width: 210mm !important;
             display: block !important;
             margin: 0 auto !important;
-            box-shadow: none !important;
-            border: none !important;
-            padding: 20mm !important; /* 確保內容有內距 */
+            padding: 15mm 20mm !important; /* 確保內容有內距且不觸發瀏覽器標籤 */
           }
           
           #preview-paper { 
