@@ -328,58 +328,59 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             size: A4;
             margin: 15mm !important; /* 標準 A4 邊距，確保多頁穩定性 */
           }
-          /* 強力隱藏瀏覽器標籤 (V19.8: 透過偽元素與內容抑制) */
-          html, body {
-            overflow: hidden !important; /* 防止產生額外的捲軸與標籤空間 */
-            height: auto !important;
-          }
-          .doc-section {
-            margin-bottom: 25px !important;
-            page-break-inside: avoid !important;
-          }
-          /* 隱藏瀏覽器預設的網址、日期、標題 */
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-          body * { visibility: hidden; }
-          
-          /* 核心：將列印容器移回正常流 */
-          .translated-print-wrapper {
-            position: static !important;
-            left: 0 !important;
-            top: 0 !important;
-            visibility: visible !important;
-            display: ${translatedData ? 'block' : 'none'} !important;
-          }
+          @media print {
+            /* 強力隱藏瀏覽器標籤 (V19.8: 透過偽元素與內容抑制) */
+            html, body {
+              overflow: hidden !important; /* 防止產生額外的捲軸與標籤空間 */
+              height: auto !important;
+            }
+            .doc-section {
+              margin-bottom: 25px !important;
+              page-break-inside: avoid !important;
+            }
+            /* 隱藏瀏覽器預設的網址、日期、標題 */
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+            }
+            body * { visibility: hidden; }
+            
+            /* 核心：將列印容器移回正常流 */
+            .translated-print-wrapper {
+              position: static !important;
+              left: 0 !important;
+              top: 0 !important;
+              visibility: visible !important;
+              display: ${translatedData ? 'block' : 'none'} !important;
+            }
 
-          #translated-paper {
-            position: static !important;
-            width: 100% !important;
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
+            #translated-paper {
+              position: static !important;
+              width: 100% !important;
+              display: block !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
+            
+            #preview-paper { 
+              position: static !important;
+              width: 100% !important; 
+              margin: 0 !important; 
+              padding: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+              display: ${translatedData ? 'none' : 'block'} !important;
+            }
+            .no-print { display: none !important; }
+            * { 
+              box-sizing: border-box !important;
+              -webkit-print-color-adjust: exact !important; 
+              print-color-adjust: exact !important;
+            }
           }
-          
-          #preview-paper { 
-            position: static !important;
-            width: 100% !important; 
-            margin: 0 !important; 
-            padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            display: ${translatedData ? 'none' : 'block'} !important;
-          }
-          .no-print { display: none !important; }
-          * { 
-            box-sizing: border-box !important;
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important;
-          }
-        }
       `}</style>
 
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 1rem', flexShrink: 0 }}>
