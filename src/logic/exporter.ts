@@ -53,9 +53,6 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   const filename = `${data.equipmentName || 'TUC_Spec'}_${timestamp}`;
   const hasImages = data.images.length > 0;
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString(lang === 'en-US' ? 'en-US' : (lang === 'th-TH' ? 'th-TH' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
-
   const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
 
   const bodyContent = [

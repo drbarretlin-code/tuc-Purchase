@@ -12,10 +12,9 @@ interface PaperProps {
   id?: string;
 }
 
-const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }) => {
+const PaperContent: React.FC<PaperProps> = ({ data, previewRef, id }) => {
   const hasImages = data.images.length > 0;
-  const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
-  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
+  const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
 
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
