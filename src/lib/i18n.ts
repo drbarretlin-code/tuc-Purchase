@@ -195,6 +195,7 @@ export const translations: Record<string, any> = {
     'docExportPdf': '匯出 PDF',
     'docCompanyName': '台燿科技股份有限公司',
     'docCompanyEnglish': 'Taiwan Union Technology Corporation',
+    'docTitle': '採購規格暨驗收內容',
     'docDate': '日期：',
     'docPage': '頁次：',
     'docDept': '申購單位：',
