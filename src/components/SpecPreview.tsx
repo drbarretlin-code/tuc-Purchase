@@ -314,29 +314,50 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
 
       {/* 隱藏的列印專用語系渲染區 */}
       {translatedData && (
-        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div className="translated-print-wrapper" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
           <PaperContent data={translatedData} id="translated-paper" />
         </div>
       )}
 
       <style>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
           body * { visibility: hidden; }
-          #preview-paper, #preview-paper *, #translated-paper, #translated-paper * { visibility: visible; }
           
-          /* 若有 translated-paper，則優先顯示它 */
+          /* 核心：將列印容器移回正常流 */
+          .translated-print-wrapper {
+            position: static !important;
+            left: 0 !important;
+            top: 0 !important;
+            visibility: visible !important;
+            display: ${translatedData ? 'block' : 'none'} !important;
+          }
+
+          #preview-paper, #preview-paper *, #translated-paper, #translated-paper * { 
+            visibility: visible !important; 
+          }
+          
           #translated-paper {
             position: static !important;
             width: 210mm !important;
             display: block !important;
             margin: 0 auto !important;
+            box-shadow: none !important;
+            border: none !important;
           }
           
           #preview-paper { 
             position: static !important;
             width: 210mm !important; 
             margin: 0 auto !important; 
-            padding: 0 !important;
+            padding: 20mm !important;
             box-shadow: none !important;
             border: none !important;
             display: ${translatedData ? 'none' : 'block'} !important;
