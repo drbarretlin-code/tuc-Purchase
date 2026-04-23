@@ -258,12 +258,7 @@ input:focus, select:focus, textarea:focus {
   margin: 10px 0;
 }
 
-/* RWD Layout */
-@media (max-width: 1200px) {
-  .main-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
+
 
 /* Scaling Container for Preview */
 .preview-zoom-container {

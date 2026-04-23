@@ -1054,7 +1054,7 @@ function App() {
   });
 
   return (
-    <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+    <div className="app-container" style={{ padding: isMobile ? '0.5rem' : '1rem', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
         <div role="banner" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem' }}>
           <div style={{
@@ -1142,15 +1142,15 @@ function App() {
 
       <main className="main-grid" style={{
         gridTemplateColumns: isMobile ? '100%' : (showPreview ? `${splitPercentage}% 6px 1fr` : '1fr 0px 0px'),
+        gridTemplateRows: '100%',
         gap: 0,
         flex: 1,
         minHeight: 0,
-        height: '100%',
         overflow: 'hidden',
         paddingBottom: isMobile ? '70px' : '0'
       }}>
         {(!isMobile || mobileAppTab === 'edit') && (
-          <div style={{ minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ minWidth: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {(() => {
               const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
               return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
