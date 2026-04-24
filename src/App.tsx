@@ -728,10 +728,6 @@ function App() {
       alert('資料庫尚未就緒，請檢查連線後再試。');
       return;
     }
-    // V16.10: 斷點續傳邏輯 - 回歸數據庫權威狀態 (不依賴知識條目數 0)
-    console.log('[Resume] 正在核對當前解析狀態...');
-
-    // 僅過濾出尚未標記為已解析的檔案，或雖然標記已解析但條目數為 0 的幽靈檔案 (V17.1)
     const targets = cloudFiles.filter(f =>
       f.is_parsed !== true || (f as any).knowledgeCount === 0
     );
@@ -741,117 +737,49 @@ function App() {
       return;
     }
 
-    if (!confirm(`偵測到 ${targets.length} 筆檔案需處理。系統支援「斷點續傳」，已解析檔案將自動跳過。\n確定要開始執行嗎？`)) return;
+    if (!confirm(`偵測到 ${targets.length} 筆檔案需處理。系統支援「斷點續傳」，已解析檔案將自動跳過。\n\n確定要把這些檔案全數送入背景佇列解析嗎？`)) return;
 
-    setIsReparsing(true);
-    setReparseProgress(0);
-    setReparseTotal(targets.length);
-    setReparseIndex(0);
-    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
+    const ids = targets.map(t => t.id);
+    await enqueueBatchForParsing(ids);
+  };
 
+  // 共同的送入背景佇列函數
+  const enqueueBatchForParsing = async (ids: string[]) => {
+    if (!supabase) return;
+    setIsReparsing(true); // 僅用於按鈕 Disable 狀態
     try {
-      const totalCount = targets.length;
-      for (let i = 0; i < totalCount; i++) {
-        const fileRecord = targets[i];
-        setReparseIndex(i + 1);
-        setReparseProgress(Math.round(((i + 1) / totalCount) * 100)); // 前置計算百分比
-        setReparseCurrentFile(fileRecord.original_name);
+      const targets = cloudFiles.filter(f => ids.includes(f.id));
+      const targetFileNames = targets.map(f => f.original_name);
+      const uniqueNames = Array.from(new Set(targetFileNames));
 
-        try {
-          // 1. 下載雲端檔案
-          const response = await fetch(fileRecord.public_url);
-          const blob = await response.blob();
-          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
+      // 1. 強制清理舊有紀錄，確保能重新產生知識點
+      await supabase.from('tuc_history_knowledge').delete().in('source_file_name', uniqueNames);
 
-          // 2. V16.6: 強製清理舊有無效紀錄 (關鍵修復：確保 AI 認定為新檔案從而補足條目)
-          console.log(`[Reparse] 正在強制清理檔案 ${fileRecord.original_name} 的舊有紀錄...`);
-          const { error: deleteError } = await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
-          if (deleteError) {
-            throw new Error(`清除舊紀錄失敗，請至 Supabase 確認 DELETE 權限 (RLS): ${deleteError.message}`);
-          }
+      // 2. 呼叫後端 API
+      const res = await fetch('/api/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileIds: ids,
+          language: data.language
+        })
+      });
 
-          // 3. 驅動 AI 解析引擎
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          const newAdded = parseResult?.added || 0;
-          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
-
-          // V12: 補解析時同步進行「標籤校準」
-          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
-            is_parsed: true,
-            is_calibrated: true, // 同步進行校準
-            parsed_at: new Date().toISOString(),
-            equipment_name: currentDetectedLabel,
-            equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName
-          };
-
-          const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update(updateData)
-            .eq('id', fileRecord.id);
-
-          if (updateError) {
-            throw new Error(`檔案狀態更新失敗，請至 Supabase 確認 UPDATE 權限 (RLS): ${updateError.message}`);
-          }
-
-          // 同步更新知識庫內的 metadata (標籤校準核心)
-          if (currentDetectedLabel !== fileRecord.equipment_name) {
-            const { data: entries } = await supabase
-              .from('tuc_history_knowledge')
-              .select('id, metadata')
-              .eq('source_file_name', fileRecord.original_name);
-
-            if (entries) {
-              for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
-                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
-              }
-            }
-          }
-
-          // V8.6: 精準刷新列表狀態 (純本地使用 ID)
-          setCloudFiles(prev => prev.map(f => {
-            if (f.id === fileRecord.id) {
-              return {
-                ...f,
-                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded,
-                is_parsed: true,
-                is_calibrated: true,
-                equipment_name: currentDetectedLabel,
-                equipment_tags: [currentDetectedLabel]
-              };
-            }
-            return f;
-          }));
-
-          // V18.7: 每處理完一筆即觸發資源水位刷新
-          fetchUsageStats();
-
-          // 渲染緩衝
-          await new Promise(r => setTimeout(r, 100));
-        } catch (fileErr: any) {
-          console.error(`[Batch] 檔案 ${fileRecord.original_name} 解析/校準失敗:`, fileErr);
-          if (fileErr.message && fileErr.message.includes('RLS')) Object.assign(fileErr, { isRls: true });
-          if ((fileErr as any).isRls) alert(fileErr.message); // 明確卡住提示 RLS 問題
-          // V13.7: 改為 continue，避免單一檔案配額耗盡或格式錯誤導致整批中斷
-          continue;
-        }
-
-        // 為了避免頻控，間隔 6 秒
-        if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
       }
 
-      await new Promise(r => setTimeout(r, 1000));
-      await fetchCloudFiles();
-      alert('批次補解析與 AI 標籤校準任務已完成！');
+      alert(`已成功將 ${ids.length} 筆檔案送入後端完全託管佇列！您可以隨意關閉瀏覽器，系統會自動在背景分塊解析，並處理 API 額度等待。`);
+      
+      // 更新列表顯示為排隊中
+      setCloudFiles(prev => prev.map(f => ids.includes(f.id) ? { ...f, parse_status: 'pending', is_parsed: false } : f));
+      setSelectedFileIds([]);
     } catch (err: any) {
-      alert('批次處理出錯: ' + err.message);
+      console.error('[Enqueue Batch Error]', err);
+      alert('送入解析佇列時發生錯誤: ' + err.message);
     } finally {
       setIsReparsing(false);
-      setReparseProgress(0);
-      setReparseTotal(0);
-      setReparseIndex(0);
-      setReparseCurrentFile('');
     }
   };
 
@@ -861,142 +789,7 @@ function App() {
     if (targets.length === 0) return;
 
     if (!confirm(`${t('confirmReparseBatch', data.language).replace('{n}', targets.length.toString())}`)) return;
-
-    setIsReparsing(true);
-
-    try {
-      const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
-      let failedBatches = 0;
-
-      // V19.4: 立即將所有目標檔案標記為 'pending'，確保儀表板計數器正確顯示總量
-      setCloudFiles(prev => prev.map(f => ids.includes(f.id) ? { ...f, parse_status: 'pending', is_parsed: false } : f));
-      for (let i = 0; i < targets.length; i++) {
-        const fileRecord = targets[i];
-        
-        // V18.8: 立即更新本地狀態為解析中，確保儀表板計數器正確顯示
-        setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'processing' } : f));
-        
-        setReparseCurrentFile(fileRecord.original_name);
-        setReparseProgress(Math.round(((i + 1) / targets.length) * 100));
-        setReparseIndex(i + 1);
-        setReparseTotal(targets.length);
-
-        try {
-          // 1. 下載雲端檔案
-          const response = await fetch(fileRecord.public_url);
-          const blob = await response.blob();
-          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
-
-          // 2. 清理舊有紀錄
-          await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', fileRecord.original_name);
-
-          // 3. 驅動本地 AI 解析引擎
-          const parseResult = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          const newAdded = parseResult?.added || 0;
-          const currentDetectedLabel = parseResult?.detectedEquipment || fileRecord.equipment_name;
-
-          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
-            is_parsed: true,
-            is_calibrated: true,
-            parsed_at: new Date().toISOString(),
-            equipment_name: currentDetectedLabel,
-            equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName,
-            parse_status: 'completed',
-            error_message: null
-          };
-
-          const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update(updateData)
-            .eq('id', fileRecord.id);
-
-          if (updateError) {
-            throw new Error(`檔案狀態更新失敗 (RLS): ${updateError.message}`);
-          }
-
-          if (currentDetectedLabel !== fileRecord.equipment_name) {
-            const { data: entries } = await supabase.from('tuc_history_knowledge').select('id, metadata').eq('source_file_name', fileRecord.original_name);
-            if (entries) {
-              for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
-                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
-              }
-            }
-          }
-
-          setCloudFiles(prev => prev.map(f => {
-            if (f.id === fileRecord.id) {
-              return {
-                ...f,
-                knowledgeCount: ((f as any).knowledgeCount || 0) + newAdded,
-                is_parsed: true,
-                is_calibrated: true,
-                equipment_name: currentDetectedLabel,
-                equipment_tags: [currentDetectedLabel],
-                parse_status: 'completed',
-                error_message: null
-              };
-            }
-            return f;
-          }));
-
-          // V18.9: 在迴圈內部確保 UI 狀態同步，並在延遲後才進入下一筆
-          await fetchUsageStats();
-
-        } catch (err: any) {
-          console.error(`[Local Force Reparse] Error for ${fileRecord.original_name}:`, err.message);
-
-          let diag: any = {
-            code: 'UNKNOWN',
-            message: err.message,
-            timestamp: new Date().toISOString()
-          };
-
-          if (err.diagnostic) {
-            diag = err.diagnostic;
-          } else if (err.message?.includes('QUOTA_EXCEEDED')) {
-            diag.code = 'QUOTA_EXCEEDED';
-            diag.message = 'Gemini API 配額已耗盡';
-            diag.suggestion = '請等待 1 分鐘後再試。';
-          }
-
-          const errorStorageString = JSON.stringify(diag);
-
-          await supabase.from('tuc_uploaded_files').update({ parse_status: 'failed', error_message: errorStorageString } as any).eq('id', fileRecord.id);
-          setCloudFiles(prev => prev.map(f => f.id === fileRecord.id ? { ...f, parse_status: 'failed', error_message: errorStorageString } : f));
-          failedBatches++;
-
-          if (diag.code === 'QUOTA_EXCEEDED') {
-            alert('偵測到 Gemini API 配額已耗盡 (每日或每分鐘限額)。為了保護您的帳號，系統已自動暫停後續解析作業。\n請至少等待 1 分鐘後再試，或更換 API Key。');
-            break;
-          }
-
-          // V20: API Key 過期/無效 — 立即中斷批次
-          if (diag.code === 'API_KEY_EXPIRED' || diag.code === 'API_KEY_INVALID') {
-            alert('Gemini API Key 已過期或無效。系統已自動暫停所有解析作業。\n請點擊右上角齒輪圖示，進入設定頁面更新 API Key。');
-            break;
-          }
-        }
-
-        if (i < targets.length - 1) {
-          await new Promise(r => setTimeout(r, 6000));
-        }
-      }
-
-      const msg = failedBatches > 0
-        ? `處理完畢，但有 ${failedBatches} 筆解析失敗。`
-        : `已成功由本地強制解析完成 ${targets.length} 筆檔案！`;
-      alert(msg);
-      await fetchCloudFiles();
-      setSelectedFileIds([]);
-    } catch (err: any) {
-      alert('送入解析佇列時發生錯誤: ' + err.message);
-    } finally {
-      setIsReparsing(false);
-      setReparseCurrentFile('');
-      setReparseProgress(0);
-    }
+    await enqueueBatchForParsing(ids);
   };
 
   const handleEnqueueUnparsed = async () => {

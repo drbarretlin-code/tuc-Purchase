@@ -72,98 +72,141 @@ export async function processFileBackend(
       text = extractStringsFromBinary(fileBuffer);
     }
 
-    if (!text && !inlineData) throw new Error('無法擷取檔案內容');
-
-    const prompt = `
-      你是一個具備「視覺 OCR 專家級能力」與「採購技術專家」雙重身份的 AI。
-      你目前正在解構一份專業的採購規範或技術標準檔案。
-      
-      **你的解析策略 (Hybrid Strategy)**：
-      1. **視覺比對**：請深度掃描附件 PDF 的每一頁。辨識所有表格、圖形、標註以及文字排列。
-      2. **文字對照**：我會提供從檔案中提取出的原始文字內容（若有），請結合視覺佈局，確保即使是表格中的細小參數也能精準對應。
-      3. **OCR 模式啟動**：若檔案是掃描圖檔，請發動最強的視覺辨識能力，將所有模糊或手寫內容轉譯。
-
-      你的任務是：**榨乾這份檔案的所有技術價值，絕不遺漏任何技術參數、法規編號、施工要求或驗收標準**。
-      
-      請依據以下分類邏輯進行深度索引：
-         - Specific: 針對特定設備（如 RTO、空壓機、剪床）的專屬規格。
-         - Standard: 施工法、材料標準、KCG 編號標準。
-         - Global: 法令、環保規章、安全規則。
-      
-      **絕對強制提取與零遺漏政策**：
-      1. **嚴禁過度摘要**。請將每一個獨立的法規條款、技術規格或性能指標拆解為獨立的條目。
-      2. 對於長篇文件，請務必產出與原文長度成比例的條目數量（**目標 20-50 條**），確保技術細節不被遺漏。
-      3. 內容必須包含原文中的具體數值（如：mm, kg, ℃, %, V, kW 等）。
-      4. 輸出語言：優先使用「${targetLang}」，但若文檔內容為泰文/英文且包含關鍵技術代碼，請在保持易讀性的前提下忠實呈現。
-      
-      回傳格式：必須是純粹的 JSON。
-      {
-        "docType": "Specific | Standard | Global",
-        "detectedEquipment": "最相關的設備或工程名稱",
-        "specEntries": [
-          {"category": "技術要求/安全規範/驗收標準/材料規格...", "content": "精煉後的完整技術條目"}
-        ],
-        "fullJsonData": { "summary": "文檔整體核心摘要", "keywords": ["關鍵字1", "關鍵字2"] }
-      }
-      
-      待分析內容 (文字層)：
-      ${text ? text.substring(0, 150000) : '純視覺掃描模式（無可提取文字層）。'}
-    `;
-
-    const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
-    if (inlineData) {
-      contents[0].parts.push({
-        inlineData: inlineData
-      });
-    }
-
-    const result = await model.generateContent({ contents });
-    const responseText = result.response.text();
+    // 文本分塊策略 (Chunking)
+    const MAX_CHUNK_LENGTH = 15000;
+    const textChunks: string[] = [];
     
-    if (!responseText) {
-      throw new Error('AI 回傳內容為空，可能是安全性過濾或配額耗盡。');
+    // 注意：若帶有 inlineData (如 15MB PDF Base64)，為避免配額爆炸與傳輸過載，不進行分塊，改以強思維鏈深度提取。
+    if (text && text.length > MAX_CHUNK_LENGTH && !inlineData) {
+      console.log(`[Backend Parser] 文本長度 (${text.length}) 超過閥值，啟動自動切片機制...`);
+      for (let i = 0; i < text.length; i += MAX_CHUNK_LENGTH) {
+        textChunks.push(text.substring(i, i + MAX_CHUNK_LENGTH));
+      }
+      console.log(`[Backend Parser] 共切分為 ${textChunks.length} 個區塊進行遞迴解析。`);
+    } else {
+      textChunks.push(text || '');
     }
 
-    let cleanJson = responseText.replace(/```json|```/g, '').trim();
-    let parsed: any;
-    try {
-      parsed = JSON.parse(cleanJson);
-    } catch (err) {
-      // 嘗試更激進的清洗
-      cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '').replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+    let allSpecEntries: any[] = [];
+    let finalDocType = fileName.includes('KCG') ? 'Standard' : 'Specific';
+    let finalDetectedEq = equipmentName || '未命名設備';
+    let finalFullJsonData = {};
+
+    for (let i = 0; i < textChunks.length; i++) {
+      const chunkText = textChunks[i];
+      const isMultiChunk = textChunks.length > 1;
+      
+      const prompt = `
+        你是一個具備「視覺 OCR 專家級能力」與「採購技術專家」雙重身份的 AI。
+        你目前正在解構一份專業的採購規範或技術標準檔案${isMultiChunk ? `的第 ${i + 1}/${textChunks.length} 個切片` : ''}。
+        
+        **【重要指示：思維鏈強制啟動】**
+        為對抗注意力衰退，你必須先在 <thinking> 標籤內逐頁/逐章拆解原始文段落的細節。
+        完成思考後，再於 <result> 標籤內輸出最終的 JSON。不准偷懶，不要過度摘要！
+
+        **你的解析策略 (Hybrid Strategy)**：
+        1. **深度掃描**：辨識所有表格參數、法規編號、施工要求或驗收標準。
+        2. **絕對強制提取與零遺漏政策**：
+           - 嚴禁過度摘要。請將每一個獨立的法規條款、技術規格拆解為獨立的 \`specEntries\`。
+           - 數量目標：盡可能提取最多細節，通常為 15-40 條。包含具體數值 (mm, kg, %, V 等)。
+        3. 輸出語言：優先使用「${targetLang}」。
+        
+        回傳格式：必須包含 <thinking> 與 <result> 標籤。
+        <thinking>
+        在此處寫下逐章節拆解的過程與找到的關鍵參數...
+        </thinking>
+        
+        <result>
+        {
+          "docType": "Specific | Standard | Global",
+          "detectedEquipment": "最相關的設備或工程名稱",
+          "specEntries": [
+            {"category": "技術要求/安全規範/驗收標準/材料規格...", "content": "精煉後的完整技術條目"}
+          ],
+          "fullJsonData": { "summary": "此切片片段的核心摘要", "keywords": ["關鍵字1", "關鍵字2"] }
+        }
+        </result>
+        
+        待分析內容：
+        ${chunkText ? chunkText.substring(0, 150000) : '純視覺掃描模式（無可提取文字層）。'}
+      `;
+
+      const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
+      if (inlineData && i === 0) {
+        // inlineData 僅在第一個 Chunk (或唯一 Chunk) 時附帶，避免重複傳輸巨大圖檔
+        contents[0].parts.push({ inlineData: inlineData });
+      }
+
+      console.log(`[Backend Parser] 正在請求 Gemini 模型解析區塊 ${i + 1}/${textChunks.length}...`);
+      const result = await model.generateContent({ contents }).catch(err => {
+        // QStash 依賴 HTTP 狀態碼進行退避重試
+        // 我們在此確保將 429 向上拋出，讓 worker.ts 返回 500
+        console.error(`[Backend Parser] 模型回應錯誤 (可能為 429 配額耗盡):`, err.message);
+        throw err; 
+      });
+      
+      const responseText = result.response.text();
+      
+      if (!responseText) {
+        throw new Error('AI 回傳內容為空，可能是安全性過濾或配額耗盡。');
+      }
+
+      // 提取 <result> 內的 JSON 內容
+      const resultMatch = responseText.match(/<result>([\s\S]*?)<\/result>/);
+      let cleanJson = resultMatch ? resultMatch[1] : responseText;
+      cleanJson = cleanJson.replace(/```json|```/g, '').trim();
+      
+      let parsed: any;
       try {
         parsed = JSON.parse(cleanJson);
-      } catch (e2) {
-        // 最後手段：從文字中強行擷取
-        console.warn('[AI Parser] JSON 解析完全失敗，使用正規表達式備援');
-        const entriesMatch = responseText.match(/"content":\s*"([^"]+)"/g);
-        const backupEntries = entriesMatch ? entriesMatch.map(m => ({ 
-          category: '自動擷取', 
-          content: m.replace(/"content":\s*"/, '').replace(/"$/, '') 
-        })) : [];
+      } catch (err) {
+        // 激進清洗
+        cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '').replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+        try {
+          parsed = JSON.parse(cleanJson);
+        } catch (e2) {
+          console.warn('[Backend Parser] 區塊 JSON 解析完全失敗，使用正規表達式備援');
+          const entriesMatch = cleanJson.match(/"content":\s*"([^"]+)"/g);
+          const backupEntries = entriesMatch ? entriesMatch.map(m => ({ 
+            category: '自動擷取', 
+            content: m.replace(/"content":\s*"/, '').replace(/"$/, '') 
+          })) : [];
 
-        parsed = {
-          docType: fileName.includes('KCG') ? 'Standard' : 'Specific',
-          specEntries: backupEntries.length > 0 ? backupEntries : [{ category: '文檔摘要', content: responseText.substring(0, 1000).replace(/\n/g, ' ') }],
-          fullJsonData: { rawText: responseText.substring(0, 200) }
-        };
+          parsed = {
+            docType: fileName.includes('KCG') ? 'Standard' : 'Specific',
+            specEntries: backupEntries.length > 0 ? backupEntries : [{ category: '文檔摘要', content: cleanJson.substring(0, 1000).replace(/\n/g, ' ') }],
+            fullJsonData: { rawText: cleanJson.substring(0, 200) }
+          };
+        }
+      }
+
+      // 合併每個 Chunk 的資料
+      if (parsed.docType && parsed.docType !== 'Specific') finalDocType = parsed.docType;
+      // 傾向採用 AI 發現的有意義設備名稱
+      if (parsed.detectedEquipment && !['', '未命名設備'].includes(parsed.detectedEquipment)) {
+        finalDetectedEq = parsed.detectedEquipment;
+      }
+      if (parsed.specEntries && Array.isArray(parsed.specEntries)) {
+        allSpecEntries.push(...parsed.specEntries);
+      }
+      if (parsed.fullJsonData) {
+        finalFullJsonData = { ...finalFullJsonData, ...parsed.fullJsonData };
       }
     }
 
-    // In-memory deduplication & cleaning
+    // In-memory deduplication & cleaning for the composite entries
     const uniqueItems: any[] = [];
     const seen = new Set();
-    let indexData = parsed.specEntries || [];
     
-    // 強化最後防線：確保 specEntries 永遠有內容
-    if (!Array.isArray(indexData) || indexData.length === 0) {
-      indexData = [{ 
+    // 強化最後防線：確保至少有內容
+    if (allSpecEntries.length === 0) {
+      allSpecEntries = [{ 
         category: '文檔分析總結', 
         content: `(來源: ${fileName}) 此文檔已被處理，內容涵蓋技術規範。請查看原檔獲取詳細資訊。` 
       }];
     }
 
-    for (const item of indexData) {
+    for (const item of allSpecEntries) {
       const contentStr = (item.content || '').trim();
       const catStr = (item.category || '技術細節').trim();
       if (!contentStr) continue;
@@ -175,11 +218,13 @@ export async function processFileBackend(
       }
     }
 
+    console.log(`[Backend Parser] 檔案 ${fileName} 所有分塊解析完畢，共萃取出 ${uniqueItems.length} 條獨立知識點。`);
+
     return {
       success: true,
-      detectedEquipment: parsed.detectedEquipment || equipmentName || '未命名設備',
-      docType: parsed.docType || (fileName.includes('KCG') ? 'Standard' : 'Specific'),
-      fullJsonData: parsed.fullJsonData || {},
+      detectedEquipment: finalDetectedEq,
+      docType: finalDocType,
+      fullJsonData: finalFullJsonData,
       entries: uniqueItems.length > 0 ? uniqueItems : [{ category: '檔案摘要', content: `檔案 ${fileName} 已納入索引。` }]
     };
 
