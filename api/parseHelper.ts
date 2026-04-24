@@ -30,7 +30,8 @@ export async function processFileBackend(
       try {
         // 嘗試提取文字層，若失敗則僅記錄警告但不中斷流程
         console.log(`[Backend Parser] 啟動 PDF 文字層提取: ${fileName}`);
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.js');
+        // @ts-ignore - 避開 Vercel 環境下的模組解析警告
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
         
         const loadingTask = pdfjsLib.getDocument({ 
           data: new Uint8Array(fileBuffer),
