@@ -13,8 +13,8 @@ export async function processFileBackend(
   targetLang: string = 'zh-TW'
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
-  // V17.6: 使用 1.5-flash 以平衡速度與長文本處理能力，適合背景大量處理
-  const modelId = 'gemini-1.5-flash';
+  // V19.5: 升級至 2.0-flash 以獲得更強的邏輯解析與長文本細節提取能力
+  const modelId = 'gemini-2.0-flash';
   const model = genAI.getGenerativeModel({ model: modelId });
 
   let text = '';
@@ -52,10 +52,11 @@ export async function processFileBackend(
          - Standard: 施工法、材料標準、KCG 編號標準。
          - Global: 法令、環保規章、安全規則。
       
-      規則：
-      1. 必須挖掘出至少 10-15 條具備技術含量的實體條目。
-      2. 內容必須包含原文中的具體數值（如：mm, kg, ℃, %）。
-      3. 輸出語言：優先使用「${targetLang}」，但若文檔內容為泰文/英文且包含關鍵技術代碼，請在保持易讀性的前提下忠實呈現。
+      **絕對強制提取與零遺漏政策**：
+      1. **嚴禁過度摘要**。請將每一個獨立的法規條款、技術規格或性能指標拆解為獨立的條目。
+      2. 對於長篇文件，請務必產出與原文長度成比例的條目數量（**目標 20-50 條**），確保技術細節不被遺漏。
+      3. 內容必須包含原文中的具體數值（如：mm, kg, ℃, %, V, kW 等）。
+      4. 輸出語言：優先使用「${targetLang}」，但若文檔內容為泰文/英文且包含關鍵技術代碼，請在保持易讀性的前提下忠實呈現。
       
       回傳格式：必須是純粹的 JSON。
       {
@@ -68,7 +69,7 @@ export async function processFileBackend(
       }
       
       待分析內容：
-      ${text ? text.substring(0, 30000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
+      ${text ? text.substring(0, 40000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
     `;
 
     const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];

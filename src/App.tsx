@@ -1006,40 +1006,72 @@ function App() {
 
   const handleResetAndEnqueueAll = async () => {
     if (!supabase) return;
-    if (!confirm(t('confirmResetAndReparse', data.language))) return;
+    
+    // V19.6: 支援選取特定檔案重置，若無選取則維持全量重置
+    const isBatchMode = selectedFileIds.length > 0;
+    const targets = isBatchMode 
+      ? cloudFiles.filter(f => selectedFileIds.includes(f.id))
+      : cloudFiles;
+    
+    const targetFileIds = targets.map(f => f.id);
+    const targetFileNames = targets.map(f => f.original_name);
+
+    const confirmMsg = isBatchMode 
+      ? `確定要「清空已解析條目」並重置選取的 ${selectedFileIds.length} 筆檔案嗎？\n系統將重新送進背景佇列進行解析。`
+      : t('confirmResetAndReparse', data.language);
+
+    if (!confirm(confirmMsg)) return;
 
     setIsResetting(true);
     try {
-      // 1. 清空所有知識條目 (tuc_history_knowledge)
-      const { error: clearError } = await supabase
-        .from('tuc_history_knowledge')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // 刪除全部
+      // 1. 清空知識條目 (tuc_history_knowledge)
+      if (isBatchMode) {
+        // 批次模式：針對特定檔名刪除 (使用 Set 避免重複)
+        const uniqueNames = Array.from(new Set(targetFileNames));
+        const { error: clearError } = await supabase
+          .from('tuc_history_knowledge')
+          .delete()
+          .in('source_file_name', uniqueNames);
+        if (clearError) throw clearError;
+      } else {
+        // 全量模式
+        const { error: clearError } = await supabase
+          .from('tuc_history_knowledge')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        if (clearError) throw clearError;
+      }
 
-      if (clearError) throw clearError;
+      // 2. 重置檔案狀態 (tuc_uploaded_files)
+      const updateData = {
+        is_parsed: false,
+        is_calibrated: false,
+        parse_status: 'pending',
+        parsed_at: null,
+        error_message: null
+      } as any;
 
-      // 2. 重置所有檔案狀態 (tuc_uploaded_files)
-      const { error: resetError } = await supabase
-        .from('tuc_uploaded_files')
-        .update({
-          is_parsed: false,
-          is_calibrated: false,
-          parse_status: 'pending',
-          parsed_at: null,
-          error_message: null
-        } as any)
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // 更新全部
+      if (isBatchMode) {
+        const { error: resetError } = await supabase
+          .from('tuc_uploaded_files')
+          .update(updateData)
+          .in('id', targetFileIds);
+        if (resetError) throw resetError;
+      } else {
+        const { error: resetError } = await supabase
+          .from('tuc_uploaded_files')
+          .update(updateData)
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        if (resetError) throw resetError;
+      }
 
-      if (resetError) throw resetError;
-
-      // 3. 獲取所有檔案 ID 並送入背景佇列
-      const allFileIds = cloudFiles.map(f => f.id);
-      if (allFileIds.length > 0) {
+      // 3. 送入佇列
+      if (targetFileIds.length > 0) {
         const res = await fetch('/api/enqueue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            fileIds: allFileIds,
+            fileIds: targetFileIds,
             language: data.language 
           })
         });
@@ -1051,9 +1083,10 @@ function App() {
 
       alert(t('resetSuccess', data.language));
       fetchCloudFiles();
+      if (isBatchMode) setSelectedFileIds([]);
     } catch (err: any) {
-      console.error('[ResetAll] Failed:', err);
-      alert('重置失敗: ' + err.message);
+      console.error('[ResetAndEnqueue] Failed:', err);
+      alert('操作失敗: ' + err.message);
     } finally {
       setIsResetting(false);
     }
@@ -1718,7 +1751,9 @@ function App() {
                         }}
                       >
                         {isResetting ? <Loader2 size={14} className="spin" /> : <Repeat size={14} />}
-                        {t('resetAndReparseAll', data.language)}
+                        {selectedFileIds.length > 0 
+                          ? `重置並解析選取的 (${selectedFileIds.length})` 
+                          : t('resetAndReparseAll', data.language)}
                       </button>
                     </div>
                   </div>
