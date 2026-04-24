@@ -209,8 +209,8 @@ export const INITIAL_FORM_STATE: FormState = {
   deptHeadName: '',
   signOffGrid: Array(3).fill(null).map(() => Array(6).fill('')),
   searchStatus: {},
-  matchThresholdHistory: 0.6,
-  matchThresholdReg: 0.2,
+  matchThresholdHistory: 0.3,
+  matchThresholdReg: 0.1,
   needsDrawing: ''
 };
 

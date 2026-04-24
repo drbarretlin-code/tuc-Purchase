@@ -231,13 +231,14 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     1. **深度語意分析**：
        - 如果檔案是特定設備的規範，請提取所有規格、材質、性能指標。
        - 如果檔案是通用技術標準 (Standard) 或法規 (Global)，請提取關鍵的「作業準則」、「安全規範」或「驗收條件」。
-    2. **絕對強制提取**：
-       - **嚴禁回傳空的 specEntries**。
-       - 即便內容難以辨識或看起來是目錄/封面，你也要根據檔名（${file.name}）與可見文字，產出至少 5 條「文檔核心摘要」或「預期技術要求」。
+    2. **絕對強制提取與零遺漏政策**：
+       - **嚴禁過度摘要**。請將每一個獨立的法規條款、技術規格或性能指標拆解為獨立的 specEntry。
+       - 對於長篇文件，請務必產出與原文長度成比例的條目數量（目標 20-50 條），確保技術細節不被遺漏。
+       - 即便內容難以辨識，也要根據檔名（${file.name}）與可見文字，產出文檔核心摘要。
     3. **知識層級判定**：
        - Specific: 具體設備或工程。
        - Standard: 施工法、材料標準、KCG 編號標準。
-       - Global: 法令、環保規章。
+       - Global: 法規、環保規章。
     
     回傳格式：必須是純粹的 JSON。
     {
@@ -250,7 +251,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     }
     
     待分析內容：
-    ${text ? text.substring(0, 15000) : '請深度掃描附件檔案並提取所有技術條款。'}
+    ${text ? text.substring(0, 60000) : '請深度掃描附件檔案並提取所有技術條款。'}
   `;
 
   try {
@@ -261,7 +262,13 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
     }
 
     const result = await model.generateContent({
-      contents
+      contents,
+      generationConfig: {
+        maxOutputTokens: 8192,
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 40
+      }
     }).catch(err => {
       const msg = err.message || '';
       // V18.1: 精確識別 429 配額錯誤
@@ -498,8 +505,8 @@ export const getHistorySuggestions = async (
   category: string, 
   eqKeywords: string[] = [], 
   reqKeywords: string[] = [],
-  thresholdHistory: number = 0.6,
-  thresholdReg: number = 0.2
+  thresholdHistory: number = 0.3,
+  thresholdReg: number = 0.1
 ): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
   const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   if (!apiKey) return { hints: [], status: 'no_key' };
