@@ -68,26 +68,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Database update failed', details: dbError });
     }
 
-    // 2. 推送任務至 QStash
+    // 2. 推送任務至 QStash (改用 Batch/Chunk 加速避免 Vercel Timeout)
     const results: any[] = [];
     if (qstashClient) {
-      for (let i = 0; i < fileIds.length; i++) {
-        const id = fileIds[i];
-        
-        // 為了相容 Gemini Free Tier (15 RPM)，如果是批次上傳，強制加上時間間隔 (每個延遲 20 秒)
-        const delaySeconds = i * 20;
-        const publishOptions: any = {
-          url: workerUrl,
-          body: { fileId: id, language: language },
-          retries: 3,
-        };
-        
-        if (delaySeconds > 0) {
-          publishOptions.delay = `${delaySeconds}s`;
-        }
+      const CHUNK_SIZE = 20;
+      for (let i = 0; i < fileIds.length; i += CHUNK_SIZE) {
+        const chunkIds = fileIds.slice(i, i + CHUNK_SIZE);
+        const chunkPromises = chunkIds.map((id: string, idx: number) => {
+          const globalIndex = i + idx;
+          // 為了相容 Gemini Free Tier，加上時間間隔 (每個延遲 20 秒)
+          const delaySeconds = globalIndex * 20;
+          const publishOptions: any = {
+            url: workerUrl,
+            body: { fileId: id, language: language },
+            retries: 3,
+          };
+          if (delaySeconds > 0) {
+            publishOptions.delay = `${delaySeconds}s`;
+          }
+          return qstashClient!.publishJSON(publishOptions);
+        });
 
-        const response = await qstashClient.publishJSON(publishOptions);
-        results.push(response);
+        const chunkResponses = await Promise.all(chunkPromises);
+        results.push(...chunkResponses);
       }
     } else {
       console.warn('[Enqueue] QStash Client uninitialized. Did you forget to set QSTASH_TOKEN?');
@@ -102,6 +105,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     console.error('[Enqueue API Error]:', error);
-    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    return res.status(500).json({ 
+      error: error.message || 'Internal Server Error', 
+      details: error.stack 
+    });
   }
 }

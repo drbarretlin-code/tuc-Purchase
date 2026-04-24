@@ -767,7 +767,7 @@ function App() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+        throw new Error(errorData.details || errorData.error || 'Enqueue API failed');
       }
 
       alert(`已成功將 ${ids.length} 筆檔案送入後端完全託管佇列！您可以隨意關閉瀏覽器，系統會自動在背景分塊解析，並處理 API 額度等待。`);
@@ -876,7 +876,7 @@ function App() {
         });
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+          throw new Error(errorData.details || errorData.error || 'Enqueue API failed');
         }
       }
 
