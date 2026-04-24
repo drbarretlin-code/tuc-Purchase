@@ -116,6 +116,7 @@ function App() {
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   // V18.6: 雲端查閱器垂直調整器狀態 (V19.2: 預設調降高度以增加下方列表能見度)
   const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(280);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
@@ -1003,6 +1004,61 @@ function App() {
     handleForceReparseFiles(ids);
   };
 
+  const handleResetAndEnqueueAll = async () => {
+    if (!supabase) return;
+    if (!confirm(t('confirmResetAndReparse', data.language))) return;
+
+    setIsResetting(true);
+    try {
+      // 1. 清空所有知識條目 (tuc_history_knowledge)
+      const { error: clearError } = await supabase
+        .from('tuc_history_knowledge')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // 刪除全部
+
+      if (clearError) throw clearError;
+
+      // 2. 重置所有檔案狀態 (tuc_uploaded_files)
+      const { error: resetError } = await supabase
+        .from('tuc_uploaded_files')
+        .update({
+          is_parsed: false,
+          is_calibrated: false,
+          parse_status: 'pending',
+          parsed_at: null,
+          error_message: null
+        } as any)
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // 更新全部
+
+      if (resetError) throw resetError;
+
+      // 3. 獲取所有檔案 ID 並送入背景佇列
+      const allFileIds = cloudFiles.map(f => f.id);
+      if (allFileIds.length > 0) {
+        const res = await fetch('/api/enqueue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            fileIds: allFileIds,
+            language: data.language 
+          })
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+        }
+      }
+
+      alert(t('resetSuccess', data.language));
+      fetchCloudFiles();
+    } catch (err: any) {
+      console.error('[ResetAll] Failed:', err);
+      alert('重置失敗: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
@@ -1639,6 +1695,32 @@ function App() {
                         <div>若長時間停滯，可能是雲端佇列逾時休眠。<br />請圈選檔案並點擊上方「全部重新解析」改由本地強制處理。</div>
                       </div>
                     )}
+
+                    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={handleResetAndEnqueueAll}
+                        disabled={isResetting || isReparsing}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: 'rgba(230,0,18,0.1)',
+                          border: '1px solid rgba(230,0,18,0.3)',
+                          borderRadius: '6px',
+                          color: 'var(--tuc-red)',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {isResetting ? <Loader2 size={14} className="spin" /> : <Repeat size={14} />}
+                        {t('resetAndReparseAll', data.language)}
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
