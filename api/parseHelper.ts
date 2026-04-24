@@ -26,35 +26,45 @@ export async function processFileBackend(
       const resp = await mammoth.extractRawText({ buffer: Buffer.from(fileBuffer) });
       text = resp.value;
     } else if (fileName.toLowerCase().endsWith('.pdf')) {
-      // V20.0: 引入混合動力解析 (Hybrid Parsing)
-      // 1. 嘗試提取 PDF 文字層 (Searchable Text)
+      // V20.1: 強化混合動力解析的容錯性
       try {
-        const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        const loadingTask = getDocument({ 
+        // 嘗試提取文字層，若失敗則僅記錄警告但不中斷流程
+        console.log(`[Backend Parser] 啟動 PDF 文字層提取: ${fileName}`);
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.js');
+        
+        const loadingTask = pdfjsLib.getDocument({ 
           data: new Uint8Array(fileBuffer),
           useSystemFonts: true,
-          disableFontFace: true
+          disableFontFace: true,
+          isEvalSupported: false
         });
+        
         const pdf = await loadingTask.promise;
         let pdfText = '';
-        const maxPages = Math.min(pdf.numPages, 50); // 限制頁數防止超時
+        const maxPages = Math.min(pdf.numPages, 30); // 稍微調降頁數以確保穩定性
+        
         for (let i = 1; i <= maxPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          pdfText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+          try {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            pdfText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+          } catch (pageErr) {
+            console.warn(`[Backend Parser] PDF Page ${i} 提取失敗:`, pageErr);
+          }
         }
-        text = pdfText;
-        console.log(`[Backend Parser] PDF 文字層提取完成 (${text.length} 字元)`);
-      } catch (pdfErr) {
-        console.warn('[Backend Parser] PDF 文字層提取失敗，將僅依賴視覺解析:', pdfErr);
+        text = pdfText.trim();
+        console.log(`[Backend Parser] PDF 文字層提取完成，長度: ${text.length}`);
+      } catch (pdfErr: any) {
+        // 重要：文字提取失敗僅作為警告，不拋出錯誤，讓流程繼續走視覺路徑
+        console.warn(`[Backend Parser] PDF 文字提取完全失敗 (將使用純視覺模式): ${pdfErr.message}`);
+        text = ''; 
       }
 
-      // 2. 準備視覺數據 (Visual OCR Data)
+      // 準備視覺數據
       const MAX_INLINE_BYTES = 15 * 1024 * 1024;
       if (fileBuffer.byteLength <= MAX_INLINE_BYTES) {
         const base64Data = Buffer.from(fileBuffer).toString('base64');
         inlineData = { data: base64Data, mimeType: 'application/pdf' };
-        console.log(`[Backend Parser] PDF 視覺渲染數據已就緒: ${fileName}`);
       }
     } else {
       // Fallback binary extraction for .doc and others
