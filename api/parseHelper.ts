@@ -26,16 +26,36 @@ export async function processFileBackend(
       const resp = await mammoth.extractRawText({ buffer: Buffer.from(fileBuffer) });
       text = resp.value;
     } else if (fileName.toLowerCase().endsWith('.pdf')) {
-      // V19: 棄用 File Manager 輪詢機制以閃避 Vercel Serverless 10s 死亡倒數
-      // 改採 Inline Base64 暴力直穿投遞 (僅受限於 20MB Payload)
-      const MAX_INLINE_BYTES = 15 * 1024 * 1024; // 15MB
-      if (fileBuffer.byteLength > MAX_INLINE_BYTES) {
-        console.warn(`[Backend Parser] 檔案大小超過 15MB 建議上限，可能導致 PayloadTooLarge。 FileName: ${fileName}`);
+      // V20.0: 引入混合動力解析 (Hybrid Parsing)
+      // 1. 嘗試提取 PDF 文字層 (Searchable Text)
+      try {
+        const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const loadingTask = getDocument({ 
+          data: new Uint8Array(fileBuffer),
+          useSystemFonts: true,
+          disableFontFace: true
+        });
+        const pdf = await loadingTask.promise;
+        let pdfText = '';
+        const maxPages = Math.min(pdf.numPages, 50); // 限制頁數防止超時
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          pdfText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+        }
+        text = pdfText;
+        console.log(`[Backend Parser] PDF 文字層提取完成 (${text.length} 字元)`);
+      } catch (pdfErr) {
+        console.warn('[Backend Parser] PDF 文字層提取失敗，將僅依賴視覺解析:', pdfErr);
       }
-      
-      const base64Data = Buffer.from(fileBuffer).toString('base64');
-      inlineData = { data: base64Data, mimeType: 'application/pdf' };
-      console.log(`[Backend Parser] PDF 原生視覺渲染啟動 (Bypass File API): ${fileName}`);
+
+      // 2. 準備視覺數據 (Visual OCR Data)
+      const MAX_INLINE_BYTES = 15 * 1024 * 1024;
+      if (fileBuffer.byteLength <= MAX_INLINE_BYTES) {
+        const base64Data = Buffer.from(fileBuffer).toString('base64');
+        inlineData = { data: base64Data, mimeType: 'application/pdf' };
+        console.log(`[Backend Parser] PDF 視覺渲染數據已就緒: ${fileName}`);
+      }
     } else {
       // Fallback binary extraction for .doc and others
       text = extractStringsFromBinary(fileBuffer);
@@ -44,7 +64,14 @@ export async function processFileBackend(
     if (!text && !inlineData) throw new Error('無法擷取檔案內容');
 
     const prompt = `
-      你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範或技術標準檔案。
+      你是一個具備「視覺 OCR 專家級能力」與「採購技術專家」雙重身份的 AI。
+      你目前正在解構一份專業的採購規範或技術標準檔案。
+      
+      **你的解析策略 (Hybrid Strategy)**：
+      1. **視覺比對**：請深度掃描附件 PDF 的每一頁。辨識所有表格、圖形、標註以及文字排列。
+      2. **文字對照**：我會提供從檔案中提取出的原始文字內容（若有），請結合視覺佈局，確保即使是表格中的細小參數也能精準對應。
+      3. **OCR 模式啟動**：若檔案是掃描圖檔，請發動最強的視覺辨識能力，將所有模糊或手寫內容轉譯。
+
       你的任務是：**榨乾這份檔案的所有技術價值，絕不遺漏任何技術參數、法規編號、施工要求或驗收標準**。
       
       請依據以下分類邏輯進行深度索引：
@@ -68,8 +95,8 @@ export async function processFileBackend(
         "fullJsonData": { "summary": "文檔整體核心摘要", "keywords": ["關鍵字1", "關鍵字2"] }
       }
       
-      待分析內容：
-      ${text ? text.substring(0, 150000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
+      待分析內容 (文字層)：
+      ${text ? text.substring(0, 150000) : '純視覺掃描模式（無可提取文字層）。'}
     `;
 
     const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
