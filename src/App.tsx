@@ -971,6 +971,12 @@ function App() {
             alert('偵測到 Gemini API 配額已耗盡 (每日或每分鐘限額)。為了保護您的帳號，系統已自動暫停後續解析作業。\n請至少等待 1 分鐘後再試，或更換 API Key。');
             break;
           }
+
+          // V20: API Key 過期/無效 — 立即中斷批次
+          if (diag.code === 'API_KEY_EXPIRED' || diag.code === 'API_KEY_INVALID') {
+            alert('Gemini API Key 已過期或無效。系統已自動暫停所有解析作業。\n請點擊右上角齒輪圖示，進入設定頁面更新 API Key。');
+            break;
+          }
         }
 
         if (i < targets.length - 1) {

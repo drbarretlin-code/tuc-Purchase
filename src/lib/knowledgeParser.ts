@@ -11,7 +11,7 @@ import { t } from './i18n';
 let cachedModelId: string | null = null;
 
 export interface DiagnosticResult {
-  code: 'QUOTA_EXCEEDED' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
+  code: 'QUOTA_EXCEEDED' | 'API_KEY_EXPIRED' | 'API_KEY_INVALID' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
   message: string;
   rawError?: string;
   timestamp: string;
@@ -56,6 +56,34 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
     } catch (err: any) {
       const errMsg = err.message || '';
       const status = err.status || (err.response ? err.response.status : null);
+
+      // V20: API Key 過期或無效 — 立即中斷並拋出結構化診斷錯誤
+      if (
+        errMsg.includes('API key expired') ||
+        errMsg.includes('API_KEY_INVALID') ||
+        errMsg.includes('API key not valid')
+      ) {
+        console.error(`[AI Discovery] API Key 已過期或無效，中斷所有試驗。`);
+        throw new DiagnosticError({
+          code: 'API_KEY_EXPIRED',
+          message: 'Gemini API Key 已過期或無效，所有 AI 功能暫時無法使用。',
+          rawError: errMsg,
+          timestamp: new Date().toISOString(),
+          suggestion: '請點擊右上角「齒輪」圖示，進入設定頁面更新您的 Gemini API Key。您可至 Google AI Studio (aistudio.google.com) 重新產生金鑰。'
+        });
+      }
+
+      // 401 Unauthorized — 同樣視為 Key 無效
+      if (status === 401) {
+        console.error(`[AI Discovery] 收到 401 Unauthorized，API Key 無效。`);
+        throw new DiagnosticError({
+          code: 'API_KEY_INVALID',
+          message: 'Gemini API Key 驗證失敗 (401 Unauthorized)。',
+          rawError: errMsg,
+          timestamp: new Date().toISOString(),
+          suggestion: '請確認 API Key 是否正確，並至設定頁面重新輸入。'
+        });
+      }
       
       // V18.2 關鍵修正：429 代表「模型存在，只是暫時限流」
       // 應該鎖定此模型，而非跳過
@@ -87,7 +115,6 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
       }
 
       console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
-      if (status === 401 || errMsg.includes('API key not valid')) break;
     }
   }
 
@@ -271,6 +298,22 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       }
     }).catch(err => {
       const msg = err.message || '';
+
+      // V20: API Key 過期/無效攔截 (最高優先)
+      if (
+        msg.includes('API key expired') ||
+        msg.includes('API_KEY_INVALID') ||
+        msg.includes('API key not valid')
+      ) {
+        throw new DiagnosticError({
+          code: 'API_KEY_EXPIRED',
+          message: 'Gemini API Key 已過期或無效。',
+          rawError: msg,
+          timestamp: new Date().toISOString(),
+          suggestion: '請點擊右上角「齒輪」圖示，進入設定頁面更新您的 Gemini API Key。'
+        });
+      }
+
       // V18.1: 精確識別 429 配額錯誤
       if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
         throw new DiagnosticError({
