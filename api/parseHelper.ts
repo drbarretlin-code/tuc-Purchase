@@ -69,7 +69,7 @@ export async function processFileBackend(
       }
       
       待分析內容：
-      ${text ? text.substring(0, 40000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
+      ${text ? text.substring(0, 150000) : '請深度掃描附件 PDF 並提取所有隱含的技術條目與標準。'}
     `;
 
     const contents: any[] = [{ role: 'user', parts: [{ text: prompt }] }];
