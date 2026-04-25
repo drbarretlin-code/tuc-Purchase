@@ -23,13 +23,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     completed: stats?.filter(s => s.parse_status === 'completed').length || 0,
   };
 
-  // 3. 偵測潛在死鎖
+  // 3. 偵測潛在死鎖 (V25: 使用 parsed_at 作為心跳判斷)
   const TEN_MINUTES_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
   const { data: stuckFiles } = await supabase
     .from('tuc_uploaded_files')
-    .select('id, original_name, parse_status, created_at')
+    .select('id, original_name, parse_status, created_at, parsed_at')
     .ilike('parse_status', 'processing%')
-    .lt('created_at', TEN_MINUTES_AGO);
+    .or(`parsed_at.lt.${TEN_MINUTES_AGO},and(parsed_at.is.null,created_at.lt.${TEN_MINUTES_AGO})`);
 
   // 4. 取得最近一筆更新的檔案 (模擬 Heartbeat)
   const { data: lastUpdate } = await supabase
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     potential_deadlocks: stuckFiles?.map(f => ({
       name: f.original_name,
       status: f.parse_status,
-      age_minutes: Math.round((Date.now() - new Date(f.created_at).getTime()) / 60000)
+      age_minutes: Math.round((Date.now() - new Date(f.parsed_at || f.created_at).getTime()) / 60000)
     })) || [],
     last_file_event: lastUpdate?.[0] || null,
     recommendation: stuckFiles && stuckFiles.length > 0 
