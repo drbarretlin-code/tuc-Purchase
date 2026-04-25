@@ -100,7 +100,6 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [showSystemDiagnostic, setShowSystemDiagnostic] = useState(false);
   const [systemHealthData, setSystemHealthData] = useState<any>(null);
-  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
   const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
@@ -985,19 +984,6 @@ function App() {
     }
   };
 
-  const handleCheckHealth = async () => {
-    setIsCheckingHealth(true);
-    setShowHealthPanel(true);
-    try {
-      const res = await fetch('/api/health');
-      const json = await res.json();
-      setHealthStatus(json);
-    } catch (err: any) {
-      setHealthStatus({ status: '❌ 無法連線至後端', error: err.message });
-    } finally {
-      setIsCheckingHealth(false);
-    }
-  };
 
    // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 parsed > failed > processing > pending
   const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
