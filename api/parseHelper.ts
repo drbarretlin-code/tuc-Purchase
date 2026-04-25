@@ -77,35 +77,19 @@ export async function processSingleChunkBackend(
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const prompt = `
-    你是一個具備「視覺 OCR 專家級能力」與「採購技術專家」雙重身份的 AI。
-    你目前正在解構一份專業的採購規範或技術標準檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
-    
-    **【重要指示：思維鏈強制啟動】**
-    為對抗注意力衰退，你必須先在 <thinking> 標籤內逐頁/逐章拆解原始文段落的細節。
-    完成思考後，再於 <result> 標籤內輸出最終的 JSON。不准偷懶，不要過度摘要！
-
-    **你的解析策略 (Hybrid Strategy)**：
-    1. **深度掃描**：辨識所有表格參數、法規編號、施工要求或驗收標準。
-    2. **絕對強制提取與零遺漏政策**：
-       - 嚴禁過度摘要。請將每一個獨立的法規條款、技術規格拆解為獨立的 \`specEntries\`。
-       - 數量目標：盡可能提取最多細節，包含具體數值 (mm, kg, %, V 等)。
-    3. 輸出語言：優先使用「${targetLang}」。
-    
-    回傳格式：必須包含 <thinking> 與 <result> 標籤。
-    <thinking>
-    在此處寫下逐章節拆解的過程與找到的關鍵參數...
-    </thinking>
-    
-    <result>
+    你是一個具備「採購技術專家」身份的 AI。
+    你目前正在解構一份採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
+    請精確提取所有的技術指標與法規要求。嚴禁過度摘要，保留具體數值。
+    輸出語言：${targetLang}。
+    請直接輸出 JSON：
     {
       "docType": "Specific | Standard | Global",
-      "detectedEquipment": "最相關的設備或工程名稱",
+      "detectedEquipment": "設備名稱",
       "specEntries": [
-        {"category": "技術要求/安全規範/驗收標準/材料規格...", "content": "精煉後的完整技術條目"}
+        {"category": "類別", "content": "技術條目內容"}
       ],
-      "fullJsonData": { "summary": "此切片片段的核心摘要", "keywords": ["關鍵字1", "關鍵字2"] }
+      "fullJsonData": { "summary": "摘要" }
     }
-    </result>
     
     待分析內容：
     ${chunkText ? chunkText.substring(0, 150000) : '純視覺掃描模式（無可提取文字層）。'}
@@ -162,21 +146,23 @@ export async function processSingleChunkBackend(
     throw new Error('AI 回傳內容為空，可能是安全性過濾或配額耗盡。');
   }
 
-  const resultMatch = responseText.match(/<result>([\s\S]*?)<\/result>/);
-  let cleanJson = resultMatch ? resultMatch[1] : responseText;
-  cleanJson = cleanJson.replace(/\`\`\`json|\`\`\`/g, '').trim();
+  let cleanJson = responseText.replace(/\`\`\`json|\`\`\`/g, '').trim();
   
   let parsed: any;
   try {
     parsed = JSON.parse(cleanJson);
   } catch (err) {
-    cleanJson = cleanJson.replace(/[\x00-\x1F]/g, '').replace(/\\([^"\\/bfnrtu])/g, '\\\\$1');
+    let textContent = responseText;
+    // 嘗試從 JSON 格式中提取內容，避免標籤干擾
+    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+    const targetJson = jsonMatch ? jsonMatch[0] : textContent;
+    
     try {
-      parsed = JSON.parse(cleanJson);
-    } catch (e2) {
-      console.warn('[Backend Parser] 區塊 JSON 解析完全失敗，使用正規備援');
-      const entriesMatch = cleanJson.match(/"content":\s*"([^"]+)"/g);
-      const backupEntries = entriesMatch ? entriesMatch.map(m => ({ 
+      parsed = JSON.parse(targetJson);
+    } catch (e) {
+      // 備援方案：正則提取
+      const entries = textContent.match(/"content":\s*"[^"]*"/g);
+      const backupEntries = entries ? entries.map(m => ({ 
         category: '自動擷取', 
         content: m.replace(/"content":\s*"/, '').replace(/"$/, '') 
       })) : [];
