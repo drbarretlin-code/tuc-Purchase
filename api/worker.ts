@@ -150,10 +150,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 重要：為了防止超時，提取完後不直接進行 AI 解析，而是發送一個新的 QStash 任務來啟動 AI 階段
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId, chunkIndex: 0, language },
+        body: { fileId: fileId, chunkIndex: 0, language },
         delay: '1s'
       });
-      
       return res.status(200).json({ success: true, phase: 'extraction_completed' });
     }
     
@@ -172,9 +171,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiKey = getApiKey();
     const startTime = Date.now();
-    const VERCEL_SAFE_LIMIT = 40000; // 40 秒安全紅線
+    const VERCEL_SAFE_LIMIT = 30000; // 30 秒安全紅線
 
-    // V26: 批次處理模式。在 40 秒內盡可能處理多個區塊，大幅減少 QStash 接力次數與不穩定性。
+    // V26: 批次處理模式。在 30 秒內盡可能處理多個區塊，大幅減少 QStash 接力次數與不穩定性。
     while (currentIndex < textChunks.length) {
       if (Date.now() - startTime > VERCEL_SAFE_LIMIT) {
         console.log(`[Worker] 接近 Vercel 60s 限制，剩餘 ${textChunks.length - currentIndex} 塊，發送接力中斷...`);
