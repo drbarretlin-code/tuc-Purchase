@@ -48,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('tuc_uploaded_files')
         .select('id')
         .ilike('parse_status', 'processing%')
+        .neq('id', fileId || '') 
         .limit(1);
 
       if (activeProcessing && activeProcessing.length > 0) {
