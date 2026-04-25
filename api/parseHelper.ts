@@ -114,6 +114,7 @@ export async function processSingleChunkBackend(
   const modelsToTry = [
     'gemini-2.0-flash', 
     'gemini-1.5-flash', 
+    'gemini-1.5-flash-8b', // V26.5: 新增極高配額的備援模型
     'gemini-1.5-pro'
   ];
   let result: any;
