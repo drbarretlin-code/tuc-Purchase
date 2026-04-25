@@ -88,8 +88,6 @@ function App() {
   };
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
-  const [showHealthPanel, setShowHealthPanel] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false); // V24: 不再自動記憶登入狀態，提升安全性與可測試性
   const [inputPassword, setInputPassword] = useState('');
@@ -1422,49 +1420,6 @@ function App() {
             {/* 系統中控面板區域 (V19.3) */}
             <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'hidden' }}>
 
-              {/* 健康診斷面板 */}
-              {showHealthPanel && healthStatus && (
-                <div style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  border: `1px solid ${healthStatus.status?.includes('✅') ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
-                  borderRadius: '10px',
-                  padding: '0.75rem 1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.5rem',
-                  flexShrink: 0
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#A78BFA', fontWeight: 'bold' }}>後端系統診斷結果</span>
-                    <button onClick={() => setShowHealthPanel(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: healthStatus.status?.includes('✅') ? '#10B981' : '#EF4444', fontWeight: 'bold' }}>
-                    {healthStatus.status}
-                  </div>
-                  {healthStatus.environment_checks && (
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      {Object.entries(healthStatus.environment_checks).map(([key, val]: [string, any]) => (
-                        <div key={key} style={{
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          fontSize: '0.7rem',
-                          background: val ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                          color: val ? '#10B981' : '#EF4444',
-                          border: `1px solid ${val ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`
-                        }}>
-                          {val ? '✓' : '✗'} {key.replace(/_CONFIGURED$/, '')}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {healthStatus.error && (
-                    <div style={{ fontSize: '0.7rem', color: '#EF4444' }}>{healthStatus.error}</div>
-                  )}
-                  {healthStatus.instructions && (
-                    <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>{healthStatus.instructions}</div>
-                  )}
-                </div>
-              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
                 {/* V17.8: 資源水位預警面板 */}
