@@ -113,10 +113,10 @@ export async function processSingleChunkBackend(
       console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
       const currentModel = genAI.getGenerativeModel({ model: modelId });
       
-      // 為 AI 調用增加超時控制 (45s)，防止 Vercel 60s 總體超時
+      // 為 AI 調用增加超時控制 (12s)，確保重試鏈能在 Vercel 60s 限制內完成
       const aiPromise = currentModel.generateContent({ contents });
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('AI_TIMEOUT')), 45000)
+        setTimeout(() => reject(new Error('AI_TIMEOUT')), 12000)
       );
 
       result = await Promise.race([aiPromise, timeoutPromise]);
@@ -125,7 +125,7 @@ export async function processSingleChunkBackend(
     } catch (err: any) {
       lastError = err;
       if (err.message === 'AI_TIMEOUT') {
-        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (45s)，嘗試下一個型號...`);
+        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (12s)，嘗試下一個型號...`);
         continue;
       }
       if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('not available')) {

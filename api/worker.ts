@@ -42,6 +42,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .in('id', stuckIds);
       }
 
+      // V26: 嚴格並發控制。確保同一時間只有一個檔案在解析。
+      // 如果還有檔案在 processing 且不是剛才清理掉的死鎖任務，則不啟動新任務。
+      const { data: activeProcessing } = await supabase
+        .from('tuc_uploaded_files')
+        .select('id')
+        .ilike('parse_status', 'processing%')
+        .limit(1);
+
+      if (activeProcessing && activeProcessing.length > 0) {
+        console.log('[Worker] 偵測到已有檔案正在解析中，為確保穩定性，本實例安靜退場。');
+        return res.status(200).json({ skipped: true, reason: 'Global concurrency lock' });
+      }
+
       const { data: files } = await supabase
         .from('tuc_uploaded_files')
         .select('id, parse_status')
