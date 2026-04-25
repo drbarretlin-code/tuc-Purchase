@@ -72,8 +72,9 @@ export async function processFileBackend(
       text = extractStringsFromBinary(fileBuffer);
     }
 
-    // 文本分塊策略 (Chunking)
-    const MAX_CHUNK_LENGTH = 15000;
+    // 文本分塊策略 (Chunking) 修正版：放大閥值並搭配防爆衝延遲
+    // 35000 字元約等同 15~20 頁的密集文字，足以放入 Gemini 的注意力邊界內，也能杜絕 95% 檔案產生不必要的多次 API 呼叫。
+    const MAX_CHUNK_LENGTH = 35000;
     const textChunks: string[] = [];
     
     // 注意：若帶有 inlineData (如 15MB PDF Base64)，為避免配額爆炸與傳輸過載，不進行分塊，改以強思維鏈深度提取。
@@ -135,6 +136,12 @@ export async function processFileBackend(
       if (inlineData && i === 0) {
         // inlineData 僅在第一個 Chunk (或唯一 Chunk) 時附帶，避免重複傳輸巨大圖檔
         contents[0].parts.push({ inlineData: inlineData });
+      }
+
+      // 防爆衝策略：對於第二塊以上的切片，強制暫停 6 秒，避免瞬間觸發 Gemini 免費版的 15 RPM 上限
+      if (isMultiChunk && i > 0) {
+        console.log(`[Backend Parser] 區塊遞迴防護：等待 6 秒再請求下一個切片...`);
+        await new Promise(resolve => setTimeout(resolve, 6000));
       }
 
       console.log(`[Backend Parser] 正在請求 Gemini 模型解析區塊 ${i + 1}/${textChunks.length}...`);
