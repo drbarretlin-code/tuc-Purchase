@@ -1857,9 +1857,48 @@ function App() {
                               <ShieldAlert size={10} /> {t('statusFailed', data.language)}
                             </span>
                             {f.error_message && (
-                              <div style={{ fontSize: '0.65rem', color: '#666', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.error_message}>
-                                {f.error_message}
-                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  let analysis = '未知的發生原因。';
+                                  let action = '請重試或聯繫系統管理員。';
+                                  const msg = f.error_message || '';
+                                  if (msg.includes('QstashDailyRatelimitError') || msg.includes('Exceeded daily rate limit')) {
+                                    analysis = '背景佇列服務 (QStash) 已達每日免費額度上限 (1000筆)。';
+                                    action = '這是第三方服務計費限制，並非系統故障。配額固定於每日早上 08:00 (台灣時間) 自動刷新，屆時請重新送出解析即可。若持續發生，請考慮將 QStash 綁定信用卡解鎖額度。';
+                                  } else if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.includes('Resource has been exhausted')) {
+                                    analysis = '底層 AI 模型 (Gemini) 的請求配額暫時耗盡。';
+                                    action = '由於您的文件過於龐大或同時送出過多請求，導致 Google AI 啟動防護機制。本系統已採用背景自動重試架構，通常過幾分鐘後佇列會重試成功。若超過一小時仍失敗，建議手動點擊「強制補解析」。';
+                                  } else if (msg.includes('無法擷取檔案內容') || msg.includes('純視覺掃描模式')) {
+                                    analysis = '系統無法讀取該檔案的文字塗層，且啟動視覺備援掃描失敗。';
+                                    action = '這通常是因為上傳的檔案已損毀、有密碼保護，或是包含極度模糊的圖片。建議您將該檔案另存為標準 PDF 再重新上傳。';
+                                  } else if (msg.includes('AI 回傳內容為空') || msg.includes('安全性過濾')) {
+                                    analysis = 'AI 引擎拒絕回答或無法解讀檔案內的資訊。';
+                                    action = '可能是 Google Gemini 因為安全過濾而阻隔了回應，也可能是文檔內容極細碎無法構成有意義知識。建議採用人工提取建檔。';
+                                  } else {
+                                    analysis = '未能精確歸類的解析中斷錯誤。';
+                                    action = '原始錯誤訊息如下，若持續出現此錯誤，請回報支援團隊：\n' + msg;
+                                  }
+                                  
+                                  alert(`【文件解析失敗診斷報告】\n\n📄 檔案名稱：${f.original_name}\n\n🔍 失敗原因分析：\n${analysis}\n\n💡 建議對策：\n${action}`);
+                                }}
+                                style={{ 
+                                  fontSize: '0.65rem', 
+                                  color: '#EF4444', 
+                                  background: 'transparent',
+                                  border: '1px solid #EF4444',
+                                  borderRadius: '4px',
+                                  padding: '2px 6px',
+                                  cursor: 'pointer',
+                                  width: 'fit-content',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  marginTop: '2px'
+                                }}
+                              >
+                                <Info size={10} /> 診斷原因
+                              </button>
                             )}
                           </div>
                         ) : (
