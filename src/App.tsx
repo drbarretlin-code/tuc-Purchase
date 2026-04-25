@@ -1946,7 +1946,7 @@ function App() {
                         </div>
                       </td>
                       <td style={{ padding: '12px' }}>
-                        {(f.is_parsed || (f as any).knowledgeCount > 0) ? (
+                        {((f as any).parse_status === 'completed' || (!(f as any).parse_status && ((f as any).knowledgeCount > 0 || f.is_parsed))) ? (
                           <span style={{
                             padding: '2px 8px',
                             background: 'rgba(16,185,129,0.1)',
