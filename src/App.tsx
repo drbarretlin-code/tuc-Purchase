@@ -191,7 +191,7 @@ function App() {
   useEffect(() => {
     if (!showCloudInspector) return;
     const hasActiveJobs = cloudFiles.some(f =>
-      (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing'
+      (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' || ((f as any).parse_status && (f as any).parse_status.startsWith('processing:'))
     );
     if (!hasActiveJobs) return;
 
@@ -903,7 +903,7 @@ function App() {
     if (!supabase) return;
     
     // 找出正在進行中的檔案
-    const targets = cloudFiles.filter(f => (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing');
+    const targets = cloudFiles.filter(f => (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' || ((f as any).parse_status && (f as any).parse_status.startsWith('processing:')));
     if (targets.length === 0) {
       alert('目前沒有正在排隊中或進行中的解析任務。');
       return;
@@ -960,7 +960,7 @@ function App() {
     
     // 其次檢查狀態
     if (f.parse_status === 'failed') return 'failed';
-    if (f.parse_status === 'processing') return 'processing';
+    if (f.parse_status === 'processing' || (f.parse_status && f.parse_status.startsWith('processing:'))) return 'processing';
     if (f.parse_status === 'pending') return 'pending';
     
     // 若標記為已解析但條目為 0，視為待處理(幽靈狀態)
@@ -1881,20 +1881,33 @@ function App() {
                           }}>
                             <Zap size={10} /> {t('parsedCount', data.language)} {((f as any).knowledgeCount > 0 || f.is_parsed) ? `(${(f as any).knowledgeCount || 0} ${t('itemsSuffix', data.language)})` : ''}
                           </span>
-                        ) : (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' ? (
-                          <span style={{
-                            padding: '2px 8px',
-                            background: 'rgba(96,165,250,0.1)',
-                            color: '#60A5FA',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            border: '1px solid rgba(96,165,250,0.2)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? t('statusPending', data.language) : t('statusProcessing', data.language)}
-                          </span>
+                        ) : (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing' || ((f as any).parse_status && (f as any).parse_status.startsWith('processing:')) ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              background: 'rgba(96,165,250,0.1)',
+                              color: '#60A5FA',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              border: '1px solid rgba(96,165,250,0.2)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              width: 'fit-content'
+                            }}>
+                              <Loader2 size={10} className="spin" /> {(f as any).parse_status === 'pending' ? t('statusPending', data.language) : t('statusProcessing', data.language)}
+                              {((f as any).parse_status && (f as any).parse_status.startsWith('processing:')) && ` (${(f as any).parse_status.split(':')[1]})`}
+                            </span>
+                            {((f as any).parse_status && (f as any).parse_status.startsWith('processing:')) && (() => {
+                              const [cur, total] = (f as any).parse_status.split(':')[1].split('/').map(Number);
+                              const pct = total ? Math.round((cur / total) * 100) : 0;
+                              return (
+                                <div style={{ width: '100px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: '#60A5FA', transition: 'width 0.3s' }} />
+                                </div>
+                              );
+                            })()}
+                          </div>
                         ) : (f as any).parse_status === 'failed' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <span style={{

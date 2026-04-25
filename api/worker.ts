@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (fetchErr || !record) throw new Error('File not found');
 
     // **中斷驗證防護**
-    if (record.parse_status !== 'processing') {
+    if (!record.parse_status || !record.parse_status.startsWith('processing')) {
       console.log(`[Worker] 檔案 ${record.original_name} 狀態被變更為 ${record.parse_status}，中止接力。`);
       // 中斷後，負責叫喚下一筆檔案
       await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
@@ -136,7 +136,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 批次完成，評估檔案進度
     if (currentIndex < textChunks.length) {
-      // 檔案還沒做完，召喚下一批次 QStash，喘息 5 秒鐘
+      // 檔案還沒做完，寫入進度字串至資料庫
+      const progressStatus = `processing:${currentIndex}/${textChunks.length}`;
+      await supabase.from('tuc_uploaded_files').update({
+        parse_status: progressStatus
+      } as any).eq('id', fileId);
+
+      // 召喚下一批次 QStash，喘息 5 秒鐘
       await publishWithRotation({
         url: workerUrl,
         body: { fileId, chunkIndex: currentIndex, language },
