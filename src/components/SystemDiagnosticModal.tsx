@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Activity, Server, Database, AlertTriangle, CheckCircle, RefreshCcw } from 'lucide-react';
+import { X, Activity, Server, Database, AlertTriangle, CheckCircle, RefreshCcw, Repeat } from 'lucide-react';
 
 interface SystemDiagnosticProps {
   isOpen: boolean;
@@ -11,7 +11,9 @@ interface SystemDiagnosticProps {
   isFixing: boolean;
 }
 
-const SystemDiagnosticModal: React.FC<SystemDiagnosticProps> = ({ isOpen, onClose, data, onRefresh }) => {
+const SystemDiagnosticModal: React.FC<SystemDiagnosticProps> = ({ 
+  isOpen, onClose, data, onRefresh, onFix, isRefreshing, isFixing 
+}) => {
   if (!isOpen || !data) return null;
 
   return (
