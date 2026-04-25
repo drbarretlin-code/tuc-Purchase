@@ -23,11 +23,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'process_next') {
       // V24: 優先檢查死鎖。即使佇列不為空，也要清理卡住的任務，避免系統阻塞。
       const TEN_MINUTES_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      // V25: 修正死鎖偵測邏輯。優先檢查 parsed_at (心跳時間)，若無則用 created_at。
+      // 避免舊檔案 (created_at 很久以前) 一進入處理狀態就被誤判為死鎖。
       const { data: stuckFiles } = await supabase
         .from('tuc_uploaded_files')
-        .select('id, original_name, created_at, parse_status')
+        .select('id, original_name, created_at, parsed_at, parse_status')
         .ilike('parse_status', 'processing%')
-        .lt('created_at', TEN_MINUTES_AGO);
+        .or(`parsed_at.lt.${TEN_MINUTES_AGO},and(parsed_at.is.null,created_at.lt.${TEN_MINUTES_AGO})`);
 
       if (stuckFiles && stuckFiles.length > 0) {
         const stuckIds = stuckFiles.map((f: any) => f.id);
@@ -57,7 +59,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 鎖定該筆檔案
       const { data: updated } = await supabase
         .from('tuc_uploaded_files')
-        .update({ parse_status: 'processing' } as any)
+        .update({ 
+          parse_status: 'processing',
+          parsed_at: new Date().toISOString() // 更新心跳時間
+        } as any)
         .eq('id', nextFileId)
         .eq('parse_status', 'pending')
         .select()
@@ -146,7 +151,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (currentIndex === 0) {
       await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', record.original_name);
       await supabase.from('tuc_uploaded_files').update({
-        parse_status: `processing:0/${textChunks.length}`
+        parse_status: `processing:0/${textChunks.length}`,
+        parsed_at: new Date().toISOString() // 更新心跳
       } as any).eq('id', fileId);
     }
 
@@ -188,9 +194,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       currentIndex++;
       processedInThisBatch++;
 
-      // 即時回報進度
+      // 即時回報進度並更新心跳
       await supabase.from('tuc_uploaded_files').update({
-        parse_status: `processing:${currentIndex}/${textChunks.length}`
+        parse_status: `processing:${currentIndex}/${textChunks.length}`,
+        parsed_at: new Date().toISOString()
       } as any).eq('id', fileId);
     }
 
