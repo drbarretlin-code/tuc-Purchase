@@ -90,7 +90,7 @@ function App() {
   const [showHealthPanel, setShowHealthPanel] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
-  const [isCloudAuthed, setIsCloudAuthed] = useState(false);
+  const [isCloudAuthed, setIsCloudAuthed] = useState(() => localStorage.getItem('tuc_cloud_authed') === 'true');
   const [inputPassword, setInputPassword] = useState('');
   const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('tuc_admin_password') || '000000');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
@@ -441,6 +441,7 @@ function App() {
   const handleVerifyPassword = () => {
     if (inputPassword === adminPassword) {
       setIsCloudAuthed(true);
+      localStorage.setItem('tuc_cloud_authed', 'true');
       setShowPasswordPrompt(false);
       setInputPassword('');
       fetchCloudFiles(); // V20: 移除重複的 fetchUsageStats() 呼叫
