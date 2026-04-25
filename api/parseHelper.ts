@@ -117,10 +117,9 @@ export async function processSingleChunkBackend(
   }
 
   const modelsToTry = [
-    'gemini-2.5-flash', 
-    'gemini-2.5-pro', 
-    'gemini-2.0-flash-001', 
-    'gemini-flash-latest'
+    'gemini-2.0-flash', 
+    'gemini-1.5-flash', 
+    'gemini-1.5-pro'
   ];
   let result: any;
   let lastError: any;
@@ -129,22 +128,33 @@ export async function processSingleChunkBackend(
     try {
       console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
       const currentModel = genAI.getGenerativeModel({ model: modelId });
-      result = await currentModel.generateContent({ contents });
+      
+      // 為 AI 調用增加超時控制 (45s)，防止 Vercel 60s 總體超時
+      const aiPromise = currentModel.generateContent({ contents });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('AI_TIMEOUT')), 45000)
+      );
+
+      result = await Promise.race([aiPromise, timeoutPromise]);
       console.log(`[Backend Parser] 成功使用 ${modelId} 完成解析。`);
       break; 
     } catch (err: any) {
       lastError = err;
+      if (err.message === 'AI_TIMEOUT') {
+        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (45s)，嘗試下一個型號...`);
+        continue;
+      }
       if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('not available')) {
         console.warn(`[Backend Parser] 型號 ${modelId} 失敗 (404)，嘗試下一個備援型號...`);
         continue;
       }
-      // 如果是 429 或其他非 404 錯誤，直接拋出，不執行降級（交由 QStash 重試）
+      // 如果是 429 或其他嚴重錯誤，直接拋出
       throw err;
     }
   }
 
   if (!result) {
-    throw lastError || new Error('所有備援模型皆不可用。');
+    throw lastError || new Error('所有備援模型皆不可用或回應超時。');
   }
   
   const responseText = result.response.text();

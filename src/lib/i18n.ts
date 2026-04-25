@@ -319,7 +319,14 @@ export const translations: Record<string, any> = {
     'statusFailed': '解析失敗',
     'aiTranslatingContent': 'AI 深度轉譯中...',
     'aiTranslatingHint': '正在將雲端紀錄內容轉譯為您的介面語系，請稍候',
-    'viewDiagnostic': '查看診斷報告'
+    'viewDiagnostic': '查看診斷報告',
+    'changeAdminPwd': '變更管理員密碼',
+    'adminAuth': '管理員身份驗證',
+    'newPwdHint': '請輸入新密碼 (至少 6 位數)',
+    'enterPwdHint': '此區域受保護，請輸入管理員密碼',
+    'newPwdPlaceholder': '新密碼...',
+    'pwdPlaceholder': '請輸入密碼...',
+    'saveNewPwd': '儲存新密碼'
   },
   'zh-CN': {
     'systemTitle': '采购验收规范建置表',
@@ -633,7 +640,14 @@ export const translations: Record<string, any> = {
     'statusFailed': '解析失敗',
     'aiTranslatingContent': 'AI 深度转译中...',
     'aiTranslatingHint': '正在將雲端紀錄内容转译为您的界面语系，请稍候',
-    'viewDiagnostic': '查看诊断报告'
+    'viewDiagnostic': '查看诊断报告',
+    'changeAdminPwd': '变更管理员密码',
+    'adminAuth': '管理员身份验证',
+    'newPwdHint': '请输入新密码 (至少 6 位数)',
+    'enterPwdHint': '此区域受保护，请输入管理员密码',
+    'newPwdPlaceholder': '新密码...',
+    'pwdPlaceholder': '请输入密码...',
+    'saveNewPwd': '储存新密码'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -1270,7 +1284,14 @@ export const translations: Record<string, any> = {
     'statusProcessing': 'เซิร์ฟเวอร์กำลังวิเคราะห์',
     'statusFailed': 'วิเคราะห์ล้มเหลว',
     'aiTranslatingContent': 'AI กำลังแปลเชิงลึก...',
-    'aiTranslatingHint': 'กำลังแปลเนื้อหาจากคลาวด์เป็นภาษาที่คุณเลือก โปรดรอสักครู่'
+    'aiTranslatingHint': 'กำลังแปลเนื้อหาจากคลาวด์เป็นภาษาที่คุณเลือก โปรดรอสักครู่',
+    'changeAdminPwd': 'เปลี่ยนรหัสผ่านผู้ดูแลระบบ',
+    'adminAuth': 'การยืนยันตัวตนผู้ดูแลระบบ',
+    'newPwdHint': 'ป้อนรหัสผ่านใหม่ (อย่างน้อย 6 หลัก)',
+    'enterPwdHint': 'พื้นที่นี้ได้รับการคุ้มครอง โปรดป้อนรหัสผ่านผู้ดูแลระบบ',
+    'newPwdPlaceholder': 'รหัสผ่านใหม่...',
+    'pwdPlaceholder': 'ป้อนรหัสผ่าน...',
+    'saveNewPwd': 'บันทึกรหัสผ่านใหม่'
   }
 };
 

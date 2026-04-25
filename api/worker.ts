@@ -21,6 +21,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 模式一：尋找下一筆檔案
     if (action === 'process_next') {
+      // V24: 優先檢查死鎖。即使佇列不為空，也要清理卡住的任務，避免系統阻塞。
+      const TEN_MINUTES_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: stuckFiles } = await supabase
+        .from('tuc_uploaded_files')
+        .select('id, original_name, created_at, parse_status')
+        .ilike('parse_status', 'processing%')
+        .lt('created_at', TEN_MINUTES_AGO);
+
+      if (stuckFiles && stuckFiles.length > 0) {
+        const stuckIds = stuckFiles.map((f: any) => f.id);
+        console.warn(`[Worker] 偵測到 ${stuckIds.length} 筆檔案死鎖，自動解鎖為 failed`);
+        await supabase.from('tuc_uploaded_files')
+          .update({ 
+            parse_status: 'failed', 
+            error_message: '系統偵測到處理逾時（Deadlock），已自動重置。請手動點擊「重新解析」。' 
+          } as any)
+          .in('id', stuckIds);
+      }
+
       const { data: files } = await supabase
         .from('tuc_uploaded_files')
         .select('id, parse_status')
@@ -29,26 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .limit(1);
 
       if (!files || files.length === 0) {
-        // 佇隊清空前，先自動重置可能的死鎖檔案 (processing 超過 10 分鐘)
-        const TEN_MINUTES_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-        const { data: stuckFiles } = await supabase
-          .from('tuc_uploaded_files')
-          .select('id, original_name, updated_at')
-          .in('parse_status', ['processing'])
-          .lt('updated_at', TEN_MINUTES_AGO);
-
-        if (stuckFiles && stuckFiles.length > 0) {
-          const stuckIds = stuckFiles.map((f: any) => f.id);
-          console.warn(`[Worker] 偵測到 ${stuckIds.length} 筆檔案死鎖超過 10 分鐘，自動解鎖為 failed`);
-          await supabase.from('tuc_uploaded_files')
-            .update({ parse_status: 'failed', error_message: '系統偵測到處理逾時，Worker 可能因 API 餃出、Vercel 超時或玲境中斷而未完成，已自動重置。' } as any)
-            .in('id', stuckIds);
-
-          // 解鎖後重新起動一次 process_next
-          await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '2s' });
-          return res.status(200).json({ success: true, message: 'Deadlock resolved', unlockedCount: stuckIds.length });
-        }
-
         console.log('[Worker] 佇隊清空，接力完成');
         return res.status(200).json({ success: true, message: 'Queue empty' });
       }
@@ -98,10 +97,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let textChunks: string[] = [];
     let inlineData: any = null;
 
-    // V22 優化：省流量「文字快取」機制
-    // 如果資料庫已有提取過的純文字，且不是第一個切片（不需要再取 PDF 視覺數據），則直接從快取還原
-    if (record.extracted_text && chunkIndex > 0) {
-      console.log(`[Worker] 使用快取文字進行接力解析，跳過檔案下載 (節省流量)`);
+    // V23 優化：解耦「提取」與「解析」以防止 Vercel 60s 超時
+    if (record.extracted_text) {
+      console.log(`[Worker] 使用快取文字進行接力解析: ${record.original_name}`);
       const cachedText = record.extracted_text;
       const MAX_CHUNK_LENGTH = 3000;
       if (cachedText.length > MAX_CHUNK_LENGTH) {
@@ -112,25 +110,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         textChunks.push(cachedText);
       }
     } else {
-      // 否則，執行標準下載與提取
-      console.log(`[Worker] 執行標準下載與文字提取: ${record.original_name}`);
+      // 執行重型下載與提取 (第一階段)
+      console.log(`[Worker] 執行第一階段：下載與文字提取: ${record.original_name}`);
       const { data: fileBlob } = await supabase.storage.from('spec-files').download(record.storage_path);
       if (!fileBlob) throw new Error('Download failed');
       const arrayBuffer = await fileBlob.arrayBuffer();
 
       const result = await getFileChunks(arrayBuffer, record.original_name);
-      textChunks = result.textChunks;
-      inlineData = result.inlineData;
+      const fullText = result.textChunks.join('');
 
-      // 如果是第一次處理且成功提取文字，將文字快取回資料庫，供後續接力使用
-      if (chunkIndex === 0 && textChunks.length > 0) {
-        const fullText = textChunks.join('');
-        await supabase.from('tuc_uploaded_files').update({ 
-          extracted_text: fullText,
-          file_size: arrayBuffer.byteLength 
-        } as any).eq('id', fileId);
-        console.log(`[Worker] 已將 ${fullText.length} 字元的提取內容快取至資料庫。`);
-      }
+      // 將提取內容寫入資料庫
+      await supabase.from('tuc_uploaded_files').update({ 
+        extracted_text: fullText,
+        file_size: arrayBuffer.byteLength,
+        parse_status: `processing:0/${result.textChunks.length}`
+      } as any).eq('id', fileId);
+      
+      console.log(`[Worker] 提取完成 (${fullText.length} 字)，立即結束當前 Request 並觸發下一波 AI 解析階段。`);
+      
+      // 重要：為了防止超時，提取完後不直接進行 AI 解析，而是發送一個新的 QStash 任務來啟動 AI 階段
+      await publishWithRotation({
+        url: workerUrl,
+        body: { fileId, chunkIndex: 0, language },
+        delay: '1s'
+      });
+      
+      return res.status(200).json({ success: true, phase: 'extraction_completed' });
     }
     
     let currentIndex = chunkIndex;

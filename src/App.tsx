@@ -8,6 +8,7 @@ import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import ManualModal from './components/ManualModal';
 import DiagnosticModal from './components/DiagnosticModal';
+import SystemDiagnosticModal from './components/SystemDiagnosticModal';
 import UploadWizardModal from './components/UploadModal';
 import { t } from './lib/i18n';
 import type { Language } from './lib/i18n';
@@ -90,13 +91,16 @@ function App() {
   const [showHealthPanel, setShowHealthPanel] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
-  const [isCloudAuthed, setIsCloudAuthed] = useState(() => localStorage.getItem('tuc_cloud_authed') === 'true');
+  const [isCloudAuthed, setIsCloudAuthed] = useState(false); // V24: 不再自動記憶登入狀態，提升安全性與可測試性
   const [inputPassword, setInputPassword] = useState('');
   const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('tuc_admin_password') || '000000');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [isChangePasswordMode, setIsChangePasswordMode] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showSystemDiagnostic, setShowSystemDiagnostic] = useState(false);
+  const [systemHealthData, setSystemHealthData] = useState<any>(null);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [searchQuery] = useState('');
   const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
@@ -250,6 +254,20 @@ function App() {
       setTranslatedCloudFiles(newFiles);
     } catch (err) {
       console.error('[AI Translation] App metadata translation failed:', err);
+    }
+  };
+
+  const handleCheckHealth = async () => {
+    setIsCheckingHealth(true);
+    try {
+      const resp = await fetch('/api/health');
+      const data = await resp.json();
+      setSystemHealthData(data);
+      setShowSystemDiagnostic(true);
+    } catch (err) {
+      alert('無法取得系統診斷數據');
+    } finally {
+      setIsCheckingHealth(false);
     }
   };
 
@@ -450,6 +468,12 @@ function App() {
       alert('密碼錯誤，請重新輸入。');
       setInputPassword('');
     }
+  };
+
+  const handleLogout = () => {
+    setIsCloudAuthed(false);
+    localStorage.removeItem('tuc_cloud_authed');
+    setShowCloudInspector(false);
   };
 
   const handleChangePassword = () => {
@@ -1401,6 +1425,9 @@ function App() {
                 <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title={t('minimizeToBg', data.language)}>
                   <Minimize2 size={20} />
                 </button>
+                <button onClick={handleLogout} className="icon-btn" title="登出並鎖定" style={{ color: '#EF4444' }}>
+                  <Lock size={20} />
+                </button>
                 <button onClick={() => setShowCloudInspector(false)} className="icon-btn">
                   <X size={24} />
                 </button>
@@ -2161,6 +2188,13 @@ function App() {
         onClose={() => setDiagnosticTarget(null)}
         diagnostic={diagnosticTarget ? getSafeDiagnostic(diagnosticTarget.error_message) : null}
         fileName={diagnosticTarget?.original_name || ''}
+      />
+
+      <SystemDiagnosticModal
+        isOpen={showSystemDiagnostic}
+        onClose={() => setShowSystemDiagnostic(false)}
+        data={systemHealthData}
+        onRefresh={handleCheckHealth}
       />
 
       {/* V18.6: 搬遷至此的全域清理彈窗 */}
