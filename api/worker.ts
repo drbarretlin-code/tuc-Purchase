@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getFileChunks, processSingleChunkBackend } from './parseHelper.js';
-import { Client as QStashClient } from '@upstash/qstash';
+import { publishWithRotation } from './qstashRotator.js';
 
 // Initialize Supabase
 let supabase: SupabaseClient | null = null;
@@ -11,17 +11,9 @@ try {
   if (supabaseUrl && supabaseKey) supabase = createClient(supabaseUrl, supabaseKey);
 } catch (e) {}
 
-// Initialize QStash
-let qstashClient: QStashClient | null = null;
-try {
-  const token = process.env.QSTASH_TOKEN;
-  if (token) qstashClient = new QStashClient({ token });
-} catch (e) {}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-  if (!qstashClient) return res.status(500).json({ error: 'QStash not configured' });
 
   const workerUrl = `https://${req.headers.host}/api/worker`;
   const { action, fileId, chunkIndex = 0, language = 'zh-TW' } = req.body || {};
@@ -54,12 +46,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
       if (!updated) {
         // 並發衝突，讓 QStash 重試或直接再觸發一次 process_next
-        await qstashClient.publishJSON({ url: workerUrl, body: { action: 'process_next', language }, delay: '2s' });
+        await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '2s' });
         return res.status(200).json({ skipped: true, reason: 'concurrency lock mismatch' });
       }
 
       // 發送第一塊切片處理任務
-      await qstashClient.publishJSON({
+      await publishWithRotation({
         url: workerUrl,
         body: { fileId: nextFileId, chunkIndex: 0, language },
         retries: 3
@@ -77,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (record.parse_status !== 'processing') {
       console.log(`[Worker] 檔案 ${record.original_name} 狀態被變更為 ${record.parse_status}，中止接力。`);
       // 中斷後，負責叫喚下一筆檔案
-      await qstashClient.publishJSON({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
+      await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
       return res.status(200).json({ aborted: true });
     }
 
@@ -145,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 批次完成，評估檔案進度
     if (currentIndex < textChunks.length) {
       // 檔案還沒做完，召喚下一批次 QStash，喘息 5 秒鐘
-      await qstashClient.publishJSON({
+      await publishWithRotation({
         url: workerUrl,
         body: { fileId, chunkIndex: currentIndex, language },
         delay: '5s',
@@ -164,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[Worker] 檔案 ${record.original_name} 徹底結束。呼叫 process_next。`);
       
       // 喚醒處理下一筆待機檔案
-      await qstashClient.publishJSON({
+      await publishWithRotation({
         url: workerUrl,
         body: { action: 'process_next', language },
         delay: '2s'
@@ -187,8 +179,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } as any).eq('id', fileId);
       
       console.log(`[Worker] 發生嚴重複雜錯誤，放棄此檔案並邁向下一筆`);
-      if (qstashClient) {
-        await qstashClient.publishJSON({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
+      try {
+        await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
+      } catch (e) {
+        console.error('[Worker] Fatal: 無法喚醒下一筆檔案，所有金鑰可能均已失效。');
       }
     }
     return res.status(500).json({ error: err.message });

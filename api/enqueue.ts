@@ -1,19 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client } from '@upstash/qstash';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-// Initialize inside handler to avoid global crashes if env vars are missing
-let qstashClient: Client | null = null;
-try {
-  if (process.env.QSTASH_TOKEN) {
-    qstashClient = new Client({ 
-      token: process.env.QSTASH_TOKEN,
-      baseUrl: process.env.QSTASH_URL || undefined
-    });
-  }
-} catch (e) {
-  console.warn('QSTASH_TOKEN initialization failed');
-}
+import { publishWithRotation } from './qstashRotator.js';
 
 let supabase: SupabaseClient | null = null;
 try {
@@ -68,20 +55,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Database update failed', details: dbError });
     }
 
-    // 2. 推送任務至 QStash (改為 Daisy Chain 啟動訊號)
+    // 2. 推送任務至 QStash (改為 Daisy Chain 啟動訊號，搭載備援輪替引擎)
     const results: any[] = [];
-    if (qstashClient) {
-      // 僅送出一個「開始處理下一筆」的訊號，後續交由 Worker 接力
+    try {
       const publishOptions: any = {
         url: workerUrl,
         body: { action: 'process_next', language: language },
         retries: 3,
       };
-      const response = await qstashClient.publishJSON(publishOptions);
+      const response = await publishWithRotation(publishOptions);
       results.push(response);
-    } else {
-      console.warn('[Enqueue] QStash Client uninitialized. Did you forget to set QSTASH_TOKEN?');
-      return res.status(500).json({ error: 'QSTASH_TOKEN is not configured.' });
+    } catch (pushErr: any) {
+      console.warn('[Enqueue] 推播要求被拒或所有金鑰耗盡:', pushErr.message);
+      return res.status(500).json({ error: pushErr.message });
     }
 
     return res.status(200).json({ 
