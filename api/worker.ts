@@ -147,8 +147,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiKey = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_KEY || '';
 
-    // 微批次迴圈 (Vercel 限制防護機制：一次最多消化 4 塊就停)
-    while (currentIndex < textChunks.length && processedInThisBatch < 4) {
+    // 單一區塊處理模式 (V22.2: 為了極致穩定性，一次只消畫 1 塊就發送下一筆接力，避免超時回跳)
+    while (currentIndex < textChunks.length && processedInThisBatch < 1) {
       const parsedData = await processSingleChunkBackend(
         textChunks[currentIndex],
         textChunks.length > 1,
@@ -183,16 +183,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       currentIndex++;
       processedInThisBatch++;
 
-      // 即時回報單一切片進度，讓前端能即時渲染進度條
+      // 即時回報進度
       await supabase.from('tuc_uploaded_files').update({
         parse_status: `processing:${currentIndex}/${textChunks.length}`
       } as any).eq('id', fileId);
-
-      // 如果還有下一塊而且還在微批次額度內，休息 5 秒鐘保護 Gemini Rate Limit
-      if (currentIndex < textChunks.length && processedInThisBatch < 4) {
-        console.log(`[Worker] 等待 5 秒鐘準備同批次第 ${processedInThisBatch + 1} 次 API...`);
-        await new Promise(r => setTimeout(r, 5000));
-      }
     }
 
     // 批次完成，評估檔案進度
