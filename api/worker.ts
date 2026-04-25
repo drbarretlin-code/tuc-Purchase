@@ -29,7 +29,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .limit(1);
 
       if (!files || files.length === 0) {
-        console.log('[Worker] 佇列清空，接力完成');
+        // 佇隊清空前，先自動重置可能的死鎖檔案 (processing 超過 10 分鐘)
+        const TEN_MINUTES_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: stuckFiles } = await supabase
+          .from('tuc_uploaded_files')
+          .select('id, original_name, updated_at')
+          .in('parse_status', ['processing'])
+          .lt('updated_at', TEN_MINUTES_AGO);
+
+        if (stuckFiles && stuckFiles.length > 0) {
+          const stuckIds = stuckFiles.map((f: any) => f.id);
+          console.warn(`[Worker] 偵測到 ${stuckIds.length} 筆檔案死鎖超過 10 分鐘，自動解鎖為 failed`);
+          await supabase.from('tuc_uploaded_files')
+            .update({ parse_status: 'failed', error_message: '系統偵測到處理逾時，Worker 可能因 API 餃出、Vercel 超時或玲境中斷而未完成，已自動重置。' } as any)
+            .in('id', stuckIds);
+
+          // 解鎖後重新起動一次 process_next
+          await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '2s' });
+          return res.status(200).json({ success: true, message: 'Deadlock resolved', unlockedCount: stuckIds.length });
+        }
+
+        console.log('[Worker] 佇隊清空，接力完成');
         return res.status(200).json({ success: true, message: 'Queue empty' });
       }
 
@@ -181,24 +201,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err: any) {
     console.error(`[Worker Error]`, err);
-    // 容錯機制：如果 429 失敗，因為有 QStash retries: 3 的保護，不應馬上將狀態切為 failed，
-    // 以免破壞 QStash 退避重試機會。我們只在此列印錯誤，不改變 db 狀態（或可在超過次數後另行設計死信佇列邏輯）
-    if (fileId && (err.message.includes('Qstash') || err.message.includes('429'))) {
-       // 保留 processing 狀態，等待 QStash 重試
-       return res.status(500).json({ error: err.message, retryFriendly: true });
+    const errMsg = err.message || '';
+    
+    // 429 配額耆盡：QStash retries: 3 會自動重試，保持 processing 狀態不動
+    if (fileId && (errMsg.includes('Qstash') || errMsg.includes('429') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exhausted'))) {
+      console.warn('[Worker] 捕獲 429/配額耆盡，保留 processing 狀態等待 QStash retry');
+      return res.status(429).json({ error: errMsg, retryFriendly: true });
     } else if (fileId) {
+      // 其他達暴錯誤：立即標記 failed 防止死鎖
       await supabase.from('tuc_uploaded_files').update({
         parse_status: 'failed',
-        error_message: err.message || '未知斷點錯誤'
+        error_message: errMsg || '未知斷點錯誤'
       } as any).eq('id', fileId);
       
-      console.log(`[Worker] 發生嚴重複雜錯誤，放棄此檔案並邁向下一筆`);
+      console.log(`[Worker] 發生嚴重錯誤，檔案標記為 failed，印向下一筆`);
       try {
         await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
       } catch (e) {
-        console.error('[Worker] Fatal: 無法喚醒下一筆檔案，所有金鑰可能均已失效。');
+        console.error('[Worker] Fatal: 無法喚醒下一筆檔案。');
       }
     }
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: errMsg });
   }
 }

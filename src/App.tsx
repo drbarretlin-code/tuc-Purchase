@@ -87,6 +87,9 @@ function App() {
   };
   const [showCloudInspector, setShowCloudInspector] = useState(false);
   const [isReparseMinimized, setIsReparseMinimized] = useState(false);
+  const [showHealthPanel, setShowHealthPanel] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [isCloudAuthed, setIsCloudAuthed] = useState(false);
   const [inputPassword, setInputPassword] = useState('');
   const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('tuc_admin_password') || '000000');
@@ -953,6 +956,20 @@ function App() {
     }
   };
 
+  const handleCheckHealth = async () => {
+    setIsCheckingHealth(true);
+    setShowHealthPanel(true);
+    try {
+      const res = await fetch('/api/health');
+      const json = await res.json();
+      setHealthStatus(json);
+    } catch (err: any) {
+      setHealthStatus({ status: '❌ 無法連線至後端', error: err.message });
+    } finally {
+      setIsCheckingHealth(false);
+    }
+  };
+
    // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 parsed > failed > processing > pending
   const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
     // V18.7: 強化分類邏輯 - 必須同時具備解析標記且知識條目 > 0 才視為成功
@@ -1363,6 +1380,19 @@ function App() {
                   {isReparsing ? <Loader2 size={16} className="spin" /> : <ShieldAlert size={16} />}
                   <span className="header-btn-text">{t('labelFix', data.language)}</span>
                 </button>
+                <button
+                  className="ghost-button"
+                  onClick={handleCheckHealth}
+                  disabled={isCheckingHealth}
+                  style={{
+                    fontSize: '0.8rem',
+                    color: '#A78BFA',
+                    borderColor: 'rgba(167,139,250,0.3)',
+                  }}
+                >
+                  {isCheckingHealth ? <Loader2 size={16} className="spin" /> : <Info size={16} />}
+                  <span className="header-btn-text">系統診斷</span>
+                </button>
                 <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title={t('minimizeToBg', data.language)}>
                   <Minimize2 size={20} />
                 </button>
@@ -1371,8 +1401,53 @@ function App() {
                 </button>
               </div>
             </div>
-            {/* 系統中控面板區域 (V19.3: 調整高度配比，確保下方列表有充足空間) */}
+            {/* 系統中控面板區域 (V19.3) */}
             <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'hidden' }}>
+
+              {/* 健康診斷面板 */}
+              {showHealthPanel && healthStatus && (
+                <div style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${healthStatus.status?.includes('✅') ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  flexShrink: 0
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#A78BFA', fontWeight: 'bold' }}>後端系統診斷結果</span>
+                    <button onClick={() => setShowHealthPanel(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: healthStatus.status?.includes('✅') ? '#10B981' : '#EF4444', fontWeight: 'bold' }}>
+                    {healthStatus.status}
+                  </div>
+                  {healthStatus.environment_checks && (
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {Object.entries(healthStatus.environment_checks).map(([key, val]: [string, any]) => (
+                        <div key={key} style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.7rem',
+                          background: val ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: val ? '#10B981' : '#EF4444',
+                          border: `1px solid ${val ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`
+                        }}>
+                          {val ? '✓' : '✗'} {key.replace(/_CONFIGURED$/, '')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {healthStatus.error && (
+                    <div style={{ fontSize: '0.7rem', color: '#EF4444' }}>{healthStatus.error}</div>
+                  )}
+                  {healthStatus.instructions && (
+                    <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>{healthStatus.instructions}</div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
                 {/* V17.8: 資源水位預警面板 */}
                 {(() => {
