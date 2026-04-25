@@ -767,7 +767,11 @@ function App() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || 'Enqueue API failed');
+        let errMsg = errorData.details || errorData.error || 'Enqueue API failed';
+        if (typeof errMsg === 'string' && (errMsg.includes('QstashDailyRatelimitError') || errMsg.includes('Exceeded daily rate limit'))) {
+          errMsg = '已觸及背景排程服務 (QStash) 的免費版每日佇列上限 (1000筆)。\n此非系統故障，您的配額將於隔日早上 08:00 自動刷新，屆時即可正常使用。';
+        }
+        throw new Error(errMsg);
       }
 
       alert(`已成功將 ${ids.length} 筆檔案送入後端完全託管佇列！您可以隨意關閉瀏覽器，系統會自動在背景分塊解析，並處理 API 額度等待。`);
@@ -876,7 +880,11 @@ function App() {
         });
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.details || errorData.error || 'Enqueue API failed');
+          let errMsg = errorData.details || errorData.error || 'Enqueue API failed';
+          if (typeof errMsg === 'string' && (errMsg.includes('QstashDailyRatelimitError') || errMsg.includes('Exceeded daily rate limit'))) {
+            errMsg = '已觸及背景排程服務 (QStash) 的免費版每日佇列上限 (1000筆)。\n此非系統故障，您的配額將於隔日早上 08:00 自動刷新，屆時即可正常使用。';
+          }
+          throw new Error(errMsg);
         }
       }
 

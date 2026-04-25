@@ -195,12 +195,16 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
             console.error('[Enqueue API Error Details]:', errorData);
-            throw new Error(errorData.error || errorData.details || 'Enqueue API failed');
+            let errMsg = errorData.details || errorData.error || 'Enqueue API failed';
+            if (typeof errMsg === 'string' && (errMsg.includes('QstashDailyRatelimitError') || errMsg.includes('Exceeded daily rate limit'))) {
+              errMsg = '已觸及背景排程服務 (QStash) 的免費版每日佇列上限 (1000筆)。您的配額將於隔日早上 08:00 自動刷新。';
+            }
+            throw new Error(errMsg);
           }
           console.log('[Queue] 檔案已成功送入背景佇列');
-        } catch (err) {
+        } catch (err: any) {
           console.error('[Queue Error]', err);
-          alert('將檔案送入背景解析佇列時發生錯誤，請稍後至雲端歷史查閱器手動重試。');
+          alert(`將檔案送入背景解析佇列時發生錯誤：\n${err.message || '未知錯誤'}\n請稍後至雲端歷史查閱器手動重試。`);
         }
       }
 
