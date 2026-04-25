@@ -94,6 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 取得檔案實體並分塊
+    // V20: 優先使用 Supabase 內部 API 下載 (service role key)，不透過 CDN，可降低 Cached Egress
     const { data: fileBlob } = await supabase.storage.from('spec-files').download(record.storage_path);
     if (!fileBlob) throw new Error('Download failed');
     const arrayBuffer = await fileBlob.arrayBuffer();

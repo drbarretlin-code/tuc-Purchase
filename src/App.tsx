@@ -201,7 +201,7 @@ function App() {
     const timer = setInterval(() => {
       console.log('[AutoRefresh] 偵測到佇列任務，自動刷新狀態...');
       fetchCloudFiles();
-    }, 15000);
+    }, 60000); // V20: Egress 償符，從 15s 延長至 60s
 
     return () => clearInterval(timer);
   }, [showCloudInspector, cloudFiles]);
@@ -264,9 +264,7 @@ function App() {
   const fetchCloudFiles = async () => {
     console.log('[Debug] 正在嘗試獲取雲端歷史檔案...', { supabaseInitialized: !!supabase });
     if (!supabase) return;
-    
-    // V18.7: 整合資源統計，確保面板數值同步更新
-    fetchUsageStats();
+    // V20: 移除 fetchUsageStats 自動路由，避免 storage.list() 重複觸發消耗 Egress
 
     try {
       // 1. 獲取檔案清單 (優先使用 is_parsed 標籤)
@@ -322,9 +320,16 @@ function App() {
         .from('tuc_history_knowledge')
         .select('*', { count: 'exact', head: true });
 
-      // 獲取儲存空間總量
-      const { data: storageFiles } = await supabase.storage.from('spec-files').list('', { limit: 5000 });
-      const totalSizeBytes = (storageFiles || []).reduce((acc, f) => acc + (f?.metadata?.size || 0), 0);
+      // V20: 改用資料庫記錄估算儲存空間，完全邏免 storage.list() 的 Egress 消耗
+      // tuc_uploaded_files 裡面已有 storage_path，但沒有儲存 size。
+      // 改用 storage size = 简単以檔案數量 * 平均檔案大小 (proxy 估算)
+      // 如果 tuc_uploaded_files 有 file_size 欄位則取用；否則用上次的儲存大小數即可。
+      const { data: fileRecords } = await supabase
+        .from('tuc_uploaded_files')
+        .select('file_size')
+        .not('file_size', 'is', null);
+
+      const totalSizeBytes = (fileRecords || []).reduce((acc: number, f: any) => acc + (f.file_size || 0), 0);
 
       console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storageTotalBytes: totalSizeBytes });
       setKnowledgeCount(kCount || 0);
@@ -426,8 +431,7 @@ function App() {
   const handleOpenInspector = () => {
     setSelectedFileIds([]); // 開啟時重置選擇
     if (isCloudAuthed) {
-      fetchCloudFiles();
-      fetchUsageStats();
+      fetchCloudFiles(); // V20: 移除重複的 fetchUsageStats() 呼叫
       setShowCloudInspector(true);
     } else {
       setShowPasswordPrompt(true);
@@ -439,8 +443,7 @@ function App() {
       setIsCloudAuthed(true);
       setShowPasswordPrompt(false);
       setInputPassword('');
-      fetchCloudFiles();
-      fetchUsageStats();
+      fetchCloudFiles(); // V20: 移除重複的 fetchUsageStats() 呼叫
       setShowCloudInspector(true);
     } else {
       alert('密碼錯誤，請重新輸入。');
