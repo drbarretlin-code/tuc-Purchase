@@ -653,7 +653,8 @@ function App() {
         let currentDetectedLabel = fileRecord.equipment_name;
 
         try {
-          const resp = await fetch(fileRecord.public_url);
+          // V20: 改用後端代理下載 (service role key，不走 CDN)，消除 Cached Egress 消耗
+          const resp = await fetch(`/api/download-file?storagePath=${encodeURIComponent(fileRecord.storage_path)}`);
           const blob = await resp.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
