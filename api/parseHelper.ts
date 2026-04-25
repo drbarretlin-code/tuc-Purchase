@@ -75,8 +75,6 @@ export async function processSingleChunkBackend(
   targetLang: string = 'zh-TW'
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelId = 'gemini-2.0-flash';
-  const model = genAI.getGenerativeModel({ model: modelId });
 
   const prompt = `
     你是一個具備「視覺 OCR 專家級能力」與「採購技術專家」雙重身份的 AI。
@@ -118,11 +116,31 @@ export async function processSingleChunkBackend(
     contents[0].parts.push({ inlineData: inlineData });
   }
 
-  console.log(`[Backend Parser] 正在請求 Gemini 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
-  const result = await model.generateContent({ contents }).catch(err => {
-    console.error(`[Backend Parser] 模型回應錯誤:`, err.message);
-    throw err; 
-  });
+  const modelsToTry = ['gemini-2.0-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash'];
+  let result: any;
+  let lastError: any;
+
+  for (const modelId of modelsToTry) {
+    try {
+      console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
+      const currentModel = genAI.getGenerativeModel({ model: modelId });
+      result = await currentModel.generateContent({ contents });
+      console.log(`[Backend Parser] 成功使用 ${modelId} 完成解析。`);
+      break; 
+    } catch (err: any) {
+      lastError = err;
+      if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('not available')) {
+        console.warn(`[Backend Parser] 型號 ${modelId} 失敗 (404)，嘗試下一個備援型號...`);
+        continue;
+      }
+      // 如果是 429 或其他非 404 錯誤，直接拋出，不執行降級（交由 QStash 重試）
+      throw err;
+    }
+  }
+
+  if (!result) {
+    throw lastError || new Error('所有備援模型皆不可用。');
+  }
   
   const responseText = result.response.text();
   if (!responseText) {
