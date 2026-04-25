@@ -261,7 +261,6 @@ function App() {
       const resp = await fetch('/api/health');
       const data = await resp.json();
       setSystemHealthData(data);
-      setShowSystemDiagnostic(true);
     } catch (err) {
       alert('無法取得系統診斷數據');
     } finally {
@@ -1419,7 +1418,10 @@ function App() {
                 </button>
                 <button
                   className="ghost-button"
-                  onClick={handleCheckHealth}
+                  onClick={() => {
+                    setShowSystemDiagnostic(true);
+                    handleCheckHealth();
+                  }}
                   disabled={isCheckingHealth}
                   style={{
                     fontSize: '0.8rem',
