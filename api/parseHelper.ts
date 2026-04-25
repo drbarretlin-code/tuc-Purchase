@@ -139,6 +139,11 @@ export async function processSingleChunkBackend(
         console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (12s)，嘗試下一個型號...`);
         continue;
       }
+      if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('Quota exceeded')) {
+        console.warn(`[Backend Parser] 型號 ${modelId} 配額耗盡 (429)，嘗試切換備援型號...`);
+        // V26.4: 遇到 429 不直接崩潰，嘗試下一個型號（通常不同型號有獨立配額）
+        continue;
+      }
       if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('not available')) {
         console.warn(`[Backend Parser] 型號 ${modelId} 失敗 (404)，嘗試下一個備援型號...`);
         continue;
