@@ -117,13 +117,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (record.extracted_text) {
       console.log(`[Worker] 使用快取文字進行接力解析: ${record.original_name}`);
       const cachedText = record.extracted_text;
-      const MAX_CHUNK_LENGTH = 6000; // V26: 增加塊大小
+      const MAX_CHUNK_LENGTH = 6000; 
+      
       if (cachedText.length > MAX_CHUNK_LENGTH) {
         for (let i = 0; i < cachedText.length; i += MAX_CHUNK_LENGTH) {
           textChunks.push(cachedText.substring(i, i + MAX_CHUNK_LENGTH));
         }
       } else {
-        textChunks.push(cachedText);
+        textChunks.push(cachedText || '');
+      }
+
+      // V26.3: 如果提取出的文字量過少且為 PDF，啟動視覺備援（重新下載以取得 inlineData）
+      if (textChunks.join('').length < 100 && record.original_name.toLowerCase().endsWith('.pdf')) {
+        console.log(`[Worker] 文字量過少，偵測為掃描檔，啟動 PDF 視覺備援模式...`);
+        const { data: fileBlob } = await supabase.storage.from('spec-files').download(record.storage_path);
+        if (fileBlob) {
+          const arrayBuffer = await fileBlob.arrayBuffer();
+          const base64Data = Buffer.from(arrayBuffer).toString('base64');
+          inlineData = { data: base64Data, mimeType: 'application/pdf' };
+        }
       }
     } else {
       // 執行重型下載與提取 (第一階段)

@@ -90,6 +90,7 @@ export async function processSingleChunkBackend(
     你是一個具備「採購技術專家」身份的 AI。
     你目前正在解構一份採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
     請精確提取所有的技術指標與法規要求。嚴禁過度摘要，保留具體數值。
+    即便文檔內容雜亂或為圖片掃描，也請盡量歸納出所有可見的技術條目，不要輕易回傳空值。
     輸出語言：${targetLang}。
     請直接輸出 JSON：
     {
