@@ -65,9 +65,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
         
       if (!updated) {
-        // 並發衝突，讓 QStash 重試或直接再觸發一次 process_next
-        await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '2s' });
-        return res.status(200).json({ skipped: true, reason: 'concurrency lock mismatch' });
+        // 並發衝突，代表已有另一筆 Worker 搶先佔用並負責後續接力。
+        // 此處應直接退場，避免多軌並行消耗配額。
+        console.log('[Worker] 並發搶佔失敗，偵測到已有領頭 Worker，本實例安靜退場以節省配額。');
+        return res.status(200).json({ skipped: true, reason: 'concurrency lock mismatch - silent exit' });
       }
 
       // 發送第一塊切片處理任務
