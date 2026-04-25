@@ -84,9 +84,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let processedInThisBatch = 0;
     let totalAddedCount = 0;
 
-    // 若是檔案的第一塊，清空舊有關聯知識庫
+    // 若是檔案的第一塊，清空舊有關聯知識庫並寫入初始進度
     if (currentIndex === 0) {
       await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', record.original_name);
+      await supabase.from('tuc_uploaded_files').update({
+        parse_status: `processing:0/${textChunks.length}`
+      } as any).eq('id', fileId);
     }
 
     const apiKey = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_KEY || '';
@@ -126,6 +129,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       currentIndex++;
       processedInThisBatch++;
+
+      // 即時回報單一切片進度，讓前端能即時渲染進度條
+      await supabase.from('tuc_uploaded_files').update({
+        parse_status: `processing:${currentIndex}/${textChunks.length}`
+      } as any).eq('id', fileId);
 
       // 如果還有下一塊而且還在微批次額度內，休息 5 秒鐘保護 Gemini Rate Limit
       if (currentIndex < textChunks.length && processedInThisBatch < 4) {
