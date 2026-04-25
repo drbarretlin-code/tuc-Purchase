@@ -94,12 +94,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 取得檔案實體並分塊
-    // V20: 優先使用 Supabase 內部 API 下載 (service role key)，不透過 CDN，可降低 Cached Egress
-    const { data: fileBlob } = await supabase.storage.from('spec-files').download(record.storage_path);
-    if (!fileBlob) throw new Error('Download failed');
-    const arrayBuffer = await fileBlob.arrayBuffer();
+    let textChunks: string[] = [];
+    let inlineData: any = null;
 
-    const { textChunks, inlineData } = await getFileChunks(arrayBuffer, record.original_name);
+    // V22 優化：省流量「文字快取」機制
+    // 如果資料庫已有提取過的純文字，且不是第一個切片（不需要再取 PDF 視覺數據），則直接從快取還原
+    if (record.extracted_text && chunkIndex > 0) {
+      console.log(`[Worker] 使用快取文字進行接力解析，跳過檔案下載 (節省流量)`);
+      const cachedText = record.extracted_text;
+      const MAX_CHUNK_LENGTH = 3000;
+      if (cachedText.length > MAX_CHUNK_LENGTH) {
+        for (let i = 0; i < cachedText.length; i += MAX_CHUNK_LENGTH) {
+          textChunks.push(cachedText.substring(i, i + MAX_CHUNK_LENGTH));
+        }
+      } else {
+        textChunks.push(cachedText);
+      }
+    } else {
+      // 否則，執行標準下載與提取
+      console.log(`[Worker] 執行標準下載與文字提取: ${record.original_name}`);
+      const { data: fileBlob } = await supabase.storage.from('spec-files').download(record.storage_path);
+      if (!fileBlob) throw new Error('Download failed');
+      const arrayBuffer = await fileBlob.arrayBuffer();
+
+      const result = await getFileChunks(arrayBuffer, record.original_name);
+      textChunks = result.textChunks;
+      inlineData = result.inlineData;
+
+      // 如果是第一次處理且成功提取文字，將文字快取回資料庫，供後續接力使用
+      if (chunkIndex === 0 && textChunks.length > 0) {
+        const fullText = textChunks.join('');
+        await supabase.from('tuc_uploaded_files').update({ 
+          extracted_text: fullText,
+          file_size: arrayBuffer.byteLength 
+        } as any).eq('id', fileId);
+        console.log(`[Worker] 已將 ${fullText.length} 字元的提取內容快取至資料庫。`);
+      }
+    }
     
     let currentIndex = chunkIndex;
     let processedInThisBatch = 0;

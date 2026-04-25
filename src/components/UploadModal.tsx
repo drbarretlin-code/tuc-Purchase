@@ -160,7 +160,8 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             equipment_tags: [data.equipmentName || t('unnamedEq', language)],
             requirement_desc: data.requirementDesc || t('noReqDesc', language),
             is_parsed: false,
-            parse_status: 'pending' // 標記為等待解析中
+            parse_status: 'pending', // 標記為等待解析中
+            file_size: file.size
           }).select('id').single();
   
           if (insertError) throw insertError;

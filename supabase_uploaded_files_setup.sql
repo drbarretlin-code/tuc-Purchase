@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS tuc_uploaded_files (
   equipment_tags TEXT[] DEFAULT '{}',
   is_parsed BOOLEAN DEFAULT FALSE,
   is_calibrated BOOLEAN DEFAULT FALSE,
+  parse_status VARCHAR(50) DEFAULT 'unparsed',
+  file_size BIGINT DEFAULT 0,
+  extracted_text TEXT,
   parsed_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
