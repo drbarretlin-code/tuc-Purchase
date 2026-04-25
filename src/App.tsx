@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info } from 'lucide-react';
+import { Ban, ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import ManualModal from './components/ManualModal';
@@ -899,6 +899,39 @@ function App() {
     }
   };
 
+  const handleAbortParsing = async () => {
+    if (!supabase) return;
+    
+    // 找出正在進行中的檔案
+    const targets = cloudFiles.filter(f => (f as any).parse_status === 'pending' || (f as any).parse_status === 'processing');
+    if (targets.length === 0) {
+      alert('目前沒有正在排隊中或進行中的解析任務。');
+      return;
+    }
+
+    if (!confirm(`確定要強行中斷目前所有的 ${targets.length} 筆背景處理任務嗎？\n此操作將會發信號阻止排隊系統繼續運作，已進行到一半的檔案也會被放棄。`)) return;
+
+    try {
+      const targetIds = targets.map(f => f.id);
+      
+      const { error } = await supabase
+        .from('tuc_uploaded_files')
+        .update({
+          parse_status: 'failed',
+          error_message: '使用者已手動終止，以節省 API 資源與配額。'
+        } as any)
+        .in('id', targetIds);
+
+      if (error) throw error;
+      
+      alert('✅ 中斷信號送出成功！背景工作管線在讀取到此狀態後會自動煞車。');
+      fetchCloudFiles();
+    } catch (err: any) {
+      console.error('[Abort Error]', err);
+      alert('發生錯誤: ' + err.message);
+    }
+  };
+
   const handleExportAll = (format: 'csv') => {
     const list = cloudFiles;
     const content = "ID,原檔名,設備名稱,申請人,日期\n" + list.map(f => `"${f.id}","${f.original_name}","${f.equipment_name}","${f.requester}","${new Date(f.created_at).toLocaleString()}"`).join("\n");
@@ -1561,6 +1594,28 @@ function App() {
                         {selectedFileIds.length > 0 
                           ? `重置並解析選取的 (${selectedFileIds.length})` 
                           : t('resetAndReparseAll', data.language)}
+                      </button>
+                      <button
+                        onClick={handleAbortParsing}
+                        disabled={isResetting || isReparsing}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: 'rgba(230,0,18,0.1)',
+                          border: '1px solid rgba(230,0,18,0.3)',
+                          borderRadius: '6px',
+                          color: '#EF4444',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Ban size={14} /> 終止排隊與解析
                       </button>
                     </div>
                   </div>

@@ -68,30 +68,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Database update failed', details: dbError });
     }
 
-    // 2. 推送任務至 QStash (改用 Batch/Chunk 加速避免 Vercel Timeout)
+    // 2. 推送任務至 QStash (改為 Daisy Chain 啟動訊號)
     const results: any[] = [];
     if (qstashClient) {
-      const CHUNK_SIZE = 20;
-      for (let i = 0; i < fileIds.length; i += CHUNK_SIZE) {
-        const chunkIds = fileIds.slice(i, i + CHUNK_SIZE);
-        const chunkPromises = chunkIds.map((id: string, idx: number) => {
-          const globalIndex = i + idx;
-          // 為了相容 Gemini Free Tier，加上時間間隔 (每個延遲 20 秒)
-          const delaySeconds = globalIndex * 20;
-          const publishOptions: any = {
-            url: workerUrl,
-            body: { fileId: id, language: language },
-            retries: 3,
-          };
-          if (delaySeconds > 0) {
-            publishOptions.delay = `${delaySeconds}s`;
-          }
-          return qstashClient!.publishJSON(publishOptions);
-        });
-
-        const chunkResponses = await Promise.all(chunkPromises);
-        results.push(...chunkResponses);
-      }
+      // 僅送出一個「開始處理下一筆」的訊號，後續交由 Worker 接力
+      const publishOptions: any = {
+        url: workerUrl,
+        body: { action: 'process_next', language: language },
+        retries: 3,
+      };
+      const response = await qstashClient.publishJSON(publishOptions);
+      results.push(response);
     } else {
       console.warn('[Enqueue] QStash Client uninitialized. Did you forget to set QSTASH_TOKEN?');
       return res.status(500).json({ error: 'QSTASH_TOKEN is not configured.' });
