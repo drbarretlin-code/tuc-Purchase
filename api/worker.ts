@@ -104,11 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: record, error: fetchErr } = await supabase.from('tuc_uploaded_files').select('*').eq('id', fileId).single();
     if (fetchErr || !record) throw new Error('File not found');
 
-    // **中斷驗證防護**
     if (!record.parse_status || !record.parse_status.startsWith('processing')) {
-      console.log(`[Worker] 檔案 ${record.original_name} 狀態被變更為 ${record.parse_status}，中止接力。`);
-      // 中斷後，負責叫喚下一筆檔案
-      await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
+      console.log(`[Worker] 檔案 ${record.original_name} 狀態不符 (${record.parse_status})，中止接力。不發送遞迴呼叫以防無限迴圈。`);
       return res.status(200).json({ aborted: true });
     }
 
@@ -273,12 +270,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error_message: errMsg || '未知斷點錯誤'
       } as any).eq('id', fileId);
       
-      console.log(`[Worker] 發生嚴重錯誤，檔案標記為 failed，印向下一筆`);
-      try {
-        await publishWithRotation({ url: workerUrl, body: { action: 'process_next', language }, delay: '1s' });
-      } catch (e) {
-        console.error('[Worker] Fatal: 無法喚醒下一筆檔案。');
-      }
+      console.log(`[Worker] 發生嚴重錯誤，檔案標記為 failed。為防止遞迴死循環，不自動啟動下一筆任務。`);
     }
     return res.status(500).json({ error: errMsg });
   }
