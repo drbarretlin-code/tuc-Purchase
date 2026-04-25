@@ -99,6 +99,7 @@ function App() {
   const [showSystemDiagnostic, setShowSystemDiagnostic] = useState(false);
   const [systemHealthData, setSystemHealthData] = useState<any>(null);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
+  const [isFixingSystem, setIsFixingSystem] = useState(false);
   const [searchQuery] = useState('');
   const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
 
@@ -265,6 +266,29 @@ function App() {
       alert('無法取得系統診斷數據');
     } finally {
       setIsCheckingHealth(false);
+    }
+  };
+
+  const handleFixSystem = async () => {
+    setIsFixingSystem(true);
+    try {
+      // 呼叫 Worker 的 process_next 模式，它會自動偵測並修復死鎖
+      const resp = await fetch('/api/worker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'process_next', language: data.language })
+      });
+      
+      if (resp.ok) {
+        alert('已成功發送解鎖指令，請稍候 5-10 秒後重新整理診斷報告。');
+        await handleCheckHealth();
+      } else {
+        throw new Error('伺服器回應異常');
+      }
+    } catch (err) {
+      alert('發送修復指令失敗，請稍後再試。');
+    } finally {
+      setIsFixingSystem(false);
     }
   };
 
@@ -2136,6 +2160,9 @@ function App() {
         onClose={() => setShowSystemDiagnostic(false)}
         data={systemHealthData}
         onRefresh={handleCheckHealth}
+        onFix={handleFixSystem}
+        isRefreshing={isCheckingHealth}
+        isFixing={isFixingSystem}
       />
 
       {/* V18.6: 搬遷至此的全域清理彈窗 */}

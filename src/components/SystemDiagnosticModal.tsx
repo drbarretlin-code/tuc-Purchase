@@ -6,6 +6,9 @@ interface SystemDiagnosticProps {
   onClose: () => void;
   data: any;
   onRefresh: () => void;
+  onFix: () => void;
+  isRefreshing: boolean;
+  isFixing: boolean;
 }
 
 const SystemDiagnosticModal: React.FC<SystemDiagnosticProps> = ({ isOpen, onClose, data, onRefresh }) => {
@@ -94,13 +97,27 @@ const SystemDiagnosticModal: React.FC<SystemDiagnosticProps> = ({ isOpen, onClos
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#bbb', lineHeight: 1.6 }}>{data.recommendation}</p>
           </section>
 
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '12px' }}>
-            <button onClick={onRefresh} className="ghost-button" style={{ flex: 1, gap: '8px' }}>
-              <RefreshCcw size={16} /> 重新整理
-            </button>
-            <button onClick={onClose} className="primary-button" style={{ flex: 1 }}>
-              關閉
-            </button>
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {data.potential_deadlocks.length > 0 && (
+              <button 
+                onClick={onFix} 
+                className="primary-button" 
+                disabled={isFixing}
+                style={{ width: '100%', justifyContent: 'center', background: 'var(--tuc-red)', border: 'none' }}
+              >
+                {isFixing ? <RefreshCcw size={18} className="spin" /> : <Repeat size={18} />}
+                立即解鎖並重啟佇列
+              </button>
+            )}
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={onRefresh} className="ghost-button" disabled={isRefreshing} style={{ flex: 1, gap: '8px', justifyContent: 'center' }}>
+                <RefreshCcw size={16} className={isRefreshing ? 'spin' : ''} /> 重新整理
+              </button>
+              <button onClick={onClose} className="ghost-button" style={{ flex: 1, justifyContent: 'center' }}>
+                關閉
+              </button>
+            </div>
           </div>
         </div>
       </div>
