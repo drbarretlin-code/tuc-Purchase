@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getFileChunks, processSingleChunkBackend } from './parseHelper.js';
+import { getFileChunks, processSingleChunkBackend, getApiKey } from './parseHelper.js';
 import { publishWithRotation } from './qstashRotator.js';
 
 // Initialize Supabase
@@ -119,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (record.extracted_text) {
       console.log(`[Worker] 使用快取文字進行接力解析: ${record.original_name}`);
       const cachedText = record.extracted_text;
-      const MAX_CHUNK_LENGTH = 3000;
+      const MAX_CHUNK_LENGTH = 6000; // V26: 增加塊大小
       if (cachedText.length > MAX_CHUNK_LENGTH) {
         for (let i = 0; i < cachedText.length; i += MAX_CHUNK_LENGTH) {
           textChunks.push(cachedText.substring(i, i + MAX_CHUNK_LENGTH));
@@ -169,10 +169,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } as any).eq('id', fileId);
     }
 
-    const apiKey = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_KEY || '';
+    const apiKey = getApiKey();
+    const startTime = Date.now();
+    const VERCEL_SAFE_LIMIT = 40000; // 40 秒安全紅線
 
-    // 單一區塊處理模式 (V22.2: 為了極致穩定性，一次只消畫 1 塊就發送下一筆接力，避免超時回跳)
-    while (currentIndex < textChunks.length && processedInThisBatch < 1) {
+    // V26: 批次處理模式。在 40 秒內盡可能處理多個區塊，大幅減少 QStash 接力次數與不穩定性。
+    while (currentIndex < textChunks.length) {
+      if (Date.now() - startTime > VERCEL_SAFE_LIMIT) {
+        console.log(`[Worker] 接近 Vercel 60s 限制，剩餘 ${textChunks.length - currentIndex} 塊，發送接力中斷...`);
+        break;
+      }
+
       const parsedData = await processSingleChunkBackend(
         textChunks[currentIndex],
         textChunks.length > 1,

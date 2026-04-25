@@ -49,8 +49,8 @@ export async function getFileChunks(
     text = extractStringsFromBinary(fileBuffer);
   }
 
-  // 文本分塊策略 (極致切片)
-  const MAX_CHUNK_LENGTH = 3000;
+  // 文本分塊策略 (V26: 增加塊大小至 6000 以減少接力次數)
+  const MAX_CHUNK_LENGTH = 6000;
   const textChunks: string[] = [];
   
   if (text && text.length > MAX_CHUNK_LENGTH && !inlineData) {
@@ -64,6 +64,15 @@ export async function getFileChunks(
   return { textChunks, inlineData };
 }
 
+// V26: 支援多金鑰輪替機制
+export function getApiKey() {
+  const raw = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+  const keys = raw.split(',').map(k => k.trim()).filter(Boolean);
+  if (keys.length === 0) return '';
+  // 使用隨機或基於時間的分發，此處使用隨機
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
 export async function processSingleChunkBackend(
   chunkText: string,
   isMultiChunk: boolean,
@@ -74,7 +83,8 @@ export async function processSingleChunkBackend(
   apiKey: string,
   targetLang: string = 'zh-TW'
 ) {
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const activeKey = apiKey || getApiKey();
+  const genAI = new GoogleGenerativeAI(activeKey);
 
   const prompt = `
     你是一個具備「採購技術專家」身份的 AI。
