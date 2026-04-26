@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import * as mammoth from 'mammoth';
 
 export async function getFileChunks(
@@ -85,6 +85,12 @@ export async function processSingleChunkBackend(
 ) {
   const activeKey = apiKey || getApiKey();
   const genAI = new GoogleGenerativeAI(activeKey);
+  const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  ];
 
   const prompt = `
     你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
@@ -137,7 +143,7 @@ export async function processSingleChunkBackend(
   for (const modelId of modelsToTry) {
     try {
       console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
-      const currentModel = genAI.getGenerativeModel({ model: modelId });
+      const currentModel = genAI.getGenerativeModel({ model: modelId, safetySettings });
       
       // V26.9: 增加超時寬限至 40s (針對 12000 字元高密度挖掘)
       const aiPromise = currentModel.generateContent({ contents });

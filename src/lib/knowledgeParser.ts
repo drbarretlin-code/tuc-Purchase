@@ -1,6 +1,6 @@
 import mammoth from 'mammoth';
 import { supabase } from './supabase';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { AIHintSelection } from '../types/form';
 import { t } from './i18n';
 
@@ -10,6 +10,12 @@ import { t } from './i18n';
  */
 let cachedModelId: string | null = null;
 export const getCachedModelId = () => cachedModelId;
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
 
 export interface DiagnosticResult {
   code: 'QUOTA_EXCEEDED' | 'API_KEY_EXPIRED' | 'API_KEY_INVALID' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
@@ -52,7 +58,7 @@ export async function getAutoSelectedModel(apiKey: string): Promise<string> {
 
   for (const mId of priorityList) {
     try {
-      const model = genAI.getGenerativeModel({ model: mId });
+      const model = genAI.getGenerativeModel({ model: mId, safetySettings });
       
       // V26.16: 加入 15 秒逾時保護，防止單一模型試驗掛起
       await Promise.race([
@@ -232,7 +238,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   const genAI = new GoogleGenerativeAI(finalKey);
   const modelId = await getAutoSelectedModel(finalKey);
-  const model = genAI.getGenerativeModel({ model: modelId });
+  const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   let inlineData: { data: string, mimeType: string } | null = null;
   let text = '';
@@ -531,7 +537,7 @@ export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelId = await getAutoSelectedModel(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const prompt = `Translate the following two terms into Traditional Chinese, English, Simplified Chinese, and Thai.
 Return ONLY a JSON object with this exact structure, ensuring all values are arrays of strings:
@@ -671,7 +677,7 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
   try {
     const genAI = new GoogleGenerativeAI(finalKey);
     const modelId = await getAutoSelectedModel(finalKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -775,7 +781,7 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   try {
     const genAI = new GoogleGenerativeAI(rawKey);
     const modelId = await getAutoSelectedModel(rawKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -828,7 +834,7 @@ export async function translateHints(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelId = await getAutoSelectedModel(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelId });
+  const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
     'zh-CN': 'Simplified Chinese (简体中文)',
@@ -891,7 +897,7 @@ export async function translateCloudMetadata(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelId = await getAutoSelectedModel(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelId });
+  const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
     'zh-CN': 'Simplified Chinese (简体中文)',
@@ -958,7 +964,7 @@ export async function translateFullSpec(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelId = await getAutoSelectedModel(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelId });
+  const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
     'zh-CN': 'Simplified Chinese (简体中文)',
