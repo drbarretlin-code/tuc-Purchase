@@ -145,9 +145,9 @@ function App() {
       // V26.13: 開啟時主動執行一次 AI 模型試驗偵測
       if (currentAIModel === '偵測中...') {
         console.log('[AI Discovery] 偵測中... 嘗試主動觸發試驗');
-        const apiKey = localStorage.getItem('gemini_api_key_pool')?.split(',')[0] || process.env.VITE_GEMINI_API_KEY || '';
-        if (apiKey) {
-           KP.getAutoSelectedModel(apiKey)
+        const apiKeys = KP.getGeminiKeyPool();
+        if (apiKeys.length > 0) {
+           KP.getAutoSelectedModel(apiKeys)
              .then((mId: string) => {
                 console.log('[AI Discovery] 偵測完成，得到型號:', mId);
                 if (mId) setCurrentAIModel(mId);

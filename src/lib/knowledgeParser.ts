@@ -34,111 +34,94 @@ export class DiagnosticError extends Error {
   }
 }
 
-export async function getAutoSelectedModel(apiKey: string): Promise<string> {
-  if (cachedModelId) return cachedModelId;
+/**
+ * V27: 瀑布式金鑰輪替輔助函式
+ * 整合 localStorage 中的金鑰池與目前活動金鑰
+ */
+export function getGeminiKeyPool(): string[] {
+  const poolStr = localStorage.getItem('gemini_api_key_pool') || '';
+  const activeKey = localStorage.getItem('tuc_gemini_key') || '';
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY || '';
   
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const keys = poolStr.split(/[,，]/).map(k => k.trim()).filter(k => k);
   
-  // V18.2: 修正模型清單 — 僅使用 Google 確認仍在線的模型
-  // gemini-1.5-flash / gemini-1.5-pro 已從 v1beta 下架 (404)
-  // gemini-2.5-flash / gemini-2.5-flash-lite 確認存在 (429 = 存在但限流)
-  const priorityList = [
-    'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-pro-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-pro-latest',
-    'gemini-flash-latest',
-  ];
+  const combined = [];
+  if (activeKey) combined.push(activeKey);
+  combined.push(...keys);
+  if (envKey) combined.push(envKey);
+  
+  return Array.from(new Set(combined));
+}
 
-  console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
+export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
+  const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
+  
+  let lastDiagnostic: DiagnosticResult | null = null;
 
-  for (const mId of priorityList) {
+  for (let i = 0; i < keys.length; i++) {
+    const currentKey = keys[i];
+    if (!currentKey) continue;
+
+    if (cachedModelId) return cachedModelId;
+    
+    const genAI = new GoogleGenerativeAI(currentKey);
+    const priorityList = [
+      'gemini-3.1-pro-preview',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3-pro-preview',
+      'gemini-3-flash-preview',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-pro-latest',
+      'gemini-flash-latest',
+    ];
+
+    console.log(`[AI Discovery] 嘗試金鑰索引 ${i} (前 6 碼: ${currentKey.substring(0,6)}...)`);
+
     try {
-      const model = genAI.getGenerativeModel({ model: mId, safetySettings });
-      
-      // V26.16: 加入 15 秒逾時保護，防止單一模型試驗掛起
-      await Promise.race([
-        model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-          generationConfig: { maxOutputTokens: 1 }
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 15000))
-      ]);
+      for (const mId of priorityList) {
+        try {
+          const model = genAI.getGenerativeModel({ model: mId, safetySettings });
+          await Promise.race([
+            model.generateContent({
+              contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+              generationConfig: { maxOutputTokens: 1 }
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 15000))
+          ]);
 
-      cachedModelId = mId;
-      console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
-      break;
+          cachedModelId = mId;
+          // 成功後將此金鑰設為全域活動金鑰
+          localStorage.setItem('tuc_gemini_key', currentKey);
+          console.log(`[AI Discovery] 試驗成功！鎖定可用模型 ${mId}，已更新活動金鑰。`);
+          return cachedModelId;
+        } catch (err: any) {
+          const errMsg = err.message || '';
+          const status = err.status || (err.response ? err.response.status : null);
+
+          // 429 = 存在但限流，視為成功鎖定
+          if (errMsg.includes('429') || status === 429 || errMsg.toLowerCase().includes('quota')) {
+            cachedModelId = mId;
+            localStorage.setItem('tuc_gemini_key', currentKey);
+            console.log(`[AI Discovery] 模型 ${mId} 存在但暫時限流，鎖定此模型與金鑰。`);
+            return cachedModelId;
+          }
+          
+          // 若為 Key 報錯 (401/Expired)，則跳出模型循環嘗試下一把 Key
+          if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401) {
+            console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效，嘗試下一把...`);
+            throw err; 
+          }
+          continue; // 其他模型錯誤，嘗試下一個模型
+        }
+      }
     } catch (err: any) {
-      const errMsg = err.message || '';
-      const status = err.status || (err.response ? err.response.status : null);
-
-      // V20: API Key 過期或無效 — 立即中斷並拋出結構化診斷錯誤
-      if (
-        errMsg.includes('API key expired') ||
-        errMsg.includes('API_KEY_INVALID') ||
-        errMsg.includes('API key not valid')
-      ) {
-        console.error(`[AI Discovery] API Key 已過期或無效，中斷所有試驗。`);
-        throw new DiagnosticError({
-          code: 'API_KEY_EXPIRED',
-          message: 'Gemini API Key 已過期或無效，所有 AI 功能暫時無法使用。',
-          rawError: errMsg,
-          timestamp: new Date().toISOString(),
-          suggestion: '請點擊右上角「齒輪」圖示，進入設定頁面更新您的 Gemini API Key。您可至 Google AI Studio (aistudio.google.com) 重新產生金鑰。'
-        });
-      }
-
-      // 401 Unauthorized — 同樣視為 Key 無效
-      if (status === 401) {
-        console.error(`[AI Discovery] 收到 401 Unauthorized，API Key 無效。`);
-        throw new DiagnosticError({
-          code: 'API_KEY_INVALID',
-          message: 'Gemini API Key 驗證失敗 (401 Unauthorized)。',
-          rawError: errMsg,
-          timestamp: new Date().toISOString(),
-          suggestion: '請確認 API Key 是否正確，並至設定頁面重新輸入。'
-        });
-      }
-      
-      // V18.2 關鍵修正：429 代表「模型存在，只是暫時限流」
-      // 應該鎖定此模型，而非跳過
-      if (
-        errMsg.includes('429') || 
-        status === 429 || 
-        errMsg.toLowerCase().includes('resource_exhausted') ||
-        errMsg.toLowerCase().includes('quota') ||
-        errMsg.toLowerCase().includes('rate limit')
-      ) {
-        cachedModelId = mId;
-        console.log(`[AI Discovery] 模型 ${mId} 存在但暫時限流 (429)，鎖定此模型。`);
-        break;
-      }
-
-      // 404 = 模型不存在，跳過
-      if (
-        errMsg.includes('404') || 
-        status === 404 || 
-        errMsg.toLowerCase().includes('not found')
-      ) {
-        console.warn(`[AI Discovery] 模型 ${mId} 不存在 (404)，嘗試下一個...`);
-        continue;
-      }
-      
-      if (errMsg.includes('no longer available to new users')) {
-        console.warn(`[AI Discovery] 模型 ${mId} 受限 (僅限舊用戶)，跳過...`);
-        continue;
-      }
-
-      if (status === 503 || errMsg.includes('503') || errMsg.includes('Service Unavailable') || errMsg.includes('high demand')) {
-        console.warn(`[AI Discovery] 模型 ${mId} 暫時繁忙 (503)，嘗試下一個...`);
-        continue;
-      }
-
-      console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
+       // Catch Key errors to continue loop
+       if (i === keys.length - 1) {
+          // 最後一把也失敗了，拋出最後一個診斷結果
+          throw err;
+       }
     }
   }
 
