@@ -434,18 +434,31 @@ function App() {
         console.error('[Diagnostic] Usage Stats Query Error:', uError);
       }
 
+      // V26.24: 獲取本月累計傳輸流量 (Supabase 配額是按月計算的)
+      const firstDay = new Date();
+      firstDay.setUTCDate(1);
+      firstDay.setUTCHours(0, 0, 0, 0);
+      const startOfMonth = firstDay.toISOString().split('T')[0];
+      
+      const { data: monthlyData } = await supabase
+        .from('tuc_usage_stats')
+        .select('estimated_egress_bytes')
+        .gte('stat_date', startOfMonth);
+      
+      const monthlyEgress = (monthlyData || []).reduce((acc: number, row: any) => acc + (row.estimated_egress_bytes || 0), 0);
+
       if (uStats) {
         setUsageStats({
           qstash_calls_today: uStats.qstash_calls_today || 0,
-          estimated_egress_bytes: uStats.estimated_egress_bytes || 0
-        });
-        // V26.18: 如果資料庫有紀錄模型名稱，優先以此為準 (解決前端偵測不到的問題)
+          estimated_egress_bytes: monthlyEgress,
+          today_egress_bytes: uStats.estimated_egress_bytes || 0
+        } as any);
+        // V26.18: 如果資料庫有紀錄模型名稱，優先以此為準
         if (uStats.last_ai_model) {
           setCurrentAIModel(uStats.last_ai_model);
         }
       } else {
-        // V26.15: 若當天尚無紀錄，則重置為 0 (防止 UI 沒反應)
-        setUsageStats({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
+        setUsageStats({ qstash_calls_today: 0, estimated_egress_bytes: monthlyEgress } as any);
       }
 
       // V26.11: 更新當前前端鎖定的模型名稱
@@ -1760,7 +1773,7 @@ function App() {
                         {/* Egress 水位計 */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                            <span style={{ color: '#aaa' }}>估計傳輸流量 (Egress)</span>
+                            <span style={{ color: '#aaa' }}>本月累計傳輸 (Egress)</span>
                             <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
                               {usageStats.estimated_egress_bytes < 1024 * 1024 * 1024 
                                 ? `${(usageStats.estimated_egress_bytes / (1024 * 1024)).toFixed(2)} MB`
@@ -1771,16 +1784,13 @@ function App() {
                           <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
                           </div>
-                          {/* V26.23: 重置時間提醒 */}
+                          {/* V26.24: Egress 是按月計算的 */}
                           <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#666', marginTop: '2px' }}>
                              {(() => {
                                const now = new Date();
-                               const nextReset = new Date(now);
-                               nextReset.setUTCHours(24, 0, 0, 0);
-                               const diffMs = nextReset.getTime() - now.getTime();
-                               const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                               const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                               return `距離下次重置: ${hours} 小時 ${mins} 分`;
+                               const nextMonth = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+                               const daysLeft = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                               return `週期重置: 每月 1 號 (剩餘約 ${daysLeft} 天)`;
                              })()}
                           </div>
                         </div>
