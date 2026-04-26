@@ -204,27 +204,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
   const loadHistoryHints = async (mode: number | 'all') => {
     if (isAnalyzing) return;
     setIsAnalyzing(true);
-    const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string}[]> = {
+    const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}[]> = {
       0: [
-        { key: 'appearanceHistoryHints', regKey: 'appearanceRegHints', category: 'appearance' },
-        { key: 'requirementDescHistoryHints', regKey: 'requirementDescRegHints', category: 'technical' }
+        { key: 'appearanceHistoryHints', regKey: 'appearanceRegHints', category: 'appearance', contextKeywords: ['外觀', '材質', '顏色', '尺寸', 'Appearance', 'Material'] },
+        { key: 'requirementDescHistoryHints', regKey: 'requirementDescRegHints', category: 'technical', contextKeywords: ['需求', '說明', '功能', 'Requirement', 'Description'] }
       ],
       1: [
-        { key: 'envHistoryHints', regKey: 'envRegHints', category: 'environmental' },
-        { key: 'regHistoryHints', regKey: 'regRegHints', category: 'technical' },
-        { key: 'maintHistoryHints', regKey: 'maintRegHints', category: 'technical' },
-        { key: 'safetyHistoryHints', regKey: 'safetyRegHints', category: 'safety' },
-        { key: 'elecHistoryHints', regKey: 'elecRegHints', category: 'technical' },
-        { key: 'mechHistoryHints', regKey: 'mechRegHints', category: 'technical' },
-        { key: 'physHistoryHints', regKey: 'physRegHints', category: 'technical' },
-        { key: 'relyHistoryHints', regKey: 'relyRegHints', category: 'technical' },
-        { key: 'rangeHistoryHints', regKey: 'rangeRegHints', category: 'technical' }
+        { key: 'envHistoryHints', regKey: 'envRegHints', category: 'environmental', contextKeywords: ['環保', '節能', '回收', 'RoHS', 'REACH', 'Environmental', 'Green'] },
+        { key: 'regHistoryHints', regKey: 'regRegHints', category: 'technical', contextKeywords: ['法規', '法令', '合規', 'Regulation', 'Standard', 'Compliance'] },
+        { key: 'maintHistoryHints', regKey: 'maintRegHints', category: 'technical', contextKeywords: ['維修', '保養', '保固', 'Maintenance', 'Service', 'Warranty'] },
+        { key: 'safetyHistoryHints', regKey: 'safetyRegHints', category: 'safety', contextKeywords: ['安全', '防護', '緊急', '勞安', 'Safety', 'Protection', 'Emergency'] },
+        { key: 'elecHistoryHints', regKey: 'elecRegHints', category: 'technical', contextKeywords: ['電力', '電氣', '控制', '電壓', 'Electrical', 'Power', 'Voltage'] },
+        { key: 'mechHistoryHints', regKey: 'mechRegHints', category: 'technical', contextKeywords: ['機械', '機構', '結構', '尺寸', 'Mechanical', 'Structure'] },
+        { key: 'physHistoryHints', regKey: 'physRegHints', category: 'technical', contextKeywords: ['物理', '重量', '材質', '硬度', 'Physical', 'Weight', 'Material'] },
+        { key: 'relyHistoryHints', regKey: 'relyRegHints', category: 'technical', contextKeywords: ['信賴性', '壽命', '測試', 'Reliability', 'Testing', 'Lifespan'] },
+        { key: 'rangeHistoryHints', regKey: 'rangeRegHints', category: 'technical', contextKeywords: ['範圍', '區間', '區域', 'Scope', 'Range', 'Area'] }
       ],
       2: [
-        { key: 'installHistoryHints', regKey: 'installRegHints', category: 'installation' },
-        { key: 'complianceHistoryHints', regKey: 'complianceRegHints', category: 'compliance' }
+        { key: 'installHistoryHints', regKey: 'installRegHints', category: 'installation', contextKeywords: ['安裝', '施工', '裝機', '配線', 'Installation', 'Construction'] },
+        { key: 'complianceHistoryHints', regKey: 'complianceRegHints', category: 'compliance', contextKeywords: ['遵守', '規範', '政策', 'Compliance', 'Policy'] }
       ],
-      3: [{ key: 'acceptanceHistoryHints', regKey: 'acceptanceRegHints', category: 'technical' }]
+      3: [{ key: 'acceptanceHistoryHints', regKey: 'acceptanceRegHints', category: 'technical', contextKeywords: ['驗收', '測試', '標準', 'Acceptance', 'Testing', 'Verification'] }]
     };
 
     let targets: {key: keyof FormState, regKey: keyof FormState, category: string}[] = [];
@@ -240,7 +240,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     }
 
     const initialStatus = { ...data.searchStatus };
-    targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string}) => { 
+    targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => { 
       initialStatus[t.key as string] = 'pending';
       initialStatus[t.regKey as string] = 'pending';
     });
@@ -259,10 +259,28 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       // 2. Perform all Local Supabase Database queries concurrently
       const allResults = await Promise.all(targets.map(async (target) => {
         try {
+          // V14.6: Plan D - 隱含關鍵字補強邏輯
+          // 針對不同欄位主題，動態將對應的關鍵字加入搜尋變體中，引導 AI 與資料庫進行更精確的主題比對
+          const fieldReqVariants = [...variants.reqVariants];
+          if (target.contextKeywords && target.contextKeywords.length > 0) {
+            // 將關鍵字直接加入變體清單，這樣 calculateMaxTokenOverlap 就會同時考慮這些主題詞
+            target.contextKeywords.forEach(kw => {
+              if (!fieldReqVariants.includes(kw)) {
+                fieldReqVariants.push(kw);
+              }
+            });
+            // 進階優化：將原本的變體與關鍵字組合成新詞條（例如 "馬達 安全"）
+            variants.reqVariants.forEach(rv => {
+              target.contextKeywords.slice(0, 2).forEach(kw => { // 僅取前兩個最核心的關鍵字組合，避免組合爆炸
+                fieldReqVariants.push(`${rv} ${kw}`);
+              });
+            });
+          }
+
           const res = await KP.getHistorySuggestions(
             target.category, 
             variants.eqVariants, 
-            variants.reqVariants, 
+            fieldReqVariants, 
             data.matchThresholdHistory, 
             data.matchThresholdReg
           );
@@ -575,7 +593,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
 
                 <div className="doc-section-box">
                   <h4 style={{ color: 'white', marginBottom: '1rem' }}>{t('docSection1', data.language)}</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <SectionEditor 
                       label={t('equipName', data.language)} 
                       value={data.equipmentName} 
@@ -584,14 +601,6 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                       addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label={t('aiHistory', data.language)} />}
                       language={data.language}
                     />
-                    <SectionEditor 
-                      label={t('model', data.language)} 
-                      value={data.model} 
-                      onChange={(v: string) => updateField('model', v)} 
-                      isTextArea={false} 
-                      language={data.language}
-                    />
-                  </div>
                   <div className="input-with-label">
                     <label>{t('category', data.language)}</label>
                     <select value={data.category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('category', e.target.value as any)} style={{ width: '100%' }}>
@@ -991,7 +1000,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
             'maintRequirements', 'safetyRequirements', 'elecSpecs', 'mechSpecs',
             'physSpecs', 'relySpecs', 'installStandard', 'workPeriod',
             'acceptanceDesc', 'complianceDesc', 'department', 'requester',
-            'extension', 'model', 'category', 'deliveryDate',
+            'extension', 'category', 'deliveryDate',
             'applicantName', 'deptHeadName', 'needsDrawing', 'docId'
           ];
           const formatValue = (val: any): string => {

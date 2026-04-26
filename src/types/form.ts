@@ -34,7 +34,6 @@ export interface FormState {
   
   // 請購項目
   equipmentName: string;
-  model: string;
   category: 工程類別;
   
   // 一. 名稱與需求
@@ -140,7 +139,6 @@ export const INITIAL_FORM_STATE: FormState = {
   requester: '',
   extension: '',
   equipmentName: '',
-  model: '',
   category: '新增',
   requirementDesc: '',
   requirementDescHistoryHints: [],
