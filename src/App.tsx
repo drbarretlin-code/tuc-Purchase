@@ -126,7 +126,7 @@ function App() {
   const [isCleaning, setIsCleaning] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   // V18.6: 雲端查閱器垂直調整器狀態 (V19.2: 預設調降高度以增加下方列表能見度)
-  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(280);
+  const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(420);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
 
   useEffect(() => {
@@ -1488,7 +1488,7 @@ function App() {
               </div>
             </div>
             {/* 系統中控面板區域 (V19.3) */}
-            <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ height: inspectorDashboardHeight, minHeight: '120px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0, overflow: 'auto' }}>
 
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', flexShrink: 0 }}>
