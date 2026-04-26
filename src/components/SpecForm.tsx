@@ -227,7 +227,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       3: [{ key: 'acceptanceHistoryHints', regKey: 'acceptanceRegHints', category: 'technical', contextKeywords: ['驗收', '測試', '標準', 'Acceptance', 'Testing', 'Verification'] }]
     };
 
-    let targets: {key: keyof FormState, regKey: keyof FormState, category: string}[] = [];
+    let targets: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}[] = [];
     if (mode === 'all') {
       targets = Object.values(categoryMap).flat();
     } else {
@@ -251,27 +251,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     try {
       // 1. One API call for expanding queries (or loaded from Local cache)
       const transStatus = { ...initialStatus };
-      targets.forEach(t => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
+      targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
       onChange({...data, searchStatus: transStatus}); // Show translating status initially
       
       const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKey);
 
       // 2. Perform all Local Supabase Database queries concurrently
-      const allResults = await Promise.all(targets.map(async (target) => {
+      const allResults = await Promise.all(targets.map(async (target: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => {
         try {
           // V14.6: Plan D - 隱含關鍵字補強邏輯
           // 針對不同欄位主題，動態將對應的關鍵字加入搜尋變體中，引導 AI 與資料庫進行更精確的主題比對
           const fieldReqVariants = [...variants.reqVariants];
           if (target.contextKeywords && target.contextKeywords.length > 0) {
             // 將關鍵字直接加入變體清單，這樣 calculateMaxTokenOverlap 就會同時考慮這些主題詞
-            target.contextKeywords.forEach(kw => {
+            target.contextKeywords.forEach((kw: string) => {
               if (!fieldReqVariants.includes(kw)) {
                 fieldReqVariants.push(kw);
               }
             });
             // 進階優化：將原本的變體與關鍵字組合成新詞條（例如 "馬達 安全"）
-            variants.reqVariants.forEach(rv => {
-              target.contextKeywords.slice(0, 2).forEach(kw => { // 僅取前兩個最核心的關鍵字組合，避免組合爆炸
+            variants.reqVariants.forEach((rv: string) => {
+              target.contextKeywords.slice(0, 2).forEach((kw: string) => { // 僅取前兩個最核心的關鍵字組合，避免組合爆炸
                 fieldReqVariants.push(`${rv} ${kw}`);
               });
             });
