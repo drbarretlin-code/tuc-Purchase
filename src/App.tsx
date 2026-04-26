@@ -137,6 +137,30 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // V26.11: 導入 Supabase Realtime 實現全自動即時更新
+  useEffect(() => {
+    if (supabase && showCloudInspector && isCloudAuthed) {
+      console.log('[Realtime] 雲端查閱器已開啟，啟動即時同步監聽...');
+      const channel = supabase
+        .channel('db-changes-inspector')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_uploaded_files' }, () => {
+          fetchCloudFiles();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_history_knowledge' }, () => {
+          fetchUsageStats();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_usage_stats' }, () => {
+          fetchUsageStats();
+        })
+        .subscribe();
+
+      return () => {
+        console.log('[Realtime] 關閉雲端查閱器，註銷監聽連線。');
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [showCloudInspector, isCloudAuthed, supabase]);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing || isMobile) return;
@@ -487,33 +511,8 @@ function App() {
 
   const handleOpenInspector = () => {
     setSelectedFileIds([]); // 開啟時重置選擇
-    if (supabase) {
-      fetchCloudFiles();
-      
-      // V26.11: 導入 Supabase Realtime 實現全自動即時更新
-      const channel = supabase
-        .channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_uploaded_files' }, () => {
-          console.log('[Realtime] 偵測到檔案狀態變更，即時同步...');
-          fetchCloudFiles();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_history_knowledge' }, () => {
-          console.log('[Realtime] 偵測到知識庫變更，即時同步水位...');
-          fetchUsageStats();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_usage_stats' }, () => {
-          console.log('[Realtime] 偵測到資源用量變更，即時同步儀表板...');
-          fetchUsageStats();
-        })
-        .subscribe();
-
-      return () => {
-        if (supabase) {
-          supabase.removeChannel(channel);
-        }
-      };
-    }
     if (isCloudAuthed) {
+      fetchCloudFiles();
       setShowCloudInspector(true);
     } else {
       setShowPasswordPrompt(true);
