@@ -112,10 +112,15 @@ export async function processSingleChunkBackend(
   }
 
   const modelsToTry = [
-    'gemini-2.0-flash', 
-    'gemini-1.5-flash', 
-    'gemini-1.5-flash-8b', // V26.5: 新增極高配額的備援模型
-    'gemini-1.5-pro'
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash-8b'
   ];
   let result: any;
   let lastError: any;

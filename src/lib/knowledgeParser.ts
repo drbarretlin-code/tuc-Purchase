@@ -36,8 +36,12 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
   // gemini-1.5-flash / gemini-1.5-pro 已從 v1beta 下架 (404)
   // gemini-2.5-flash / gemini-2.5-flash-lite 確認存在 (429 = 存在但限流)
   const priorityList = [
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro',
     'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
     'gemini-2.0-flash',
   ];
 
