@@ -41,16 +41,15 @@ export class DiagnosticError extends Error {
 export function getGeminiKeyPool(): string[] {
   const poolStr = localStorage.getItem('gemini_api_key_pool') || '';
   const activeKey = localStorage.getItem('tuc_gemini_key') || '';
+  // 相容舊版或單一金鑰儲存點
+  const legacyKey = localStorage.getItem('gemini_api_key') || '';
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || '';
   
-  const keys = poolStr.split(/[,，]/).map(k => k.trim()).filter(k => k);
+  // 遍歷所有可能的來源並進行分割
+  const allRaw = [activeKey, poolStr, legacyKey, envKey].join(',');
+  const keys = allRaw.split(/[,，\n]/).map(k => k.trim()).filter(k => k);
   
-  const combined = [];
-  if (activeKey) combined.push(activeKey);
-  combined.push(...keys);
-  if (envKey) combined.push(envKey);
-  
-  return Array.from(new Set(combined));
+  return Array.from(new Set(keys));
 }
 
 export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
