@@ -114,9 +114,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let inlineData: any = null;
 
     // V23 優化：解耦「提取」與「解析」以防止 Vercel 60s 超時
-    if (record.extracted_text) {
+    // V26.27: 嚴格判別 null，防止空字串引起的無限遞迴
+    if (record.extracted_text !== null) {
       console.log(`[Worker] 使用快取文字進行接力解析: ${record.original_name}`);
-      const cachedText = record.extracted_text;
+      const cachedText = record.extracted_text || '';
       const MAX_CHUNK_LENGTH = 12000; 
       
       if (cachedText.length > MAX_CHUNK_LENGTH) {
@@ -124,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           textChunks.push(cachedText.substring(i, i + MAX_CHUNK_LENGTH));
         }
       } else {
-        textChunks.push(cachedText || '');
+        textChunks.push(cachedText);
       }
 
       // V26.3: 如果提取出的文字量過少且為 PDF，啟動視覺備援（重新下載以取得 inlineData）
@@ -145,13 +146,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const arrayBuffer = await fileBlob.arrayBuffer();
 
       const result = await getFileChunks(arrayBuffer, record.original_name);
-      const fullText = result.textChunks.join('');
+      const fullText = result.textChunks.join('').trim();
+
+      // V26.27: 防呆 - 若完全提取不到文字且非 PDF，則中斷，不發送下一波 QStash
+      if (!fullText && !record.original_name.toLowerCase().endsWith('.pdf')) {
+        await supabase.from('tuc_uploaded_files').update({ 
+          parse_status: 'failed',
+          error_message: '無法從該檔案提取任何有效文字。請確認檔案內容或改用 PDF 格式上傳。'
+        } as any).eq('id', fileId);
+        return res.status(200).json({ success: false, error: 'Empty text content' });
+      }
 
       // 將提取內容寫入資料庫
       await supabase.from('tuc_uploaded_files').update({ 
         extracted_text: fullText,
         file_size: arrayBuffer.byteLength,
-        parse_status: `processing:0/${result.textChunks.length}`
+        parse_status: `processing:0/${result.textChunks.length || 1}`
       } as any).eq('id', fileId);
       
       console.log(`[Worker] 提取完成 (${fullText.length} 字)，立即結束當前 Request 並觸發下一波 AI 解析階段。`);
