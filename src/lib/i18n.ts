@@ -598,6 +598,36 @@ export const translations: Record<string, any> = {
     'aiAssembleFail': 'AI 反向组装失败，该文件可能缺少关键条文。',
     'parseError': '解析过程发生错误',
     'unnamedDoc': '未命名文件',
+    'contractorNotice': '厂商注意事项',
+    'defaultContractorNotice': `注意：承包商承包工程，必须遵守提供以下资料提供，缺一不可，如无法配合勿承接案件，以免日后有争议。
+（只要工程项目、工作地点、施工人员与提交人员名册不符均需重新缴交资料并重新上课）
+
+1. 协作厂商环安卫管理切结书 (ESHP-11-00101)
+2. 工作环境危害因素告知单 (ESHP-11-00102)
+3. 职安人员、营造、有害作业主管证书及回训证明或特殊、特种作业相关证书副本
+   甲、特殊作业：如吊挂、动火、高架、局限及危险管路等
+   乙、相关证照：如：一机三证、缺氧作业主管等等
+4. 协作厂商进厂施工人员名册 (ESHP-11-00103) 及以下施工人员相关资料：
+   甲、个资搜集告知声明暨同意书 (ESHP-11-00104)，务必请个人亲笔签名。
+   乙、(1) 劳工保险、(2) 社会保险、(3) 意外保险 (NTD 500 万元以上或 RMB 45 万元以上/每人) *副本 3 择 1
+   丙、员工健康体检资料 (2 年内) *副本
+   丁、委外或自行办理之职业安全卫生教育训练证明 (3 年 6 小时)
+   戊、非本籍 (中华人民共和国籍) 施工人员需检附居留证副本
+5. 协议组织会议签到及纪录表 (ESHP-11-00111)
+6. 协作厂商环安卫管理规则 (ESHP-11-00113)
+7. 协作廠商一般施工申请单 (ESHP-11-00115)
+8. 协作厂商内部危害因素告知单 (ESHP-11-00118)
+9. 协作厂商再承揽证明书 (ESHP-11-00119)
+
+另外安全培训课程说明如下：
+1. 日期：每周四 (如遇国定假日或当日有其他重要会议如安委会等即取消)。
+2. 时间：09:00~10:30 (含测试)。
+3. 人数：30 人/堂 (最多)。报名人数达 10 人 (含) 以上即开课。
+4. 地点：B1 教育训练室。
+5. 方式：采报名方式填写协作厂商环安卫训练讲习报名表 (如附件)。
+6. 报名：厂商需要上课者，提前一周报名。
+
+如于执行流程有任何建议或疑慮之处，烦请回复此 MAIL。`,
     'unnamedEq': '未命名设备',
     
     // UI - UploadModal
@@ -898,6 +928,36 @@ export const translations: Record<string, any> = {
     'docBottomNote1': '* Specs must be detailed for purchasing/negotiation',
     'docBottomNote2': '* Is drawing attachment necessary for this purchase?',
     'docImgNote': '[Image limit: See full PDF for diagrams]',
+    'contractorNotice': 'Contractor Notice',
+    'defaultContractorNotice': `Note: Contractors must provide the following documents. Failure to comply will result in non-acceptance of the project.
+(Inconsistencies in project items, location, or personnel list will require re-submission and re-training)
+
+1. Vendor ESH Management Affidavit (ESHP-11-00101)
+2. Notification of Hazardous Factors in Work Environment (ESHP-11-00102)
+3. Certificates for Safety Officers, Construction, or Hazardous Operation Supervisors (including refresher training)
+   A. Special operations: e.g., hoisting, hot work, heights, confined space, hazardous piping.
+   B. Related licenses: e.g., machine licenses, oxygen deficiency supervisor.
+4. Contractor Personnel List (ESHP-11-00103) and individual data:
+   A. Personal Data Collection Statement & Consent (ESHP-11-00104), must be signed in person.
+   B. Insurance: Labor, Social, or Accident Insurance (min NTD 5M or RMB 450K per person) *Copy (1 of 3)
+   C. Employee health check records (within 2 years) *Copy
+   D. Occupational safety and health training certificate (6 hours every 3 years)
+   E. For non-ROC citizens, a copy of the residence permit is required.
+5. Agreement Organization Meeting Sign-in & Records (ESHP-11-00111)
+6. Vendor ESH Management Rules (ESHP-11-00113)
+7. Vendor General Construction Application Form (ESHP-11-00115)
+8. Vendor Internal Hazard Notification Form (ESHP-11-00118)
+9. Vendor Re-contracting Certificate (ESHP-11-00119)
+
+Safety Training Course Details:
+1. Date: Every Thursday (cancelled on public holidays or major TUC committee meetings).
+2. Time: 09:00~10:30 (including test).
+3. Capacity: Max 30 people/session. Class opens if 10+ participants registered.
+4. Location: B1 Training Room.
+5. Registration: Fill out the ESH Training Seminar Form (see attachment).
+6. Deadline: Register at least one week in advance.
+
+If you have any suggestions or concerns regarding the process, please reply to this MAIL.`,
     
     'inputPlaceholder': 'Please enter ',
     'aiSearchPending': '🔍 AI searching...',
@@ -921,6 +981,36 @@ export const translations: Record<string, any> = {
     'aiAssembleFail': 'AI reconstruction failed',
     'parseError': 'Parsing error occurred',
     'unnamedDoc': 'Unnamed Document',
+    'contractorNotice': 'Contractor Notice',
+    'defaultContractorNotice': `Note: Contractors must provide the following documents. Failure to comply will result in non-acceptance of the project.
+(Inconsistencies in project items, location, or personnel list will require re-submission and re-training)
+
+1. Vendor ESH Management Affidavit (ESHP-11-00101)
+2. Notification of Hazardous Factors in Work Environment (ESHP-11-00102)
+3. Certificates for Safety Officers, Construction, or Hazardous Operation Supervisors (including refresher training)
+   A. Special operations: e.g., hoisting, hot work, heights, confined space, hazardous piping.
+   B. Related licenses: e.g., machine licenses, oxygen deficiency supervisor.
+4. Contractor Personnel List (ESHP-11-00103) and individual data:
+   A. Personal Data Collection Statement & Consent (ESHP-11-00104), must be signed in person.
+   B. Insurance: Labor, Social, or Accident Insurance (min NTD 5M or RMB 450K per person) *Copy (1 of 3)
+   C. Employee health check records (within 2 years) *Copy
+   D. Occupational safety and health training certificate (6 hours every 3 years)
+   E. For non-ROC citizens, a copy of the residence permit is required.
+5. Agreement Organization Meeting Sign-in & Records (ESHP-11-00111)
+6. Vendor ESH Management Rules (ESHP-11-00113)
+7. Vendor General Construction Application Form (ESHP-11-00115)
+8. Vendor Internal Hazard Notification Form (ESHP-11-00118)
+9. Vendor Re-contracting Certificate (ESHP-11-00119)
+
+Safety Training Course Details:
+1. Date: Every Thursday (cancelled on public holidays or major TUC committee meetings).
+2. Time: 09:00~10:30 (including test).
+3. Capacity: Max 30 people/session. Class opens if 10+ participants registered.
+4. Location: B1 Training Room.
+5. Registration: Fill out the ESH Training Seminar Form (see attachment).
+6. Deadline: Register at least one week in advance.
+
+If you have any suggestions or concerns regarding the process, please reply to this MAIL.`,
     'unnamedEq': 'Unnamed Equipment',
     
     // UI - UploadModal
@@ -1224,6 +1314,36 @@ export const translations: Record<string, any> = {
     'docBottomNote1': '* ข้อกำหนดนี้ต้องระบุโดยละเอียดเพื่อใช้ในการต่อรองราคา',
     'docBottomNote2': '* พัสดุรายการนี้มีความจำเป็นต้องใช้แบบวาดประกอบหรือไม่?',
     'docImgNote': '[ข้อจำกัดของไฟล์: โปรดดูรูปภาพในไฟล์ PDF]',
+    'contractorNotice': 'ข้อควรระวังสำหรับผู้รับเหมา',
+    'defaultContractorNotice': `หมายเหตุ: ผู้รับเหมาต้องจัดเตรียมเอกสารต่อไปนี้ให้ครบถ้วน หากไม่สามารถปฏิบัติตามได้ จะไม่ได้รับการพิจารณาจ้างงาน
+(หากข้อมูลโครงการ สถานที่ หรือรายชื่อบุคลากรไม่ตรงกัน จะต้องยื่นเอกสารใหม่และเข้าอบรมใหม่)
+
+1. หนังสือรับรองการจัดการด้านความปลอดภัย อาชีวอนามัย และสิ่งแวดล้อม (ESHP-11-00101)
+2. ใบแจ้งปัจจัยอันตรายในสภาพแวดล้อมการทำงาน (ESHP-11-00102)
+3. ใบรับรองเจ้าหน้าที่ความปลอดภัย หรือผู้ควบคุมงานอันตราย (รวมถึงหลักฐานการอบรมทบทวน)
+   ก. งานพิเศษ: เช่น งานยก, งานที่เกิดความร้อน, งานบนที่สูง, งานในที่อับอากาศ, งานท่ออันตราย
+   ข. ใบอนุญาตที่เกี่ยวข้อง: เช่น ใบอนุญาตควบคุมเครื่องจักร, ผู้ควบคุมงานในที่ขาดออกซิเจน
+4. รายชื่อบุคลากรผู้รับเหมา (ESHP-11-00103) และข้อมูลส่วนบุคคล:
+   ก. คำแถลงและหนังสือยินยอมการเก็บรวบรวมข้อมูลส่วนบุคคล (ESHP-11-00104) ต้องลงนามด้วยตนเอง
+   ข. ประกันภัย: ประกันสังคม หรือประกันอุบัติเหตุ (วงเงินขั้นต่ำ 5 ล้าน NTD หรือ 450,000 RMB ต่อคน) *สำเนา
+   ค. บันทึกการตรวจสุขภาพพนักงาน (ไม่เกิน 2 ปี) *สำเนา
+   ง. ใบรับรองการฝึกอบรมด้านความปลอดภัยและอาชีวอนามัย (6 ชั่วโมง ทุก 3 ปี)
+   จ. สำหรับผู้ที่ไม่ได้ถือสัญชาติ ROC ต้องแนบสำเนาใบอนุญาตพำนัก (Residence Permit)
+5. บันทึกการประชุมองค์กรข้อตกลง (ESHP-11-00111)
+6. กฎระเบียบการจัดการด้านความปลอดภัยสำหรับผู้รับเหมา (ESHP-11-00113)
+7. ใบสมัครงานก่อสร้างทั่วไป (ESHP-11-00115)
+8. แบบฟอร์มแจ้งเตือนอันตรายภายในของผู้รับเหมา (ESHP-11-00118)
+9. หนังสือรับรองการจ้างช่วงต่อ (ESHP-11-00119)
+
+รายละเอียดการอบรมความปลอดภัย:
+1. วันที่: ทุกวันพฤหัสบดี (ยกเว้นวันหยุดนักขัตฤกษ์ หรือวันที่มีการประชุมสำคัญของ TUC)
+2. เวลา: 09:00~10:30 (รวมการทดสอบ)
+3. จำนวน: สูงสุด 30 คนต่อรอบ (เปิดสอนหากมีผู้ลงทะเบียน 10 คนขึ้นไป)
+4. สถานที่: ห้องอบรม ชั้น B1
+5. การลงทะเบียน: กรอกแบบฟอร์มสัมมนาการฝึกอบรม ESH (ดูเอกสารแนบ)
+6. กำหนดการ: ลงทะเบียนล่วงหน้าอย่างน้อยหนึ่งสัปดาห์
+
+หากคุณมีข้อเสนอแนะหรือข้อสงสัยเกี่ยวกับขั้นตอน โปรดตอบกลับอีเมลนี้`,
     
     'inputPlaceholder': 'โปรดป้อน ',
     'aiSearchPending': '🔍 AI กำลังค้นหาในพื้นหลัง...',
@@ -1246,6 +1366,36 @@ export const translations: Record<string, any> = {
     'aiAssembleFail': 'การประกอบ AI ล้มเหลว ข้อความสำคัญอาจหายไป',
     'parseError': 'เกิดข้อผิดพลาดระหว่างการแยกวิเคราะห์',
     'unnamedDoc': 'เอกสารที่ไม่มีชื่อ',
+    'contractorNotice': 'ข้อควรระวังสำหรับผู้รับเหมา',
+    'defaultContractorNotice': `หมายเหตุ: ผู้รับเหมาต้องจัดเตรียมเอกสารต่อไปนี้ให้ครบถ้วน หากไม่สามารถปฏิบัติตามได้ จะไม่ได้รับการพิจารณาจ้างงาน
+(หากข้อมูลโครงการ สถานที่ หรือรายชื่อบุคลากรไม่ตรงกัน จะต้องยื่นเอกสารใหม่และเข้าอบรมใหม่)
+
+1. หนังสือรับรองการจัดการด้านความปลอดภัย อาชีวอนามัย และสิ่งแวดล้อม (ESHP-11-00101)
+2. ใบแจ้งปัจจัยอันตรายในสภาพแวดล้อมการทำงาน (ESHP-11-00102)
+3. ใบรับรองเจ้าหน้าที่ความปลอดภัย หรือผู้ควบคุมงานอันตราย (รวมถึงหลักฐานการอบรมทบทวน)
+   ก. งานพิเศษ: เช่น งานยก, งานที่เกิดความร้อน, งานบนที่สูง, งานในที่อับอากาศ, งานท่ออันตราย
+   ข. ใบอนุญาตที่เกี่ยวข้อง: เช่น ใบอนุญาตควบคุมเครื่องจักร, ผู้ควบคุมงานในที่ขาดออกซิเจน
+4. รายชื่อบุคลากรผู้รับเหมา (ESHP-11-00103) และข้อมูลส่วนบุคคล:
+   ก. คำแถลงและหนังสือยินยอมการเก็บรวบรวมข้อมูลส่วนบุคคล (ESHP-11-00104) ต้องลงนามด้วยตนเอง
+   ข. ประกันภัย: ประกันสังคม หรือประกันอุบัติเหตุ (วงเงินขั้นต่ำ 5 ล้าน NTD หรือ 450,000 RMB ต่อคน) *สำเนา
+   ค. บันทึกการตรวจสุขภาพพนักงาน (ไม่เกิน 2 ปี) *สำเนา
+   ง. ใบรับรองการฝึกอบรมด้านความปลอดภัยและอาชีวอนามัย (6 ชั่วโมง ทุก 3 ปี)
+   จ. สำหรับผู้ที่ไม่ได้ถือสัญชาติ ROC ต้องแนบสำเนาใบอนุญาตพำนัก (Residence Permit)
+5. บันทึกการประชุมองค์กรข้อตกลง (ESHP-11-00111)
+6. กฎระเบียบการจัดการด้านความปลอดภัยสำหรับผู้รับเหมา (ESHP-11-00113)
+7. ใบสมัครงานก่อสร้างทั่วไป (ESHP-11-00115)
+8. แบบฟอร์มแจ้งเตือนอันตรายภายในของผู้รับเหมา (ESHP-11-00118)
+9. หนังสือรับรองการจ้างช่วงต่อ (ESHP-11-00119)
+
+รายละเอียดการอบรมความปลอดภัย:
+1. วันที่: ทุกวันพฤหัสบดี (ยกเว้นวันหยุดนักขัตฤกษ์ หรือวันที่มีการประชุมสำคัญของ TUC)
+2. เวลา: 09:00~10:30 (รวมการทดสอบ)
+3. จำนวน: สูงสุด 30 คนต่อรอบ (เปิดสอนหากมีผู้ลงทะเบียน 10 คนขึ้นไป)
+4. สถานที่: ห้องอบรม ชั้น B1
+5. การลงทะเบียน: กรอกแบบฟอร์มสัมมนาการฝึกอบรม ESH (ดูเอกสารแนบ)
+6. กำหนดการ: ลงทะเบียนล่วงหน้าอย่างน้อยหนึ่งสัปดาห์
+
+หากคุณมีข้อเสนอแนะหรือข้อสงสัยเกี่ยวกับขั้นตอน โปรดตอบกลับอีเมลนี้`,
     'unnamedEq': 'อุปกรณ์นิรนาม',
     
     'wizardTitle': 'การวิเคราะห์อัจฉริยะและการเหนี่ยวนำข้อมูลจำเพาะ',
