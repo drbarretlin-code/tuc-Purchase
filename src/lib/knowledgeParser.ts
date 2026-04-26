@@ -118,6 +118,11 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
         continue;
       }
 
+      if (status === 503 || errMsg.includes('503') || errMsg.includes('Service Unavailable') || errMsg.includes('high demand')) {
+        console.warn(`[AI Discovery] 模型 ${mId} 暫時繁忙 (503)，嘗試下一個...`);
+        continue;
+      }
+
       console.error(`[AI Discovery] 試驗 ${mId} 時發生其他錯誤:`, errMsg);
     }
   }
