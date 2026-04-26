@@ -1743,6 +1743,18 @@ function App() {
                           <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${qUsage}%`, height: '100%', background: qUsage > 90 ? '#EF4444' : qUsage > 70 ? '#F59E0B' : '#10B981', transition: 'width 0.5s ease' }} />
                           </div>
+                          {/* V26.23: 重置時間提醒 */}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#666', marginTop: '2px' }}>
+                             {(() => {
+                               const now = new Date();
+                               const nextReset = new Date(now);
+                               nextReset.setUTCHours(24, 0, 0, 0);
+                               const diffMs = nextReset.getTime() - now.getTime();
+                               const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                               const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                               return `距離下次重置: ${hours} 小時 ${mins} 分`;
+                             })()}
+                          </div>
                         </div>
 
                         {/* Egress 水位計 */}
@@ -1758,6 +1770,18 @@ function App() {
                           </div>
                           <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
+                          </div>
+                          {/* V26.23: 重置時間提醒 */}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#666', marginTop: '2px' }}>
+                             {(() => {
+                               const now = new Date();
+                               const nextReset = new Date(now);
+                               nextReset.setUTCHours(24, 0, 0, 0);
+                               const diffMs = nextReset.getTime() - now.getTime();
+                               const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                               const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                               return `距離下次重置: ${hours} 小時 ${mins} 分`;
+                             })()}
                           </div>
                         </div>
                       </>
@@ -2046,8 +2070,8 @@ function App() {
               );
             })()}
 
-            {/* Content List Table Container (V19.3: 提高最小高度並優化捲軸體驗，確保至少顯示 5-8 筆) */}
-            <div style={{ flex: 1, minHeight: '450px', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,0.15)' }}>
+            {/* Content List Table Container (V26.23: 優化佈局，移除固定最小高度限制，確保在不同螢幕尺寸下都能正確顯示列表) */}
+            <div style={{ flex: '1 1 0%', overflowY: 'auto', border: '1px solid var(--border-color)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,0.2)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 10 }}>
                   <tr style={{ color: '#888', fontSize: '0.9rem' }}>
