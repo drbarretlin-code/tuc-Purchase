@@ -59,7 +59,7 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
 
   const createMultilineParagraphs = (text: string, spacingAfter = 40, lastSpacingAfter = 200) => {
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
     if (lines.length === 0) return [new Paragraph({ text: 'NA', spacing: { after: lastSpacingAfter } })];
     return lines.map((l, i) => new Paragraph({ 
       children: [new TextRun({ text: l })], 
@@ -103,17 +103,15 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200, after: 100 } }),
     ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').filter(l => l.trim()).map(l => new Paragraph({ children: [new TextRun({ text: l })], spacing: { after: 40 } })),
     
+    
     // 廠商注意事項 (A4 直向整頁)
+    new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({ 
       heading: HeadingLevel.HEADING_4, 
       children: [new TextRun({ text: t('contractorNotice', lang), bold: true, size: 28 })],
-      spacing: { before: 400, after: 200 },
-      pageBreakBefore: true 
+      spacing: { before: 200, after: 200 }
     }),
-    ...v(data.contractorNotice, lang).split('\n').filter(l => l.trim()).map(l => new Paragraph({ 
-      children: [new TextRun({ text: l, size: 20 })],
-      spacing: { after: 40 }
-    })),
+    ...createMultilineParagraphs(v(data.contractorNotice, lang), 40, 0),
   ];
 
   const optionalSections: (Paragraph | Table)[] = [];
