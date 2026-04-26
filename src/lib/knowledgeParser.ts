@@ -624,11 +624,12 @@ export const getHistorySuggestions = async (
 /**
  * 完稿同步至知識庫 (基於 DocID 的智慧覆蓋機制)
  */
-export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
-  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
-  const finalKey = rawKey.trim();
-  if (!finalKey) throw new Error('缺少 Gemini API Key');
-  if (!supabase) throw new Error('資料庫連線未建立');
+export const syncFormDataToKnowledge = async (data: any, apiKey?: string | string[]) => {
+  const finalKey = apiKey || getGeminiKeyPool();
+  const modelId = await getAutoSelectedModel(finalKey);
+  const keys = Array.isArray(finalKey) ? finalKey : [finalKey];
+  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const genAI = new GoogleGenerativeAI(workingKey);
 
   const docId = data.docId;
   const equipmentName = data.equipmentName || '未命名設備';
@@ -664,10 +665,9 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string) => {
     內容：
     ${summaryText}
   `;
+  if (!supabase) throw new Error('資料庫連線未建立');
 
   try {
-    const genAI = new GoogleGenerativeAI(finalKey);
-    const modelId = await getAutoSelectedModel(finalKey);
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const result = await model.generateContent({
@@ -819,11 +819,13 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
 export async function translateHints(
   hints: AIHintSelection[], 
   targetLang: string, 
-  apiKey: string
+  apiKey: string | string[]
 ): Promise<AIHintSelection[]> {
   if (hints.length === 0) return hints;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
+  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const genAI = new GoogleGenerativeAI(workingKey);
   const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
@@ -882,11 +884,13 @@ ${combinedText}`;
 export async function translateCloudMetadata(
   items: { id: string; name: string; tags?: string[] }[],
   targetLang: string,
-  apiKey: string
+  apiKey: string | string[]
 ): Promise<{ id: string; name: string; tags?: string[] }[]> {
   if (items.length === 0 || targetLang === 'zh-TW') return items;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
+  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const genAI = new GoogleGenerativeAI(workingKey);
   const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
@@ -949,11 +953,13 @@ export async function translateCloudMetadata(
 export async function translateFullSpec(
   data: any,
   targetLang: string,
-  apiKey: string
+  apiKey: string | string[]
 ): Promise<any> {
   if (!data || targetLang === 'zh-TW') return data;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
+  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const genAI = new GoogleGenerativeAI(workingKey);
   const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
