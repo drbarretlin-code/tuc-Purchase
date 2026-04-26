@@ -55,6 +55,7 @@ export function getGeminiKeyPool(): string[] {
 
 export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
   const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
+  console.log(`[AI Discovery] 啟動瀑布式偵測，金鑰池總數: ${keys.length}`);
   
   for (let i = 0; i < keys.length; i++) {
     const currentKey = keys[i];
