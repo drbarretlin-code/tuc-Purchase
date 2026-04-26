@@ -118,6 +118,7 @@ function App() {
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageSize, setStorageSize] = useState(0);
   const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
+  const [currentAIModel, setCurrentAIModel] = useState<string>('偵測中...');
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
@@ -385,6 +386,10 @@ function App() {
           estimated_egress_bytes: uStats.estimated_egress_bytes || 0
         });
       }
+
+      // V26.11: 更新當前前端鎖定的模型名稱
+      const detected = KP.getCachedModelId();
+      if (detected) setCurrentAIModel(detected);
     } catch (err) {
       console.error('Fetch usage stats error:', err);
     }
@@ -481,8 +486,31 @@ function App() {
 
   const handleOpenInspector = () => {
     setSelectedFileIds([]); // 開啟時重置選擇
+    if (supabase) {
+      fetchCloudFiles();
+      
+      // V26.11: 導入 Supabase Realtime 實現全自動即時更新
+      const channel = supabase
+        .channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_uploaded_files' }, () => {
+          console.log('[Realtime] 偵測到檔案狀態變更，即時同步...');
+          fetchCloudFiles();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_history_knowledge' }, () => {
+          console.log('[Realtime] 偵測到知識庫變更，即時同步水位...');
+          fetchUsageStats();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_usage_stats' }, () => {
+          console.log('[Realtime] 偵測到資源用量變更，即時同步儀表板...');
+          fetchUsageStats();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
     if (isCloudAuthed) {
-      fetchCloudFiles(); // V20: 移除重複的 fetchUsageStats() 呼叫
       setShowCloudInspector(true);
     } else {
       setShowPasswordPrompt(true);
@@ -1586,7 +1614,7 @@ function App() {
 
               {/* V26.10: 雲端資源健康監測儀表板 (Resource Health Dashboard) */}
               {(() => {
-                const qstashLimit = 500; // 免費額度
+                const qstashLimit = 1000; // V26.11: 根據使用者回饋校準為 1000
                 const egressLimitGB = 5;
                 const egressBytesLimit = egressLimitGB * 1024 * 1024 * 1024;
                 
@@ -1648,15 +1676,15 @@ function App() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
-                          <Clock size={12} /> 執行上限: {isPaidTier ? '300s' : '60s'}
-                       </div>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
-                          <Zap size={12} /> AI 頻率: {isPaidTier ? '高' : '15 RPM'}
-                       </div>
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
+                            <Clock size={12} /> 執行上限: {isPaidTier ? '300s' : '60s'}
+                         </div>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
+                            <Zap size={12} /> AI 模型: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{currentAIModel}</span>
+                         </div>
+                      </div>
                     </div>
-                  </div>
                 );
               })()}
 

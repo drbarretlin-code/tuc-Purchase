@@ -9,6 +9,7 @@ import { t } from './i18n';
  * 使用 @google/genai 統一 SDK，具備自動模型發現機制
  */
 let cachedModelId: string | null = null;
+export const getCachedModelId = () => cachedModelId;
 
 export interface DiagnosticResult {
   code: 'QUOTA_EXCEEDED' | 'API_KEY_EXPIRED' | 'API_KEY_INVALID' | 'FILE_TOO_LARGE' | 'AI_SAFETY_REJECT' | 'JSON_PARSE_FAILED' | 'STORAGE_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN';
