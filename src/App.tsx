@@ -1750,7 +1750,10 @@ function App() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                             <span style={{ color: '#aaa' }}>估計傳輸流量 (Egress)</span>
                             <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
-                              {(usageStats.estimated_egress_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {egressLimitGB} GB
+                              {usageStats.estimated_egress_bytes < 1024 * 1024 * 1024 
+                                ? `${(usageStats.estimated_egress_bytes / (1024 * 1024)).toFixed(2)} MB`
+                                : `${(usageStats.estimated_egress_bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+                              } / {egressLimitGB} GB
                             </span>
                           </div>
                           <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
@@ -1784,7 +1787,7 @@ function App() {
                             <Clock size={12} /> 執行上限: {isPaidTier ? '300s' : '60s'}
                          </div>
                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
-                            <Zap size={12} /> AI 模型: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{currentAIModel}</span>
+                            <Zap size={12} /> AI 模型: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{currentAIModel === '偵測中...' ? '等待任務啟動' : currentAIModel}</span>
                          </div>
                       </div>
                     </div>
