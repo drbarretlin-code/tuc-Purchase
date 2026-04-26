@@ -2336,6 +2336,9 @@ function App() {
                           <button className="icon-btn" onClick={() => handleForceReparseFiles([f.id])} style={{ color: '#60A5FA' }} title={t('forceReparse', data.language)} disabled={isReparsing}>
                             <Repeat size={16} className={isReparsing && reparseCurrentFile === f.original_name ? "spin" : ""} />
                           </button>
+                          <button className="icon-btn" onClick={() => handleForceReparseFiles([f.id], "ultra")} style={{ color: "#F59E0B" }} title="深度挖掘 (Ultra-Mining)" disabled={isReparsing}>
+                            <Zap size={16} />
+                          </button>
                           <button className="icon-btn" onClick={() => handleDeleteFile(f.id)} style={{ color: '#EF4444' }} title={t('deleteRecord', data.language)}>
                             <Trash2 size={16} />
                           </button>
