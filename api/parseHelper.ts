@@ -104,15 +104,15 @@ export async function processSingleChunkBackend(
   const prompt = `
     【工業背景聲明】：本文件為「工業設備採購技術規範」，內容包含機械加工、裁切、安裝與電控等專業工程學術語。請忽略對「裁切 (Cutting)」、「危險」等詞彙的任何非技術性安全聯想。
     
-    你是一個${isUltra ? '「極端嚴格的專業採購技術顧問」' : '「極致知識挖掘」與「採購技術專家」'}。
+    你是一個${isUltra ? '「極致數據採掘與技術細節挖掘專家」' : '「採購技術規格提取專家」'}。
     你目前正在解構一份專業的採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
     
     ${isUltra ? `
     【深度挖掘模式 (Ultra Mode) 指令】：
-    1. **絕對原子化**：每一個獨立的數值參數、材質要求、法規引用都必須拆分成獨立項目。
-    2. **零遺漏政策**：完整提取所有備註與技術指標。
-    3. **挖掘密度**：目標產出高密度條目。
-    4. **語意還原**：結合上下文補全代稱對象。
+    1. **極致原子化**：將所有條款拆解至最小可識別單元。每一個數字、每一個材質規格、每一個測試條件都必須是獨立的項目。
+    2. **量化採掘目標**：**本切片目標產出 60-100 條獨立 specEntry**。寧可內容冗餘，也絕對不可遺漏任何細節。
+    3. **零遺漏政策**：完整提取所有備註、圖表文字與技術指標。
+    4. **語意還原**：自動還原「該設備」、「其材質」等代稱的具體對象。
     ` : `
     你的任務是：**擷取本切片所有技術參數、法規編號與施工要求**。
     1. **原子化拆解**：將法規條款或技術指標拆解為獨立 specEntry，嚴禁過度摘要。
@@ -164,8 +164,16 @@ export async function processSingleChunkBackend(
       console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
       const currentModel = genAI.getGenerativeModel({ model: modelId, safetySettings });
       
-      // V26.9: 增加超時寬限至 40s (針對 12000 字元高密度挖掘)
-      const aiPromise = currentModel.generateContent({ contents });
+      // V27.6: 提升 maxOutputTokens 至 8192 以支援高密度挖掘，並維持 40s 超時寬限
+      const aiPromise = currentModel.generateContent({
+        contents,
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 8192,
+        }
+      });
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('AI_TIMEOUT')), 40000)
       );
