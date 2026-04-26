@@ -119,6 +119,7 @@ function App() {
   const [storageSize, setStorageSize] = useState(0);
   const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
   const [currentAIModel, setCurrentAIModel] = useState<string>('偵測中...');
+  const [healthTab, setHealthTab] = useState<'current' | 'paid'>('current');
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
@@ -1635,46 +1636,98 @@ function App() {
                     gap: '0.6rem'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Activity size={16} color="#10B981" /> 系統健康監測
-                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          onClick={() => setHealthTab('current')}
+                          style={{ 
+                            fontSize: '0.75rem', 
+                            background: healthTab === 'current' ? 'rgba(16,185,129,0.2)' : 'transparent',
+                            color: healthTab === 'current' ? '#10B981' : '#888',
+                            border: 'none',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: healthTab === 'current' ? 'bold' : 'normal'
+                          }}
+                        >
+                          當前狀態
+                        </button>
+                        <button 
+                          onClick={() => setHealthTab('paid')}
+                          style={{ 
+                            fontSize: '0.75rem', 
+                            background: healthTab === 'paid' ? 'rgba(59,130,246,0.2)' : 'transparent',
+                            color: healthTab === 'paid' ? '#3B82F6' : '#888',
+                            border: 'none',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: healthTab === 'paid' ? 'bold' : 'normal'
+                          }}
+                        >
+                          付費額度模式
+                        </button>
+                      </div>
                       <span style={{ 
-                        fontSize: '0.7rem', 
-                        padding: '2px 8px', 
+                        fontSize: '0.6rem', 
+                        padding: '1px 6px', 
                         borderRadius: '4px', 
-                        background: isPaidTier ? 'rgba(16,185,129,0.2)' : 'rgba(107,114,128,0.2)',
-                        color: isPaidTier ? '#10B981' : '#9CA3AF',
-                        border: `1px solid ${isPaidTier ? '#10B981' : '#4B5563'}`
+                        background: isPaidTier ? 'rgba(16,185,129,0.1)' : 'rgba(107,114,128,0.1)',
+                        color: isPaidTier ? '#10B981' : '#666',
+                        border: `1px solid ${isPaidTier ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'}`
                       }}>
-                        {isPaidTier ? '專業寬限模式' : '免費額度模式'}
+                        {isPaidTier ? '已解鎖 Pro' : 'Free Tier'}
                       </span>
                     </div>
                     
-                    {/* QStash 水位計 */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                        <span style={{ color: '#aaa' }}>QStash 今日用量</span>
-                        <span style={{ color: qUsage > 80 ? '#F59E0B' : '#fff' }}>
-                          {usageStats.qstash_calls_today} / {qstashLimit}
-                        </span>
-                      </div>
-                      <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: `${qUsage}%`, height: '100%', background: qUsage > 90 ? '#EF4444' : qUsage > 70 ? '#F59E0B' : '#10B981', transition: 'width 0.5s ease' }} />
-                      </div>
-                    </div>
+                    {healthTab === 'current' ? (
+                      <>
+                        {/* QStash 水位計 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                            <span style={{ color: '#aaa' }}>QStash 今日用量</span>
+                            <span style={{ color: qUsage > 80 ? '#F59E0B' : '#fff' }}>
+                              {usageStats.qstash_calls_today} / {qstashLimit}
+                            </span>
+                          </div>
+                          <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ width: `${qUsage}%`, height: '100%', background: qUsage > 90 ? '#EF4444' : qUsage > 70 ? '#F59E0B' : '#10B981', transition: 'width 0.5s ease' }} />
+                          </div>
+                        </div>
 
-                    {/* Egress 水位計 */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                        <span style={{ color: '#aaa' }}>估計傳輸流量 (Egress)</span>
-                        <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
-                          {(usageStats.estimated_egress_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {egressLimitGB} GB
-                        </span>
+                        {/* Egress 水位計 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                            <span style={{ color: '#aaa' }}>估計傳輸流量 (Egress)</span>
+                            <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
+                              {(usageStats.estimated_egress_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {egressLimitGB} GB
+                            </span>
+                          </div>
+                          <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '4px 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                          <span style={{ color: '#aaa' }}>專業版 QStash 上限</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>100,000+ 次 / 日</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                          <span style={{ color: '#aaa' }}>專業版 Egress 流量</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>250 GB / 月</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                          <span style={{ color: '#aaa' }}>Vercel 逾時上限</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>300s (Pro Runtime)</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                          <span style={{ color: '#aaa' }}>AI 解析優先級</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>Enterprise Quota</span>
+                        </div>
                       </div>
-                      <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
-                      </div>
-                    </div>
+                    )}
 
                       <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
