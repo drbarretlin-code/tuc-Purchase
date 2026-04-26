@@ -400,7 +400,6 @@ export const translations: Record<string, any> = {
     'workPeriod': '施工天数',
     'acceptanceDesc': '验收描述',
     'compliance': '遵守事项',
-    'contractorNotice': '厂商注意事项',
     'drawings': '是否提供图面',
     'tabHardwareTitle': '技术规格与设计要求',
     'tabConstructionTitle': '安装程序与法规遵循',
@@ -462,7 +461,6 @@ export const translations: Record<string, any> = {
     'defaultDependingOnProcurement': '依请购内容而定',
     'defaultAccordingToTuc': '依台燿规定',
     'defaultAccordingToTucShort': '依台燿规定',
-    'defaultContractorNotice': '依台燿规定 (承包商注意事項)',
     'defaultNationalRegs': '符合国家法规',
     'defaultSafetyRegs': '依台燿规定',
     'defaultInstallStd': `1. PLC以及人机程序修改，施工当天即提供修改前後程序备份
@@ -753,7 +751,6 @@ export const translations: Record<string, any> = {
     'workPeriod': 'Work Period',
     'acceptanceDesc': 'Acceptance',
     'compliance': 'Compliance',
-    'contractorNotice': 'Contractor Notice',
     'drawings': 'Has Drawings',
     'tabHardwareTitle': 'Technical & Design Requirements',
     'tabConstructionTitle': 'Installation & Compliance',
@@ -817,7 +814,6 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTucShort': 'According to TUC regulations',
     'defaultNationalRegs': 'Compliant with national regulations',
     'defaultSafetyRegs': 'According to TUC regulations',
-    'defaultContractorNotice': 'According to TUC regulations (Contractor Notice)',
     'defaultInstallStd': `1. Backup PLC/HMI programs before and after modification on construction day.
 2. Maintain original PLC logic; use auxiliary relay for new features for quick restoration.
 3. Operations follow occupational safety laws.
@@ -980,38 +976,9 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'aiAssembleTip': 'Tip: Docs with [AI Reconstruct] will use Gemini to restore fields',
     'aiAssembleFail': 'AI reconstruction failed',
     'parseError': 'Parsing error occurred',
-    'unnamedDoc': 'Unnamed Document',
-    'contractorNotice': 'Contractor Notice',
-    'defaultContractorNotice': `Note: Contractors must provide the following documents. Failure to comply will result in non-acceptance of the project.
-(Inconsistencies in project items, location, or personnel list will require re-submission and re-training)
-
-1. Vendor ESH Management Affidavit (ESHP-11-00101)
-2. Notification of Hazardous Factors in Work Environment (ESHP-11-00102)
-3. Certificates for Safety Officers, Construction, or Hazardous Operation Supervisors (including refresher training)
-   A. Special operations: e.g., hoisting, hot work, heights, confined space, hazardous piping.
-   B. Related licenses: e.g., machine licenses, oxygen deficiency supervisor.
-4. Contractor Personnel List (ESHP-11-00103) and individual data:
-   A. Personal Data Collection Statement & Consent (ESHP-11-00104), must be signed in person.
-   B. Insurance: Labor, Social, or Accident Insurance (min NTD 5M or RMB 450K per person) *Copy (1 of 3)
-   C. Employee health check records (within 2 years) *Copy
-   D. Occupational safety and health training certificate (6 hours every 3 years)
-   E. For non-ROC citizens, a copy of the residence permit is required.
-5. Agreement Organization Meeting Sign-in & Records (ESHP-11-00111)
-6. Vendor ESH Management Rules (ESHP-11-00113)
-7. Vendor General Construction Application Form (ESHP-11-00115)
-8. Vendor Internal Hazard Notification Form (ESHP-11-00118)
-9. Vendor Re-contracting Certificate (ESHP-11-00119)
-
-Safety Training Course Details:
-1. Date: Every Thursday (cancelled on public holidays or major TUC committee meetings).
-2. Time: 09:00~10:30 (including test).
-3. Capacity: Max 30 people/session. Class opens if 10+ participants registered.
-4. Location: B1 Training Room.
-5. Registration: Fill out the ESH Training Seminar Form (see attachment).
-6. Deadline: Register at least one week in advance.
-
-If you have any suggestions or concerns regarding the process, please reply to this MAIL.`,
     'unnamedEq': 'Unnamed Equipment',
+    
+    // UI - UploadModal
     
     // UI - UploadModal
     'wizardTitle': 'Smart Analysis & Induction',
@@ -1145,7 +1112,6 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'workPeriod': 'ระยะเวลาดำเนินงาน',
     'acceptanceDesc': 'รายละเอียดการรับมอบ',
     'compliance': 'ข้อควรปฏิบัติ',
-    'contractorNotice': 'ข้อควรปฏิบัติสำหรับผู้รับเหมา',
     'drawings': 'แนบแบบวาดหรือไม่',
     'tabHardwareTitle': 'ข้อกำหนดด้านเทคนิคและการออกแบบ體',
     'tabConstructionTitle': 'การติดตั้งและการปฏิบัติตามข้อกำหนด',
@@ -1209,7 +1175,6 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'defaultAccordingToTucShort': 'ตามข้อกำหนดของ Taiwan Union',
     'defaultNationalRegs': 'ปฏิบัติตามกฎหมายระดับประเทศ',
     'defaultSafetyRegs': 'ตามกฎระเบียบของ TUC',
-    'defaultContractorNotice': 'ตามกฎระเบียบของ TUC (ข้อควรปฏิบัติสำหรับผู้รับเหมา)',
     'defaultInstallStd': `1. ต้องจัดเตรียมข้อมูลสำรองของโปรแกรม PLC และ HMI ก่อนและหลังการแก้ไขในวันที่ก่อสร้าง
 2. โดยหลักการแล้ว ให้รักษาโปรแกรม PLC เดิมไว้ และใช้จุดช่วยสำหรับฟังก์ชันใหม่เพื่อให้สามารถกู้คืนได้อย่างรวดเร็ว
 3. การก่อสร้างต้องเป็นไปตามกฎระเบียบด้านความปลอดภัยและอาชีวอนามัย
@@ -1365,37 +1330,6 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'aiAssembleTip': 'เคล็ดลับ: เอกสารที่ทำเครื่องหมายว่า [ต้องการการประกอบ AI] จะใช้ Gemini เพื่อกู้คืนฟิลด์',
     'aiAssembleFail': 'การประกอบ AI ล้มเหลว ข้อความสำคัญอาจหายไป',
     'parseError': 'เกิดข้อผิดพลาดระหว่างการแยกวิเคราะห์',
-    'unnamedDoc': 'เอกสารที่ไม่มีชื่อ',
-    'contractorNotice': 'ข้อควรระวังสำหรับผู้รับเหมา',
-    'defaultContractorNotice': `หมายเหตุ: ผู้รับเหมาต้องจัดเตรียมเอกสารต่อไปนี้ให้ครบถ้วน หากไม่สามารถปฏิบัติตามได้ จะไม่ได้รับการพิจารณาจ้างงาน
-(หากข้อมูลโครงการ สถานที่ หรือรายชื่อบุคลากรไม่ตรงกัน จะต้องยื่นเอกสารใหม่และเข้าอบรมใหม่)
-
-1. หนังสือรับรองการจัดการด้านความปลอดภัย อาชีวอนามัย และสิ่งแวดล้อม (ESHP-11-00101)
-2. ใบแจ้งปัจจัยอันตรายในสภาพแวดล้อมการทำงาน (ESHP-11-00102)
-3. ใบรับรองเจ้าหน้าที่ความปลอดภัย หรือผู้ควบคุมงานอันตราย (รวมถึงหลักฐานการอบรมทบทวน)
-   ก. งานพิเศษ: เช่น งานยก, งานที่เกิดความร้อน, งานบนที่สูง, งานในที่อับอากาศ, งานท่ออันตราย
-   ข. ใบอนุญาตที่เกี่ยวข้อง: เช่น ใบอนุญาตควบคุมเครื่องจักร, ผู้ควบคุมงานในที่ขาดออกซิเจน
-4. รายชื่อบุคลากรผู้รับเหมา (ESHP-11-00103) และข้อมูลส่วนบุคคล:
-   ก. คำแถลงและหนังสือยินยอมการเก็บรวบรวมข้อมูลส่วนบุคคล (ESHP-11-00104) ต้องลงนามด้วยตนเอง
-   ข. ประกันภัย: ประกันสังคม หรือประกันอุบัติเหตุ (วงเงินขั้นต่ำ 5 ล้าน NTD หรือ 450,000 RMB ต่อคน) *สำเนา
-   ค. บันทึกการตรวจสุขภาพพนักงาน (ไม่เกิน 2 ปี) *สำเนา
-   ง. ใบรับรองการฝึกอบรมด้านความปลอดภัยและอาชีวอนามัย (6 ชั่วโมง ทุก 3 ปี)
-   จ. สำหรับผู้ที่ไม่ได้ถือสัญชาติ ROC ต้องแนบสำเนาใบอนุญาตพำนัก (Residence Permit)
-5. บันทึกการประชุมองค์กรข้อตกลง (ESHP-11-00111)
-6. กฎระเบียบการจัดการด้านความปลอดภัยสำหรับผู้รับเหมา (ESHP-11-00113)
-7. ใบสมัครงานก่อสร้างทั่วไป (ESHP-11-00115)
-8. แบบฟอร์มแจ้งเตือนอันตรายภายในของผู้รับเหมา (ESHP-11-00118)
-9. หนังสือรับรองการจ้างช่วงต่อ (ESHP-11-00119)
-
-รายละเอียดการอบรมความปลอดภัย:
-1. วันที่: ทุกวันพฤหัสบดี (ยกเว้นวันหยุดนักขัตฤกษ์ หรือวันที่มีการประชุมสำคัญของ TUC)
-2. เวลา: 09:00~10:30 (รวมการทดสอบ)
-3. จำนวน: สูงสุด 30 คนต่อรอบ (เปิดสอนหากมีผู้ลงทะเบียน 10 คนขึ้นไป)
-4. สถานที่: ห้องอบรม ชั้น B1
-5. การลงทะเบียน: กรอกแบบฟอร์มสัมมนาการฝึกอบรม ESH (ดูเอกสารแนบ)
-6. กำหนดการ: ลงทะเบียนล่วงหน้าอย่างน้อยหนึ่งสัปดาห์
-
-หากคุณมีข้อเสนอแนะหรือข้อสงสัยเกี่ยวกับขั้นตอน โปรดตอบกลับอีเมลนี้`,
     'unnamedEq': 'อุปกรณ์นิรนาม',
     
     'wizardTitle': 'การวิเคราะห์อัจฉริยะและการเหนี่ยวนำข้อมูลจำเพาะ',
