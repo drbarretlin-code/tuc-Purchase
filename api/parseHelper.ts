@@ -49,8 +49,8 @@ export async function getFileChunks(
     text = extractStringsFromBinary(fileBuffer);
   }
 
-  // 文本分塊策略 (V26: 增加塊大小至 6000 以減少接力次數)
-  const MAX_CHUNK_LENGTH = 6000;
+  // 文本分塊策略 (V26.8: 提升至 15000 以還原高密度挖掘深度，3.1 Pro 可穩定處理)
+  const MAX_CHUNK_LENGTH = 15000;
   const textChunks: string[] = [];
   
   if (text && text.length > MAX_CHUNK_LENGTH && !inlineData) {
@@ -87,19 +87,28 @@ export async function processSingleChunkBackend(
   const genAI = new GoogleGenerativeAI(activeKey);
 
   const prompt = `
-    你是一個具備「採購技術專家」身份的 AI。
-    你目前正在解構一份採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
-    請精確提取所有的技術指標與法規要求。嚴禁過度摘要，保留具體數值。
-    即便文檔內容雜亂或為圖片掃描，也請盡量歸納出所有可見的技術條目，不要輕易回傳空值。
+    你是一個「極致知識挖掘」與「採購技術專家」。你目前正在解構一份專業的採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
+    
+    你的任務是：**榨乾這個切片的所有技術價值，絕不遺漏任何技術參數、法規編號、施工要求或驗收標準**。
+    
+    請執行以下操作：
+    1. **絕對強制提取與原子化拆解**：
+       - **嚴禁過度摘要**。請將每一個獨立的法規條款、技術規格或性能指標拆解為獨立的 specEntry。
+       - 目標是產出高密度的條目（本切片建議產出 20-40 條獨立條目），確保技術細節不被遺漏。
+    2. **具體數值保留**：
+       - 內容必須包含原文中的具體數值（如：mm, kg, ℃, %, 材質等級）。
+    3. **零遺漏政策**：
+       - 即便內容難以辨識或為圖片掃描，也要盡力根據上下文歸納出所有可見的技術條目，不要回傳空值。
+
     輸出語言：${targetLang}。
     請直接輸出 JSON：
     {
       "docType": "Specific | Standard | Global",
       "detectedEquipment": "設備名稱",
       "specEntries": [
-        {"category": "類別", "content": "技術條目內容"}
+        {"category": "類別", "content": "精煉後的原子化技術條目內容"}
       ],
-      "fullJsonData": { "summary": "摘要" }
+      "fullJsonData": { "summary": "本切片核心摘要" }
     }
     
     待分析內容：
