@@ -141,6 +141,17 @@ function App() {
   useEffect(() => {
     if (supabase && showCloudInspector && isCloudAuthed) {
       console.log('[Realtime] 雲端查閱器已開啟，啟動即時同步監聽...');
+      
+      // V26.13: 開啟時主動執行一次 AI 模型試驗偵測
+      if (currentAIModel === '偵測中...') {
+        const apiKey = localStorage.getItem('gemini_api_key_pool')?.split(',')[0] || process.env.VITE_GEMINI_API_KEY || '';
+        if (apiKey) {
+           KP.getAutoSelectedModel(apiKey).then(mId => {
+              if (mId) setCurrentAIModel(mId);
+           });
+        }
+      }
+
       const channel = supabase
         .channel('db-changes-inspector')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tuc_uploaded_files' }, () => {
@@ -1641,7 +1652,7 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
-                          onClick={() => setHealthTab('current')}
+                          onClick={(e) => { e.stopPropagation(); setHealthTab('current'); }}
                           style={{ 
                             fontSize: '0.75rem', 
                             background: healthTab === 'current' ? 'rgba(16,185,129,0.2)' : 'transparent',
@@ -1656,7 +1667,7 @@ function App() {
                           當前狀態
                         </button>
                         <button 
-                          onClick={() => setHealthTab('paid')}
+                          onClick={(e) => { e.stopPropagation(); setHealthTab('paid'); }}
                           style={{ 
                             fontSize: '0.75rem', 
                             background: healthTab === 'paid' ? 'rgba(59,130,246,0.2)' : 'transparent',
