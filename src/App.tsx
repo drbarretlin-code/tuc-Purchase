@@ -144,16 +144,20 @@ function App() {
       
       // V26.13: 開啟時主動執行一次 AI 模型試驗偵測
       if (currentAIModel === '偵測中...') {
+        console.log('[AI Discovery] 偵測中... 嘗試主動觸發試驗');
         const apiKey = localStorage.getItem('gemini_api_key_pool')?.split(',')[0] || process.env.VITE_GEMINI_API_KEY || '';
         if (apiKey) {
            KP.getAutoSelectedModel(apiKey)
              .then((mId: string) => {
+                console.log('[AI Discovery] 偵測完成，得到型號:', mId);
                 if (mId) setCurrentAIModel(mId);
              })
              .catch(err => {
                 console.error('[AI Discovery] 偵測失敗:', err);
                 setCurrentAIModel('偵測失敗 (請檢查 Key)');
              });
+        } else {
+          console.warn('[AI Discovery] 偵測跳過: 找不到 API Key');
         }
       }
 
@@ -419,11 +423,16 @@ function App() {
       // V26.17: 獲取系統用量統計 - 必須使用 UTC 日期 (toISOString) 以匹配 Supabase CURRENT_DATE
       const todayStr = new Date().toISOString().split('T')[0];
       console.log(`[Diagnostic] 正在請求日期 (UTC): ${todayStr} 的資源統計...`);
-      const { data: uStats } = await supabase
+      const { data: uStats, error: uError } = await supabase
         .from('tuc_usage_stats')
         .select('*')
         .eq('stat_date', todayStr)
         .maybeSingle();
+
+      console.log('[Diagnostic] Raw Usage Stats from DB:', uStats);
+      if (uError) {
+        console.error('[Diagnostic] Usage Stats Query Error:', uError);
+      }
 
       if (uStats) {
         setUsageStats({
