@@ -56,8 +56,6 @@ export function getGeminiKeyPool(): string[] {
 export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
   const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
   
-  let lastDiagnostic: DiagnosticResult | null = null;
-
   for (let i = 0; i < keys.length; i++) {
     const currentKey = keys[i];
     if (!currentKey) continue;
