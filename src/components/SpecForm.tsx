@@ -297,8 +297,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       });
 
       // 4. One API call to translate everything back to UI language
-      if (allHintsToTranslate.length > 0 && apiKey) {
-        const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKey);
+      if (allHintsToTranslate.length > 0 && apiKeys) {
+        const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
         
         let ptr = 0;
         allResults.forEach(r => {
