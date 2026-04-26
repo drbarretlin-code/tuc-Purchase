@@ -168,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let currentIndex = chunkIndex;
     let processedInThisBatch = 0;
     let totalAddedCount = 0;
+    let lastUsedModelId: string | null = null;
 
     // 若是檔案的第一塊，清空舊有關聯知識庫並寫入初始進度
     if (currentIndex === 0) {
@@ -199,6 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         apiKey,
         language
       );
+      lastUsedModelId = usedModelId;
 
       // 單一切片的結果寫入
       if (parsedData && parsedData.specEntries && parsedData.specEntries.length > 0) {
@@ -241,7 +243,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 召喚下一批次 QStash，喘息 5 秒鐘
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId, chunkIndex: currentIndex, language, modelId: usedModelId },
+        body: { fileId, chunkIndex: currentIndex, language, modelId: lastUsedModelId },
         delay: '5s',
         retries: 3
       });
@@ -260,7 +262,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 喚醒處理下一筆待機檔案
       await publishWithRotation({
         url: workerUrl,
-        body: { action: 'process_next', language, modelId: usedModelId },
+        body: { action: 'process_next', language, modelId: lastUsedModelId },
         delay: '1s'
       });
     }

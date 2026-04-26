@@ -41,15 +41,15 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
   for (let i = 0; i < tokens.length; i++) {
     const currentToken = tokens[i];
     try {
-      const response = await fetch(`https://qstash.upstash.io/v1/publish/${options.url}`, {
+      const response = await fetch(`https://qstash.upstash.io/v1/publish/${publishOptions.url}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${currentToken}`,
           'Content-Type': 'application/json',
-          ...(options.delay ? { 'Upstash-Delay': options.delay } : {}),
-          ...(options.retries !== undefined ? { 'Upstash-Retries': options.retries.toString() } : {}),
+          ...(publishOptions.delay ? { 'Upstash-Delay': publishOptions.delay } : {}),
+          ...(publishOptions.retries !== undefined ? { 'Upstash-Retries': publishOptions.retries.toString() } : {}),
         },
-        body: JSON.stringify(options.body),
+        body: JSON.stringify(publishOptions.body),
       });
 
       if (!response.ok) {
@@ -59,7 +59,7 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
 
       // V26.18: 改為 AWAIT 寫入用量日誌，確保 Serverless 程序不會在寫入完成前提前關閉
       if (supabase) {
-        const modelId = (options.body as any)?.modelId || null;
+        const modelId = (publishOptions.body as any)?.modelId || null;
         try {
           const { error: rpcErr } = await supabase.rpc('increment_qstash_usage', { 
             bytes_count: 15 * 1024,
