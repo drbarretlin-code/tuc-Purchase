@@ -41,45 +41,29 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
   for (let i = 0; i < tokens.length; i++) {
     const currentToken = tokens[i];
     try {
-      const response = await fetch(`https://qstash.upstash.io/v2/publish/${publishOptions.url}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${currentToken}`,
-          'Content-Type': 'application/json',
-          ...(publishOptions.delay ? { 'Upstash-Delay': publishOptions.delay } : {}),
-          ...(publishOptions.retries !== undefined ? { 'Upstash-Retries': publishOptions.retries.toString() } : {}),
-        },
-        body: JSON.stringify(publishOptions.body),
+      const client = new Client({ token: currentToken });
+      
+      const response = await client.publishJSON({
+        url: publishOptions.url,
+        body: publishOptions.body,
+        delay: publishOptions.delay ? parseInt(publishOptions.delay) : undefined,
+        retries: publishOptions.retries,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`QStash Error: ${response.status} ${errorText}`);
-      }
-
-      // V26.18: 寫入用量日誌 (加入 try-catch 保護，防止 SQL 未升級導致主程序 500 崩潰)
+      // V26.18: 寫入用量日誌 (加入 try-catch 保護)
       if (supabase) {
         const modelId = (publishOptions.body as any)?.modelId || null;
         try {
-          // 嘗試使用新版簽章 (帶 model_name)
           const { error: rpcErr } = await supabase.rpc('increment_qstash_usage', { 
             bytes_count: 15 * 1024,
             model_name: modelId
           });
           
           if (rpcErr) {
-            // 嘗試回退至舊版簽章 (不帶 model_name)
-            console.warn('[QStash Log] 新版 RPC 失敗，嘗試回退至舊版...', rpcErr.message);
-            try {
-              await supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 });
-            } catch (fallbackErr) {
-              // 靜默失敗，不影響主解析
-            }
-          } else {
-             console.log('[QStash Log] 成功更新資源用量與模型標籤:', modelId);
+            try { await supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 }); } catch {}
           }
         } catch (rpcCatch: any) {
-          console.error('[QStash Log] 統計寫入異常 (不影響主解析任務):', rpcCatch.message);
+          console.error('[QStash Log] 統計寫入異常:', rpcCatch.message);
         }
       }
 
