@@ -43,6 +43,8 @@ async function getAutoSelectedModel(apiKey: string): Promise<string> {
     'gemini-2.5-pro',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-pro-latest',
+    'gemini-flash-latest',
   ];
 
   console.log('[AI Discovery] 開始進行可用性連線試驗 (generateContent probe)...');
