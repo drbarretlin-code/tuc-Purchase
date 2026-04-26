@@ -246,7 +246,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     });
     onChange({ ...data, searchStatus: initialStatus });
 
-    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+    const apiKeys = KP.getGeminiKeyPool();
 
     try {
       // 1. One API call for expanding queries (or loaded from Local cache)
@@ -254,7 +254,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
       onChange({...data, searchStatus: transStatus}); // Show translating status initially
       
-      const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKey);
+      const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKeys);
 
       // 2. Perform all Local Supabase Database queries concurrently
       const allResults = await Promise.all(targets.map(async (target: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => {

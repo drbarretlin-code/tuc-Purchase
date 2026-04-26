@@ -106,9 +106,9 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
             return cachedModelId;
           }
           
-          // 若為 Key 報錯 (401/Expired)，則跳出模型循環嘗試下一把 Key
-          if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401) {
-            console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效，嘗試下一把...`);
+          // 若為 Key 報錯 (400/401/Expired)，則跳出模型循環嘗試下一把 Key
+          if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401 || status === 400 || errMsg.includes('not found')) {
+            console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效 (Status: ${status})，嘗試下一把...`);
             throw err; 
           }
           continue; // 其他模型錯誤，嘗試下一個模型
@@ -118,12 +118,19 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
        // Catch Key errors to continue loop
        if (i === keys.length - 1) {
           // 最後一把也失敗了，拋出最後一個診斷結果
-          throw err;
+          console.error(`[AI Discovery] 災難性故障：金鑰池中所有 ${keys.length} 組金鑰皆失效或過期。`);
+          throw new DiagnosticError({
+            code: 'API_KEY_EXPIRED',
+            message: 'Gemini API 金鑰池已全數失效。',
+            rawError: err.message || 'All keys failed',
+            timestamp: new Date().toISOString(),
+            suggestion: '請更新您的金鑰池，或至 Google AI Studio 重新產生金鑰。'
+          });
        }
     }
   }
 
-  return cachedModelId || 'gemini-2.5-flash';
+  return cachedModelId || 'gemini-2.0-flash';
 }
 
 /**
@@ -509,15 +516,17 @@ const calculateMaxTokenOverlap = (variants: string[], target: string): number =>
 
 let searchVariantCache: { eqKey: string, reqKey: string, variants: { eqVariants: string[], reqVariants: string[] } } | null = null;
 
-export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: string): Promise<{eqVariants: string[], reqVariants: string[]}> => {
-  if (!apiKey) return { eqVariants: [eqK], reqVariants: [reqK] };
+export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: string | string[]): Promise<{eqVariants: string[], reqVariants: string[]}> => {
+  if (!apiKey || (Array.isArray(apiKey) && apiKey.length === 0)) return { eqVariants: [eqK], reqVariants: [reqK] };
   if (searchVariantCache && searchVariantCache.eqKey === eqK && searchVariantCache.reqKey === reqK) {
     return searchVariantCache.variants;
   }
   
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
     const modelId = await getAutoSelectedModel(apiKey);
+    const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+    const genAI = new GoogleGenerativeAI(workingKey);
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const prompt = `Translate the following two terms into Traditional Chinese, English, Simplified Chinese, and Thai.
