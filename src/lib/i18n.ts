@@ -124,7 +124,7 @@ export const translations: Record<string, any> = {
 
     // Boilerplate Defaults
     'defaultDependingOnProcurement': '依請購內容而定',
-    'defaultAccordingToTuc': '依台燿規定(承攬商管理規範、承攬商安全衛生管理規則、承攬商作業危害因素告知單等)',
+    'defaultAccordingToTuc': '依台燿規定',
     'defaultAccordingToTucShort': '依台燿規定',
     'defaultNationalRegs': '符合國家法規',
     'defaultSafetyRegs': '依台燿規定',
@@ -429,7 +429,7 @@ export const translations: Record<string, any> = {
 
     // Boilerplate Defaults
     'defaultDependingOnProcurement': '依请购内容而定',
-    'defaultAccordingToTuc': '依台燿规定(承揽商管理规范、承揽商安全卫生管理規則、承揽商作業危害因素告知單等)',
+    'defaultAccordingToTuc': '依台燿规定',
     'defaultAccordingToTucShort': '依台燿规定',
     'defaultNationalRegs': '符合国家法规',
     'defaultSafetyRegs': '依台燿规定',
