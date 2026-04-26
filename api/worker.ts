@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (record.extracted_text) {
       console.log(`[Worker] 使用快取文字進行接力解析: ${record.original_name}`);
       const cachedText = record.extracted_text;
-      const MAX_CHUNK_LENGTH = 15000; 
+      const MAX_CHUNK_LENGTH = 12000; 
       
       if (cachedText.length > MAX_CHUNK_LENGTH) {
         for (let i = 0; i < cachedText.length; i += MAX_CHUNK_LENGTH) {

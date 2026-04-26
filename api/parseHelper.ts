@@ -49,8 +49,8 @@ export async function getFileChunks(
     text = extractStringsFromBinary(fileBuffer);
   }
 
-  // 文本分塊策略 (V26.8: 提升至 15000 以還原高密度挖掘深度，3.1 Pro 可穩定處理)
-  const MAX_CHUNK_LENGTH = 15000;
+  // 文本分塊策略 (V26.9: 微調至 12000 以平衡挖掘深度與超時風險)
+  const MAX_CHUNK_LENGTH = 12000;
   const textChunks: string[] = [];
   
   if (text && text.length > MAX_CHUNK_LENGTH && !inlineData) {
@@ -139,10 +139,10 @@ export async function processSingleChunkBackend(
       console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
       const currentModel = genAI.getGenerativeModel({ model: modelId });
       
-      // 為 AI 調用增加超時控制 (12s)，確保重試鏈能在 Vercel 60s 限制內完成
+      // V26.9: 增加超時寬限至 40s (針對 12000 字元高密度挖掘)
       const aiPromise = currentModel.generateContent({ contents });
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('AI_TIMEOUT')), 12000)
+        setTimeout(() => reject(new Error('AI_TIMEOUT')), 40000)
       );
 
       result = await Promise.race([aiPromise, timeoutPromise]);
@@ -151,7 +151,7 @@ export async function processSingleChunkBackend(
     } catch (err: any) {
       lastError = err;
       if (err.message === 'AI_TIMEOUT') {
-        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (12s)，嘗試下一個型號...`);
+        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (40s)，嘗試下一個型號...`);
         continue;
       }
       if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('Quota exceeded')) {
