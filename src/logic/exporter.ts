@@ -10,7 +10,8 @@ import {
   HeadingLevel, 
   AlignmentType, 
   BorderStyle, 
-  VerticalAlign 
+  VerticalAlign,
+  PageBreak 
 } from 'docx';
 import type { FormState } from '../types/form';
 import { t } from '../lib/i18n';
