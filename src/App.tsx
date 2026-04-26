@@ -146,9 +146,14 @@ function App() {
       if (currentAIModel === '偵測中...') {
         const apiKey = localStorage.getItem('gemini_api_key_pool')?.split(',')[0] || process.env.VITE_GEMINI_API_KEY || '';
         if (apiKey) {
-           KP.getAutoSelectedModel(apiKey).then((mId: string) => {
-              if (mId) setCurrentAIModel(mId);
-           });
+           KP.getAutoSelectedModel(apiKey)
+             .then((mId: string) => {
+                if (mId) setCurrentAIModel(mId);
+             })
+             .catch(err => {
+                console.error('[AI Discovery] 偵測失敗:', err);
+                setCurrentAIModel('偵測失敗 (請檢查 Key)');
+             });
         }
       }
 
@@ -411,11 +416,12 @@ function App() {
       setKnowledgeCount(kCount || 0);
       setStorageSize(totalSizeBytes);
 
-      // V26.10: 獲取系統用量統計 (QStash/Egress)
+      // V26.10: 獲取系統用量統計 (QStash/Egress) - 使用 en-CA 確保 YYYY-MM-DD 格式
+      const todayStr = new Date().toLocaleDateString('en-CA');
       const { data: uStats } = await supabase
         .from('tuc_usage_stats')
         .select('*')
-        .eq('stat_date', new Date().toISOString().split('T')[0])
+        .eq('stat_date', todayStr)
         .maybeSingle();
 
       if (uStats) {
@@ -1680,6 +1686,13 @@ function App() {
                           }}
                         >
                           付費額度模式
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); fetchUsageStats(); }}
+                          title="強制重新獲取最新統計"
+                          style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '2px', display: 'flex', marginLeft: '4px' }}
+                        >
+                          <Repeat size={12} />
                         </button>
                       </div>
                       <span style={{ 
