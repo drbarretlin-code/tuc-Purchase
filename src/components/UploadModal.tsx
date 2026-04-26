@@ -176,6 +176,10 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       // 過濾出上傳成功的檔案進入解析
       const uploadResults = rawUploadResults.filter((r): r is { file: File, url: string, displayName: string, storagePath: string, id: string } => !('error' in r));
       const failedUploadsCount = fileList.length - uploadResults.length;
+      
+      totalAdded = uploadResults.length;
+      totalSkipped = failedUploadsCount;
+
       if (failedUploadsCount > 0) {
         console.warn(`[Upload Warning] ${failedUploadsCount} files were skipped due to size limits or upload errors.`);
       }

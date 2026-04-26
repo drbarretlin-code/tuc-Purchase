@@ -1103,15 +1103,15 @@ function App() {
   };
 
 
-   // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 parsed > failed > processing > pending
+   // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 failed > processing > pending > parsed
   const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
-    // V18.7: 強化分類邏輯 - 必須同時具備解析標記且知識條目 > 0 才視為成功
-    if (f.is_parsed && (f.knowledgeCount > 0)) return 'parsed';
-    
-    // 其次檢查狀態
+    // V27.1: 修正優先順序，優先檢查中斷與失敗狀態，確保失敗檔案出現在正確的分頁
     if (f.parse_status === 'failed') return 'failed';
     if (f.parse_status === 'processing' || (f.parse_status && f.parse_status.startsWith('processing:'))) return 'processing';
     if (f.parse_status === 'pending') return 'pending';
+    
+    // 具備解析標記且知識條目 > 0 才視為成功
+    if (f.is_parsed && (f.knowledgeCount > 0)) return 'parsed';
     
     // 若標記為已解析但條目為 0，視為待處理(幽靈狀態)
     if (f.is_parsed && f.knowledgeCount === 0) return 'pending';
