@@ -58,46 +58,61 @@ export const exportToWord = async (data: FormState, lang: Language) => {
 
   const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
 
+  const createMultilineParagraphs = (text: string, spacingAfter = 40, lastSpacingAfter = 200) => {
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    if (lines.length === 0) return [new Paragraph({ text: 'NA', spacing: { after: lastSpacingAfter } })];
+    return lines.map((l, i) => new Paragraph({ 
+      children: [new TextRun({ text: l })], 
+      spacing: { after: i === lines.length - 1 ? lastSpacingAfter : spacingAfter } 
+    }));
+  };
+
   const bodyContent = [
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection1', lang)}${getFullSpecName(data)}`, bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: `${t('reqDesc', lang)}：`, bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: data.requirementDesc || 'NA' })], spacing: { after: 200 } }),
+    ...createMultilineParagraphs(data.requirementDesc || 'NA'),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection2', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: v(data.appearance, lang) })], spacing: { after: 200 } }),
+    ...createMultilineParagraphs(v(data.appearance, lang)),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection3', lang)}${v(data.quantityUnit, lang)}`, bold: true })], spacing: { after: 200 } }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection4', lang), bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: v(data.equipmentName, lang) })], spacing: { after: 200 } }),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection5', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: v(data.equipmentScope, lang) })], spacing: { after: 200 } }),
+    ...createMultilineParagraphs(v(data.rangeRange, lang)),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection6', lang), bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: t('docSub6_1', lang), bold: true }), new TextRun({ text: v(data.envRequirements, lang) })] }),
     new Paragraph({ children: [new TextRun({ text: t('docSub6_2', lang), bold: true }), new TextRun({ text: v(data.regRequirements, lang) })] }),
     new Paragraph({ children: [new TextRun({ text: t('docSub6_3', lang), bold: true }), new TextRun({ text: v(data.maintRequirements, lang) })], spacing: { after: 200 } }),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection7', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: v(data.safetyRequirements, lang) })], spacing: { after: 200 } }),
+    ...createMultilineParagraphs(v(data.safetyRequirements, lang)),
+    
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection8', lang), bold: true })], spacing: { after: 100 } }),
     new Paragraph({ children: [new TextRun({ text: `${t('docSub8_1', lang)} ${v(data.elecSpecs, lang)}` })] }),
     new Paragraph({ children: [new TextRun({ text: `${t('docSub8_2', lang)} ${v(data.mechSpecs, lang)}` })] }),
     new Paragraph({ children: [new TextRun({ text: `${t('docSub8_3', lang)} ${v(data.physSpecs, lang)}` })] }),
     new Paragraph({ children: [new TextRun({ text: `${t('docSub8_4', lang)} ${v(data.relySpecs, lang)}` })] }),
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection9', lang), bold: true })], spacing: { before: 200 } }),
-    ...processAutoNumbering(v(data.installStandard, lang)).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_date', lang)} ${data.deliveryDate || 'NA'} | ${t('docSub9_period', lang)} ${data.workPeriod || 'NA'}`, bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: v(data.acceptanceDesc, lang) })] }),
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200 } }),
-    ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
+    
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection9', lang), bold: true })], spacing: { before: 200, after: 100 } }),
+    ...processAutoNumbering(v(data.installStandard, lang)).split('\n').filter(l => l.trim()).map(l => new Paragraph({ children: [new TextRun({ text: l })], spacing: { after: 40 } })),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_date', lang)} ${data.deliveryDate || 'NA'} | ${t('docSub9_period', lang)} ${data.workPeriod || 'NA'}`, bold: true })], spacing: { before: 100, after: 100 } }),
+    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: v(data.acceptanceDesc, lang) })], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200, after: 100 } }),
+    ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').filter(l => l.trim()).map(l => new Paragraph({ children: [new TextRun({ text: l })], spacing: { after: 40 } })),
     
     // 廠商注意事項 (A4 直向整頁)
-    new Paragraph({ children: [new TextRun({ text: '', break: 1 })] }), // 強制分頁 (或是使用 PageBreak)
     new Paragraph({ 
       heading: HeadingLevel.HEADING_4, 
       children: [new TextRun({ text: t('contractorNotice', lang), bold: true, size: 28 })],
       spacing: { before: 400, after: 200 },
       pageBreakBefore: true 
     }),
-    ...v(data.contractorNotice, lang).split('\n').map(l => new Paragraph({ 
+    ...v(data.contractorNotice, lang).split('\n').filter(l => l.trim()).map(l => new Paragraph({ 
       children: [new TextRun({ text: l, size: 20 })],
-      spacing: { after: 100 }
+      spacing: { after: 40 }
     })),
   ];
 
