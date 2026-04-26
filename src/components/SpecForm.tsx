@@ -153,7 +153,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       'equipmentScope', 'rangeRange', 'envRequirements', 'regRequirements', 
       'maintRequirements', 'safetyRequirements', 'elecSpecs', 'mechSpecs', 
       'physSpecs', 'relySpecs', 'installStandard', 'acceptanceDesc', 
-      'acceptanceExtra', 'complianceDesc'
+      'acceptanceExtra', 'complianceDesc', 'contractorNotice'
     ];
 
     textFields.forEach(field => {
@@ -170,6 +170,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
         needsUpdate = true;
       }
     });
+
+    // V20: 自動修補缺失的欄位
+    if (newData.contractorNotice === undefined || newData.contractorNotice === null || newData.contractorNotice === '') {
+      newData.contractorNotice = 'defaultContractorNotice';
+      needsUpdate = true;
+    }
 
     // 檢查表格資料
     if (newData.tableData) {
@@ -408,7 +414,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     reader.onload = (event: ProgressEvent<FileReader>) => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
-        onChange(importedData);
+        // V20: 導入時與初始狀態合併，確保新欄位不會因舊 JSON 缺失而消失
+        const mergedData = { ...INITIAL_FORM_STATE, ...importedData };
+        onChange(mergedData);
         setIsExportMenuOpen(false);
       } catch (error) {
         alert(t('invalidJson', data.language));
