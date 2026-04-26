@@ -1,4 +1,10 @@
 import { Client } from '@upstash/qstash';
+import { createClient } from '@supabase/supabase-js';
+
+// 初始化 Supabase (用於統計日誌)
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 /**
  * 瀑布式備援輪替引擎 (Waterfall Rotation Engine)
@@ -43,6 +49,12 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
       if (i > 0) {
          console.warn(`[QStash Rotator] 注意：主金鑰已失效，本次成功使用備援金鑰 #${i} 投遞任務。`);
       }
+
+      // V26.10: 異步寫入用量日誌 (估計每次 QStash 交互消耗約 15KB Egress)
+      if (supabase) {
+        supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 }).then(() => {});
+      }
+
       return response;
       
     } catch (err: any) {

@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { Ban, ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info } from 'lucide-react';
+import { Ban, ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info, Activity, Clock } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import ManualModal from './components/ManualModal';
@@ -117,6 +117,7 @@ function App() {
   // V17.8: 資源水位預警狀態
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageSize, setStorageSize] = useState(0);
+  const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [largeFilesFound, setLargeFilesFound] = useState<any[]>([]);
@@ -344,6 +345,9 @@ function App() {
       if (data.language === 'zh-TW') {
         setTranslatedCloudFiles(enrichedList);
       }
+      
+      // V26.10: 恢復水位計同步。在列表載入後調用輕量化統計，確保總量更新。
+      fetchUsageStats();
     } catch (err: any) {
       console.error('[Debug] fetchCloudFiles 捕捉到異常:', err.message);
       alert('無法取得檔案紀錄: ' + err.message);
@@ -353,15 +357,11 @@ function App() {
   const fetchUsageStats = async () => {
     if (!supabase) return;
     try {
-      // 獲取知識條目總數
+      // V26.10: 極輕量統計。僅使用 head: true 獲取精確總數，避免掃描 Data。
       const { count: kCount } = await supabase
         .from('tuc_history_knowledge')
         .select('*', { count: 'exact', head: true });
 
-      // V20: 改用資料庫記錄估算儲存空間，完全邏免 storage.list() 的 Egress 消耗
-      // tuc_uploaded_files 裡面已有 storage_path，但沒有儲存 size。
-      // 改用 storage size = 简単以檔案數量 * 平均檔案大小 (proxy 估算)
-      // 如果 tuc_uploaded_files 有 file_size 欄位則取用；否則用上次的儲存大小數即可。
       const { data: fileRecords } = await supabase
         .from('tuc_uploaded_files')
         .select('file_size')
@@ -369,9 +369,22 @@ function App() {
 
       const totalSizeBytes = (fileRecords || []).reduce((acc: number, f: any) => acc + (f.file_size || 0), 0);
 
-      console.log('[UsageStats] 獲取成功:', { knowledge: kCount, storageTotalBytes: totalSizeBytes });
       setKnowledgeCount(kCount || 0);
       setStorageSize(totalSizeBytes);
+
+      // V26.10: 獲取系統用量統計 (QStash/Egress)
+      const { data: uStats } = await supabase
+        .from('tuc_usage_stats')
+        .select('*')
+        .eq('stat_date', new Date().toISOString().split('T')[0])
+        .maybeSingle();
+
+      if (uStats) {
+        setUsageStats({
+          qstash_calls_today: uStats.qstash_calls_today || 0,
+          estimated_egress_bytes: uStats.estimated_egress_bytes || 0
+        });
+      }
     } catch (err) {
       console.error('Fetch usage stats error:', err);
     }
@@ -1567,6 +1580,82 @@ function App() {
                         {t('warningHighUsage', data.language)}
                       </div>
                     )}
+                  </div>
+                );
+              })()}
+
+              {/* V26.10: 雲端資源健康監測儀表板 (Resource Health Dashboard) */}
+              {(() => {
+                const qstashLimit = 500; // 免費額度
+                const egressLimitGB = 5;
+                const egressBytesLimit = egressLimitGB * 1024 * 1024 * 1024;
+                
+                const qUsage = Math.min(Math.round((usageStats.qstash_calls_today / qstashLimit) * 100), 100);
+                const eUsage = Math.min(Math.round((usageStats.estimated_egress_bytes / egressBytesLimit) * 100), 100);
+                
+                // 判定付費/免費屬性
+                const isPaidTier = usageStats.qstash_calls_today > 500; 
+                
+                return (
+                  <div style={{
+                    background: 'rgba(0,0,0,0.2)',
+                    border: `1px solid ${qUsage > 90 || eUsage > 90 ? '#F59E0B' : 'var(--border-color)'}`,
+                    borderRadius: '10px',
+                    padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.6rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Activity size={16} color="#10B981" /> 系統健康監測
+                      </span>
+                      <span style={{ 
+                        fontSize: '0.7rem', 
+                        padding: '2px 8px', 
+                        borderRadius: '4px', 
+                        background: isPaidTier ? 'rgba(16,185,129,0.2)' : 'rgba(107,114,128,0.2)',
+                        color: isPaidTier ? '#10B981' : '#9CA3AF',
+                        border: `1px solid ${isPaidTier ? '#10B981' : '#4B5563'}`
+                      }}>
+                        {isPaidTier ? '專業寬限模式' : '免費額度模式'}
+                      </span>
+                    </div>
+                    
+                    {/* QStash 水位計 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>QStash 今日用量</span>
+                        <span style={{ color: qUsage > 80 ? '#F59E0B' : '#fff' }}>
+                          {usageStats.qstash_calls_today} / {qstashLimit}
+                        </span>
+                      </div>
+                      <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: `${qUsage}%`, height: '100%', background: qUsage > 90 ? '#EF4444' : qUsage > 70 ? '#F59E0B' : '#10B981', transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+
+                    {/* Egress 水位計 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#aaa' }}>估計傳輸流量 (Egress)</span>
+                        <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
+                          {(usageStats.estimated_egress_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {egressLimitGB} GB
+                        </span>
+                      </div>
+                      <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
+                          <Clock size={12} /> 執行上限: {isPaidTier ? '300s' : '60s'}
+                       </div>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
+                          <Zap size={12} /> AI 頻率: {isPaidTier ? '高' : '15 RPM'}
+                       </div>
+                    </div>
                   </div>
                 );
               })()}
