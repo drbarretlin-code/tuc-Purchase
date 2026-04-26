@@ -41,7 +41,7 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
   for (let i = 0; i < tokens.length; i++) {
     const currentToken = tokens[i];
     try {
-      const response = await fetch(`https://qstash.upstash.io/v1/publish/${publishOptions.url}`, {
+      const response = await fetch(`https://qstash.upstash.io/v2/publish/${publishOptions.url}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${currentToken}`,
