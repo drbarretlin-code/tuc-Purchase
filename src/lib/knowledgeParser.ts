@@ -54,83 +54,89 @@ export function getGeminiKeyPool(): string[] {
 
 export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
   const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
-  console.log(`[AI Discovery] 啟動瀑布式偵測，金鑰池總數: ${keys.length}`);
+  console.log(`[AI Discovery] 啟動瀑布式偵測 (Waterfall V2)，金鑰池總數: ${keys.length}`);
+
+  if (cachedModelId) return cachedModelId;
+
+  // 用於紀錄偵測到的最佳「非 100% 可用」模型，作為最後的防線
+  let globalFallback: { modelId: string; apiKey: string } | null = null;
   
+  const priorityList = [
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-pro-latest',
+    'gemini-flash-latest',
+  ];
+
   for (let i = 0; i < keys.length; i++) {
     const currentKey = keys[i];
     if (!currentKey) continue;
 
-    if (cachedModelId) return cachedModelId;
-    
+    console.log(`[AI Discovery] 正在掃描金鑰索引 ${i} (前 6 碼: ${currentKey.substring(0,6)}...)`);
     const genAI = new GoogleGenerativeAI(currentKey);
-    const priorityList = [
-      'gemini-3.1-pro-preview',
-      'gemini-3.1-flash-lite-preview',
-      'gemini-3-pro-preview',
-      'gemini-3-flash-preview',
-      'gemini-2.5-pro',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-pro-latest',
-      'gemini-flash-latest',
-    ];
 
-    console.log(`[AI Discovery] 嘗試金鑰索引 ${i} (前 6 碼: ${currentKey.substring(0,6)}...)`);
+    for (const mId of priorityList) {
+      try {
+        const model = genAI.getGenerativeModel({ model: mId, safetySettings });
+        
+        // 探針測試：嘗試生成 1 個 Token
+        await Promise.race([
+          model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+            generationConfig: { maxOutputTokens: 1 }
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 10000)) // 縮短超時至 10s
+        ]);
 
-    try {
-      for (const mId of priorityList) {
-        try {
-          const model = genAI.getGenerativeModel({ model: mId, safetySettings });
-          await Promise.race([
-            model.generateContent({
-              contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-              generationConfig: { maxOutputTokens: 1 }
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 15000))
-          ]);
+        // 若成功，立即鎖定並返回
+        cachedModelId = mId;
+        localStorage.setItem('tuc_gemini_key', currentKey);
+        console.log(`[AI Discovery] 試驗成功！鎖定可用模型 ${mId} (金鑰索引: ${i})。`);
+        return cachedModelId;
 
-          cachedModelId = mId;
-          // 成功後將此金鑰設為全域活動金鑰
-          localStorage.setItem('tuc_gemini_key', currentKey);
-          console.log(`[AI Discovery] 試驗成功！鎖定可用模型 ${mId}，已更新活動金鑰。`);
-          return cachedModelId;
-        } catch (err: any) {
-          const errMsg = err.message || '';
-          const status = err.status || (err.response ? err.response.status : null);
+      } catch (err: any) {
+        const errMsg = err.message || '';
+        const status = err.status || (err.response ? err.response.status : null);
 
-          // 429 = 存在但限流，視為成功鎖定
-          if (errMsg.includes('429') || status === 429 || errMsg.toLowerCase().includes('quota')) {
-            cachedModelId = mId;
-            localStorage.setItem('tuc_gemini_key', currentKey);
-            console.log(`[AI Discovery] 模型 ${mId} 存在但暫時限流，鎖定此模型與金鑰。`);
-            return cachedModelId;
+        // 偵測是否為 429 限流或 Quota 相關錯誤
+        const isRateLimited = errMsg.includes('429') || status === 429 || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exhausted');
+
+        if (isRateLimited) {
+          console.warn(`[AI Discovery] 模型 ${mId} 存在但暫時限流 (429)，將其存為全域備選，繼續嘗試後續組合...`);
+          if (!globalFallback) {
+            globalFallback = { modelId: mId, apiKey: currentKey };
           }
-          
-          // 若為 Key 報錯 (400/401/Expired)，則跳出模型循環嘗試下一把 Key
-          if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401 || status === 400 || errMsg.includes('not found')) {
-            console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效 (Status: ${status})，嘗試下一把...`);
-            throw err; 
-          }
-          continue; // 其他模型錯誤，嘗試下一個模型
+          continue; // 繼續嘗試下一個模型
         }
+
+        // 若為 API Key 根本性錯誤 (400/401/Invalid)，直接跳過此 Key 的所有模型，進入下一把 Key
+        if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401 || status === 400 || errMsg.includes('not found')) {
+          console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效，跳過該金鑰並嘗試下一把。`);
+          break; // 跳出內層模型迴圈
+        }
+
+        // 其他錯誤 (例如模型 ID 不存在 404)，繼續嘗試下一個模型
+        continue;
       }
-    } catch (err: any) {
-       // Catch Key errors to continue loop
-       if (i === keys.length - 1) {
-          // 最後一把也失敗了，拋出最後一個診斷結果
-          console.error(`[AI Discovery] 災難性故障：金鑰池中所有 ${keys.length} 組金鑰皆失效或過期。`);
-          throw new DiagnosticError({
-            code: 'API_KEY_EXPIRED',
-            message: 'Gemini API 金鑰池已全數失效。',
-            rawError: err.message || 'All keys failed',
-            timestamp: new Date().toISOString(),
-            suggestion: '請更新您的金鑰池，或至 Google AI Studio 重新產生金鑰。'
-          });
-       }
     }
   }
 
-  return cachedModelId || 'gemini-2.0-flash';
+  // 若遍歷所有金鑰與模型後仍無 100% 成功的
+  if (globalFallback) {
+    cachedModelId = globalFallback.modelId;
+    localStorage.setItem('tuc_gemini_key', globalFallback.apiKey);
+    console.log(`[AI Discovery] 未發現全完可用的模型路徑，回退至首個發現的限流模型: ${cachedModelId}。`);
+    return cachedModelId;
+  }
+
+  // 最後防線：若完全無路可走，回傳一個基本預設值（通常這會導致後續呼叫報錯，交由 DiagnosticError 處理）
+  console.error(`[AI Discovery] 嚴重故障：金鑰池中所有組合皆無法連通。`);
+  return 'gemini-2.0-flash';
 }
 
 /**
