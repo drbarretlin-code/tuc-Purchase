@@ -213,6 +213,16 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
           </div>
         </div>
       </div>
+
+      {/* 廠商注意事項 - A4 直向整頁 */}
+      <div className="doc-section" style={{ pageBreakBefore: 'always', marginTop: '1.5rem' }}>
+        <h4 style={{ fontSize: '14pt', fontWeight: 'bold', borderBottom: '2px solid #000', paddingBottom: '4px', marginBottom: '1.2rem' }}>
+          {t('contractorNotice', data.language)}
+        </h4>
+        <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', lineHeight: '1.6', color: '#000' }}>
+          {v(data.contractorNotice)}
+        </div>
+      </div>
     </div>
   );
 };

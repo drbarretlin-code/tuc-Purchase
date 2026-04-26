@@ -41,6 +41,7 @@ export const translations: Record<string, any> = {
     'workPeriod': '施工天數',
     'acceptanceDesc': '驗收描述',
     'compliance': '遵守事項',
+    'contractorNotice': '廠商注意事項',
     'drawings': '是否提供圖面',
     'tabHardwareTitle': '技術規格與設計要求',
     'tabConstructionTitle': '安裝程序與法規遵循',
@@ -162,6 +163,35 @@ export const translations: Record<string, any> = {
 15. 屋頂、局限空間作業須符合職業安全衛生設施規則，且於施工前3日提出作業申請(附上作業方法及防護器具清冊文件，相關作業儀器須定期第三方檢測合格標章)
 16. 電力/電控盤與旋轉/傳動機構張貼警告標語
 17. 因本工程造成設施(備)損(傷)壞須賠償。`,
+    'defaultContractorNotice': `注意：承包商承包工程，必須遵守提供以下資料提供，缺一不可，如無法配合勿承接案件，以免日後有爭議。
+（只要工程項目、工作地點、施工人員與提交人員名冊不符均需重新繳交資料並重新上課）
+
+1. 協力廠商環安衛管理切結書 (ESHP-11-00101)
+2. 工作環境危害因素告知單 (ESHP-11-00102)
+3. 職安人員、營造、有害作業主管證書及回訓證明或特殊、特種作業相關證書副本
+   甲、特殊作業：如吊掛、動火、高架、局限及危險管路等
+   乙、相關證照：如：一機三證、缺氧作業主管等等
+4. 協力廠商進廠施工人員名冊 (ESHP-11-00103) 及以下施工人員相關資料：
+   甲、個資蒐集告知聲明暨同意書 (ESHP-11-00104)，務必請個人親筆簽名。
+   乙、(1) 勞工保險、(2) 社會保險、(3) 意外保險 (NTD 500 萬元以上或 RMB 45 萬元以上/每人) *副本 3 擇 1
+   丙、員工健康體檢資料 (2 年內) *副本
+   丁、委外或自行辦理之職業安全衛生教育訓練證明 (3 年 6 小時)
+   戊、非本籍 (中華民國籍) 施工人員需檢附居留證副本
+5. 協議組織會議簽到及紀錄表 (ESHP-11-00111)
+6. 協力廠商環安衛管理規則 (ESHP-11-00113)
+7. 協力廠商一般施工申請單 (ESHP-11-00115)
+8. 協力廠商內部危害因素告知單 (ESHP-11-00118)
+9. 協力廠商再承攬證明書 (ESHP-11-00119)
+
+另外安全培訓課程說明如下：
+1. 日期：每週四 (如遇國定假日或當日有其他重要會議如安委會等即取消)。
+2. 時間：09:00~10:30 (含測試)。
+3. 人數：30 人/堂 (最多)。報名人數達 10 人 (含) 以上即開課。
+4. 地點：B1 教育訓練室。
+5. 方式：採報名方式填寫協力廠商環安衛訓練講習報名表 (如附件)。
+6. 報名：廠商需要上課者，提前一週報名。
+
+如於執行流程有任何建議或疑慮之處，煩請回覆此 MAIL 或與工安許先生 (#156) 討論。`,
     'defaultTblFunctional': '功能',
     'defaultTblQuality': '品質',
     'defaultTblCapacity': '產能',
@@ -370,6 +400,7 @@ export const translations: Record<string, any> = {
     'workPeriod': '施工天数',
     'acceptanceDesc': '验收描述',
     'compliance': '遵守事项',
+    'contractorNotice': '厂商注意事项',
     'drawings': '是否提供图面',
     'tabHardwareTitle': '技术规格与设计要求',
     'tabConstructionTitle': '安装程序与法规遵循',
@@ -431,6 +462,7 @@ export const translations: Record<string, any> = {
     'defaultDependingOnProcurement': '依请购内容而定',
     'defaultAccordingToTuc': '依台燿规定',
     'defaultAccordingToTucShort': '依台燿规定',
+    'defaultContractorNotice': '依台燿规定 (承包商注意事項)',
     'defaultNationalRegs': '符合国家法规',
     'defaultSafetyRegs': '依台燿规定',
     'defaultInstallStd': `1. PLC以及人机程序修改，施工当天即提供修改前後程序备份
@@ -691,6 +723,7 @@ export const translations: Record<string, any> = {
     'workPeriod': 'Work Period',
     'acceptanceDesc': 'Acceptance',
     'compliance': 'Compliance',
+    'contractorNotice': 'Contractor Notice',
     'drawings': 'Has Drawings',
     'tabHardwareTitle': 'Technical & Design Requirements',
     'tabConstructionTitle': 'Installation & Compliance',
@@ -754,6 +787,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTucShort': 'According to TUC regulations',
     'defaultNationalRegs': 'Compliant with national regulations',
     'defaultSafetyRegs': 'According to TUC regulations',
+    'defaultContractorNotice': 'According to TUC regulations (Contractor Notice)',
     'defaultInstallStd': `1. Backup PLC/HMI programs before and after modification on construction day.
 2. Maintain original PLC logic; use auxiliary relay for new features for quick restoration.
 3. Operations follow occupational safety laws.
@@ -1021,6 +1055,7 @@ export const translations: Record<string, any> = {
     'workPeriod': 'ระยะเวลาดำเนินงาน',
     'acceptanceDesc': 'รายละเอียดการรับมอบ',
     'compliance': 'ข้อควรปฏิบัติ',
+    'contractorNotice': 'ข้อควรปฏิบัติสำหรับผู้รับเหมา',
     'drawings': 'แนบแบบวาดหรือไม่',
     'tabHardwareTitle': 'ข้อกำหนดด้านเทคนิคและการออกแบบ體',
     'tabConstructionTitle': 'การติดตั้งและการปฏิบัติตามข้อกำหนด',
@@ -1084,6 +1119,7 @@ export const translations: Record<string, any> = {
     'defaultAccordingToTucShort': 'ตามข้อกำหนดของ Taiwan Union',
     'defaultNationalRegs': 'ปฏิบัติตามกฎหมายระดับประเทศ',
     'defaultSafetyRegs': 'ตามกฎระเบียบของ TUC',
+    'defaultContractorNotice': 'ตามกฎระเบียบของ TUC (ข้อควรปฏิบัติสำหรับผู้รับเหมา)',
     'defaultInstallStd': `1. ต้องจัดเตรียมข้อมูลสำรองของโปรแกรม PLC และ HMI ก่อนและหลังการแก้ไขในวันที่ก่อสร้าง
 2. โดยหลักการแล้ว ให้รักษาโปรแกรม PLC เดิมไว้ และใช้จุดช่วยสำหรับฟังก์ชันใหม่เพื่อให้สามารถกู้คืนได้อย่างรวดเร็ว
 3. การก่อสร้างต้องเป็นไปตามกฎระเบียบด้านความปลอดภัยและอาชีวอนามัย

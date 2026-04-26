@@ -810,6 +810,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                    onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
                    language={data.language}
                 />
+                <SectionEditor 
+                   label={t('contractorNotice', data.language)} 
+                   value={data.contractorNotice} 
+                   onChange={(v: string) => updateField('contractorNotice', v)} 
+                   language={data.language}
+                />
               </div>
             )}
 

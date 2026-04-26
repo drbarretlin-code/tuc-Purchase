@@ -86,6 +86,19 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: v(data.acceptanceDesc, lang) })] }),
     new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200 } }),
     ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').map(l => new Paragraph({ children: [new TextRun({ text: l })] })),
+    
+    // 廠商注意事項 (A4 直向整頁)
+    new Paragraph({ children: [new TextRun({ text: '', break: 1 })] }), // 強制分頁 (或是使用 PageBreak)
+    new Paragraph({ 
+      heading: HeadingLevel.HEADING_4, 
+      children: [new TextRun({ text: t('contractorNotice', lang), bold: true, size: 28 })],
+      spacing: { before: 400, after: 200 },
+      pageBreakBefore: true 
+    }),
+    ...v(data.contractorNotice, lang).split('\n').map(l => new Paragraph({ 
+      children: [new TextRun({ text: l, size: 20 })],
+      spacing: { after: 100 }
+    })),
   ];
 
   const optionalSections: (Paragraph | Table)[] = [];

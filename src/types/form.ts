@@ -115,6 +115,9 @@ export interface FormState {
   complianceHistoryHints: AIHintSelection[];
   complianceRegHints: AIHintSelection[];
   
+  // 十三. 廠商注意事項
+  contractorNotice: string;
+  
   // 十一. 圖說
   images: SpecImage[];
   
@@ -197,6 +200,7 @@ export const INITIAL_FORM_STATE: FormState = {
   complianceAIHints: [],
   complianceHistoryHints: [],
   complianceRegHints: [],
+  contractorNotice: 'defaultContractorNotice',
   images: [],
   tableData: [
     { category: 'defaultTblFunctional', item: 'defaultTblRuntest', spec: 'NA', method: 'NA', samples: 'NA', confirmation: 'NA' },
@@ -222,6 +226,7 @@ export const BOILERPLATE_KEYS = [
   'defaultAcceptance',
   'defaultAcceptanceExtra',
   'defaultCompliance',
+  'defaultContractorNotice',
   'defaultTblFunctional',
   'defaultTblQuality',
   'defaultTblCapacity',
