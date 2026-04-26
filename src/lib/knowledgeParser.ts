@@ -28,7 +28,7 @@ export class DiagnosticError extends Error {
   }
 }
 
-async function getAutoSelectedModel(apiKey: string): Promise<string> {
+export async function getAutoSelectedModel(apiKey: string): Promise<string> {
   if (cachedModelId) return cachedModelId;
   
   const genAI = new GoogleGenerativeAI(apiKey);

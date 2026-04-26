@@ -146,7 +146,7 @@ function App() {
       if (currentAIModel === '偵測中...') {
         const apiKey = localStorage.getItem('gemini_api_key_pool')?.split(',')[0] || process.env.VITE_GEMINI_API_KEY || '';
         if (apiKey) {
-           KP.getAutoSelectedModel(apiKey).then(mId => {
+           KP.getAutoSelectedModel(apiKey).then((mId: string) => {
               if (mId) setCurrentAIModel(mId);
            });
         }
