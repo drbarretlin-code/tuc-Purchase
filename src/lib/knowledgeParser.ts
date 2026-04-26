@@ -53,10 +53,16 @@ export async function getAutoSelectedModel(apiKey: string): Promise<string> {
   for (const mId of priorityList) {
     try {
       const model = genAI.getGenerativeModel({ model: mId });
-      await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        generationConfig: { maxOutputTokens: 1 }
-      });
+      
+      // V26.16: 加入 15 秒逾時保護，防止單一模型試驗掛起
+      await Promise.race([
+        model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+          generationConfig: { maxOutputTokens: 1 }
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 15000))
+      ]);
+
       cachedModelId = mId;
       console.log(`[AI Discovery] 試驗成功！鎖定最優可用模型: ${cachedModelId}`);
       break;

@@ -1,10 +1,11 @@
 import { Client } from '@upstash/qstash';
 import { createClient } from '@supabase/supabase-js';
 
-// 初始化 Supabase (用於統計日誌)
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+// 初始化 Supabase (用於統計日誌) - 優先使用 Vercel 與 Service Role 金鑰
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+if (!supabase) console.warn('[QStash Rotator] 警告：未偵測到 Supabase 配置，用量統計日誌將無法寫入。');
 
 /**
  * 瀑布式備援輪替引擎 (Waterfall Rotation Engine)
@@ -52,7 +53,9 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
 
       // V26.10: 異步寫入用量日誌 (估計每次 QStash 交互消耗約 15KB Egress)
       if (supabase) {
-        supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 }).then(() => {});
+        supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 })
+          .then(() => console.log('[QStash Log] 成功寫入用量統計。'))
+          .catch(e => console.error('[QStash Log] 寫入統計失敗:', e.message));
       }
 
       return response;
