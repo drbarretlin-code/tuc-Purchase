@@ -39,14 +39,14 @@ export class DiagnosticError extends Error {
  * 整合 localStorage 中的金鑰池與目前活動金鑰
  */
 export function getGeminiKeyPool(): string[] {
-  const poolStr = localStorage.getItem('gemini_api_key_pool') || '';
   const activeKey = localStorage.getItem('tuc_gemini_key') || '';
-  // 相容舊版或單一金鑰儲存點
+  const poolStr = localStorage.getItem('gemini_api_key_pool') || '';
   const legacyKey = localStorage.getItem('gemini_api_key') || '';
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const envKey1 = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const envKey2 = import.meta.env.VITE_GEMINI_KEY || '';
   
   // 遍歷所有可能的來源並進行分割
-  const allRaw = [activeKey, poolStr, legacyKey, envKey].join(',');
+  const allRaw = [activeKey, poolStr, legacyKey, envKey1, envKey2].join(',');
   const keys = allRaw.split(/[,，\n]/).map(k => k.trim()).filter(k => k);
   
   return Array.from(new Set(keys));
