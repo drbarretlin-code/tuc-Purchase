@@ -429,13 +429,16 @@ function App() {
           qstash_calls_today: uStats.qstash_calls_today || 0,
           estimated_egress_bytes: uStats.estimated_egress_bytes || 0
         });
+      } else {
+        // V26.15: 若當天尚無紀錄，則重置為 0 (防止 UI 沒反應)
+        setUsageStats({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
       }
 
       // V26.11: 更新當前前端鎖定的模型名稱
       const detected = KP.getCachedModelId();
       if (detected) setCurrentAIModel(detected);
-    } catch (err) {
-      console.error('Fetch usage stats error:', err);
+    } catch (err: any) {
+      console.error('[Diagnostic] fetchUsageStats 執行失敗:', err.message);
     }
   };
 
@@ -1688,9 +1691,15 @@ function App() {
                           付費額度模式
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); fetchUsageStats(); }}
+                          onClick={async (e) => { 
+                            e.stopPropagation(); 
+                            const btn = e.currentTarget;
+                            btn.style.opacity = '0.5';
+                            await fetchUsageStats(); 
+                            btn.style.opacity = '1';
+                          }}
                           title="強制重新獲取最新統計"
-                          style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '2px', display: 'flex', marginLeft: '4px' }}
+                          style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '2px', display: 'flex', marginLeft: '4px', transition: 'opacity 0.2s' }}
                         >
                           <Repeat size={12} />
                         </button>
