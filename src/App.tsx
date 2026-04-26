@@ -888,7 +888,7 @@ function App() {
   };
 
   // 共同的送入背景佇列函數
-  const enqueueBatchForParsing = async (ids: string[]) => {
+  const enqueueBatchForParsing = async (ids: string[], mode?: 'ultra' | 'standard') => {
     if (!supabase) return;
     setIsReparsing(true); // 僅用於按鈕 Disable 狀態
     try {
@@ -905,7 +905,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileIds: ids,
-          language: data.language
+          language: data.language,
+          mode: mode || 'standard'
         })
       });
 
@@ -931,13 +932,17 @@ function App() {
     }
   };
 
-  const handleForceReparseFiles = async (ids: string[]) => {
+  const handleForceReparseFiles = async (ids: string[], mode?: 'ultra' | 'standard') => {
     if (!supabase) return;
     const targets = cloudFiles.filter(f => ids.includes(f.id));
     if (targets.length === 0) return;
 
-    if (!confirm(`${t('confirmReparseBatch', data.language).replace('{n}', targets.length.toString())}`)) return;
-    await enqueueBatchForParsing(ids);
+    const confirmMsg = mode === 'ultra' 
+      ? `確定要啟動「深度挖掘模式」解析這 ${targets.length} 份檔案嗎？\n這將耗費更多 AI 配額，但能取得最精確的技術參數。`
+      : `${t('confirmReparseBatch', data.language).replace('{n}', targets.length.toString())}`;
+
+    if (!confirm(confirmMsg)) return;
+    await enqueueBatchForParsing(ids, mode);
   };
 
   const handleEnqueueUnparsed = async () => {

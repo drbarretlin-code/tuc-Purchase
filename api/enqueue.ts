@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { fileIds, language } = req.body;
+    const { fileIds, language, mode } = req.body;
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
       return res.status(400).json({ error: 'fileIds array is required' });
     }
@@ -60,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const publishOptions: any = {
         url: workerUrl,
-        body: { action: 'process_next', language: language },
+        body: { action: 'process_next', language: language, mode: mode || 'standard' },
         retries: 3,
       };
       const response = await publishWithRotation(publishOptions);

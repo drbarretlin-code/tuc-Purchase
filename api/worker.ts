@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
 
   const workerUrl = `https://${req.headers.host}/api/worker`;
-  const { action, fileId, chunkIndex = 0, language = 'zh-TW' } = req.body || {};
+  const { action, fileId, chunkIndex = 0, language = 'zh-TW', mode = 'standard' } = req.body || {};
 
   try {
     // 模式一：尋找下一筆檔案
@@ -92,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 發送第一塊切片處理任務
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId: nextFileId, chunkIndex: 0, language },
+        body: { fileId: nextFileId, chunkIndex: 0, language, mode },
         retries: 3
       });
       return res.status(200).json({ success: true, triggered: nextFileId });
@@ -145,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!fileBlob) throw new Error('Download failed');
       const arrayBuffer = await fileBlob.arrayBuffer();
 
-      const result = await getFileChunks(arrayBuffer, record.original_name);
+      const result = await getFileChunks(arrayBuffer, record.original_name, mode as any);
       const fullText = result.textChunks.join('').trim();
 
       // V26.27: 防呆 - 若完全提取不到文字且非 PDF，則中斷，不發送下一波 QStash
@@ -169,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 重要：為了防止超時，提取完後不直接進行 AI 解析，而是發送一個新的 QStash 任務來啟動 AI 階段
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId: fileId, chunkIndex: 0, language },
+        body: { fileId: fileId, chunkIndex: 0, language, mode },
         delay: '1s'
       });
       return res.status(200).json({ success: true, phase: 'extraction_completed' });
@@ -208,7 +208,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         record.original_name,
         inlineData,
         apiKey,
-        language
+        language,
+        mode as any
       );
       lastUsedModelId = usedModelId;
 
@@ -253,7 +254,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 召喚下一批次 QStash，喘息 5 秒鐘
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId, chunkIndex: currentIndex, language, modelId: lastUsedModelId },
+        body: { fileId, chunkIndex: currentIndex, language, modelId: lastUsedModelId, mode },
         delay: '5s',
         retries: 3
       });
@@ -272,7 +273,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 喚醒處理下一筆待機檔案
       await publishWithRotation({
         url: workerUrl,
-        body: { action: 'process_next', language, modelId: lastUsedModelId },
+        body: { action: 'process_next', language, modelId: lastUsedModelId, mode },
         delay: '1s'
       });
     }
