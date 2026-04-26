@@ -144,11 +144,17 @@ export async function processSingleChunkBackend(
     contents[0].parts.push({ inlineData: inlineData });
   }
 
+  // V27.5: 同步高階模型清單 (gemini-1.5 已停用，改採 2.5/3.0/3.1 架構)
   const modelsToTry = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro',
-    'gemini-2.0-flash-exp'
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-pro-latest',
+    'gemini-flash-latest'
   ];
   let result: any;
   let lastError: any;
