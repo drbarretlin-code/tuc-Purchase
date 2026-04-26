@@ -70,7 +70,11 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
           if (rpcErr) {
             // 嘗試回退至舊版簽章 (不帶 model_name)
             console.warn('[QStash Log] 新版 RPC 失敗，嘗試回退至舊版...', rpcErr.message);
-            await supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 }).catch(() => {});
+            try {
+              await supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 });
+            } catch (fallbackErr) {
+              // 靜默失敗，不影響主解析
+            }
           } else {
              console.log('[QStash Log] 成功更新資源用量與模型標籤:', modelId);
           }
