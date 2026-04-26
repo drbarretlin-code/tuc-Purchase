@@ -191,7 +191,7 @@ export const translations: Record<string, any> = {
 5. 方式：採報名方式填寫協力廠商環安衛訓練講習報名表 (如附件)。
 6. 報名：廠商需要上課者，提前一週報名。
 
-如於執行流程有任何建議或疑慮之處，煩請回覆此 MAIL 或與工安許先生 (#156) 討論。`,
+如於執行流程有任何建議或疑慮之處，煩請回覆此 MAIL。`,
     'defaultTblFunctional': '功能',
     'defaultTblQuality': '品質',
     'defaultTblCapacity': '產能',
