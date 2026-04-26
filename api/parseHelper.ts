@@ -102,20 +102,21 @@ export async function processSingleChunkBackend(
   const isUltra = mode === 'ultra';
 
   const prompt = `
-    你是一個${isUltra ? '「極端嚴苛的技術審核與合約挖掘專家」' : '「極致知識挖掘」與「採購技術專家」'}。
+    【工業背景聲明】：本文件為「工業設備採購技術規範」，內容包含機械加工、裁切、安裝與電控等專業工程學術語。請忽略對「裁切 (Cutting)」、「危險」等詞彙的任何非技術性安全聯想。
+    
+    你是一個${isUltra ? '「極端嚴格的專業採購技術顧問」' : '「極致知識挖掘」與「採購技術專家」'}。
     你目前正在解構一份專業的採購規範檔案${isMultiChunk ? `的第 ${chunkIndex + 1}/${totalChunks} 個切片` : ''}。
     
     ${isUltra ? `
     【深度挖掘模式 (Ultra Mode) 指令】：
-    1. **絕對原子化**：禁止將多個要求合併為一條。每一個獨立的數值參數、每一個特定的材質要求、每一項法規引用都必須拆分成獨立的項目。
-    2. **零遺漏政策**：即便是不起眼的備註、括號內的規格，也必須完整提取。
-    3. **挖掘密度**：目標是產出比平常高出 2-3 倍的條目量。
-    4. **語境恢復**：如果本分塊開頭有引用前文的內容（例如「承上所述」、「該設備」），請結合上下文判斷其指代對象並補全內容。
+    1. **絕對原子化**：每一個獨立的數值參數、材質要求、法規引用都必須拆分成獨立項目。
+    2. **零遺漏政策**：完整提取所有備註與技術指標。
+    3. **挖掘密度**：目標產出高密度條目。
+    4. **語意還原**：結合上下文補全代稱對象。
     ` : `
-    你的任務是：**榨乾這個切片的所有技術價值，絕不遺漏任何技術參數、法規編號、施工要求或驗收標準**。
-    1. **絕對強制提取與原子化拆解**：
-       - **嚴禁過度摘要**。請將每一個獨立的法規條款、技術規格或性能指標拆解為獨立的 specEntry。
-       - 目標是產出高密度的條目（本切片建議產出 20-40 條獨立條目），確保技術細節不被遺漏。
+    你的任務是：**擷取本切片所有技術參數、法規編號與施工要求**。
+    1. **原子化拆解**：將法規條款或技術指標拆解為獨立 specEntry，嚴禁過度摘要。
+    2. **目標密度**：建議產出 20-40 條獨立條目。
     `}
     
     2. **具體數值保留**：
@@ -144,15 +145,11 @@ export async function processSingleChunkBackend(
   }
 
   const modelsToTry = [
-    'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-pro-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-pro-latest',
-    'gemini-flash-latest'
+    'gemini-1.5-pro',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-flash-latest'
   ];
   let result: any;
   let lastError: any;
