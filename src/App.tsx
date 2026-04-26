@@ -118,7 +118,7 @@ function App() {
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageSize, setStorageSize] = useState(0);
   const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
-  const [currentAIModel, setCurrentAIModel] = useState<string>('偵測中...');
+  const [currentAIModel, setCurrentAIModel] = useState(KP.getCachedModelId() || '偵測中...');
   const [healthTab, setHealthTab] = useState<'current' | 'paid'>('current');
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
@@ -416,8 +416,9 @@ function App() {
       setKnowledgeCount(kCount || 0);
       setStorageSize(totalSizeBytes);
 
-      // V26.10: 獲取系統用量統計 (QStash/Egress) - 使用 en-CA 確保 YYYY-MM-DD 格式
-      const todayStr = new Date().toLocaleDateString('en-CA');
+      // V26.17: 獲取系統用量統計 - 必須使用 UTC 日期 (toISOString) 以匹配 Supabase CURRENT_DATE
+      const todayStr = new Date().toISOString().split('T')[0];
+      console.log(`[Diagnostic] 正在請求日期 (UTC): ${todayStr} 的資源統計...`);
       const { data: uStats } = await supabase
         .from('tuc_usage_stats')
         .select('*')
