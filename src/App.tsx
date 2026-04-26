@@ -156,7 +156,9 @@ function App() {
 
       return () => {
         console.log('[Realtime] 關閉雲端查閱器，註銷監聽連線。');
-        supabase.removeChannel(channel);
+        if (supabase) {
+          supabase.removeChannel(channel);
+        }
       };
     }
   }, [showCloudInspector, isCloudAuthed, supabase]);
