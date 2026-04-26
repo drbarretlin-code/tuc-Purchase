@@ -57,21 +57,25 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
         throw new Error(`QStash Error: ${response.status} ${errorText}`);
       }
 
-      // V26.18: 改為 AWAIT 寫入用量日誌，確保 Serverless 程序不會在寫入完成前提前關閉
+      // V26.18: 寫入用量日誌 (加入 try-catch 保護，防止 SQL 未升級導致主程序 500 崩潰)
       if (supabase) {
         const modelId = (publishOptions.body as any)?.modelId || null;
         try {
+          // 嘗試使用新版簽章 (帶 model_name)
           const { error: rpcErr } = await supabase.rpc('increment_qstash_usage', { 
             bytes_count: 15 * 1024,
             model_name: modelId
           });
+          
           if (rpcErr) {
-             console.error('[QStash Log] RPC 失敗 (可能未佈署 SQL):', rpcErr.message);
+            // 嘗試回退至舊版簽章 (不帶 model_name)
+            console.warn('[QStash Log] 新版 RPC 失敗，嘗試回退至舊版...', rpcErr.message);
+            await supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 }).catch(() => {});
           } else {
              console.log('[QStash Log] 成功更新資源用量與模型標籤:', modelId);
           }
-        } catch (rpcCatch) {
-          console.error('[QStash Log] RPC 例外:', rpcCatch);
+        } catch (rpcCatch: any) {
+          console.error('[QStash Log] 統計寫入異常 (不影響主解析任務):', rpcCatch.message);
         }
       }
 
