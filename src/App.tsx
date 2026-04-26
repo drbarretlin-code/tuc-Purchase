@@ -1672,8 +1672,9 @@ function App() {
                 const qUsage = Math.min(Math.round((usageStats.qstash_calls_today / qstashLimit) * 100), 100);
                 const eUsage = Math.min(Math.round((usageStats.estimated_egress_bytes / egressBytesLimit) * 100), 100);
                 
-                // 判定付費/免費屬性
-                const isPaidTier = usageStats.qstash_calls_today > 500; 
+                // V26.25: 方案判定與重置日期校準 (依據使用者提供的資料)
+                const isPaidTier = healthTab === 'paid';
+                const resetDay = isPaidTier ? 25 : 17;
                 
                 return (
                   <div style={{
@@ -1700,7 +1701,7 @@ function App() {
                             fontWeight: healthTab === 'current' ? 'bold' : 'normal'
                           }}
                         >
-                          當前狀態
+                          免費版模式
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); setHealthTab('paid'); }}
@@ -1715,7 +1716,7 @@ function App() {
                             fontWeight: healthTab === 'paid' ? 'bold' : 'normal'
                           }}
                         >
-                          付費額度模式
+                          付費版模式
                         </button>
                         <button 
                           onClick={async (e) => { 
@@ -1784,13 +1785,17 @@ function App() {
                           <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${eUsage}%`, height: '100%', background: eUsage > 90 ? '#EF4444' : eUsage > 70 ? '#F59E0B' : '#3B82F6', transition: 'width 0.5s ease' }} />
                           </div>
-                          {/* V26.24: Egress 是按月計算的 */}
+                          {/* V26.25: 依據 resetDay 動態計算重置倒數 */}
                           <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#666', marginTop: '2px' }}>
                              {(() => {
                                const now = new Date();
-                               const nextMonth = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
-                               const daysLeft = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                               return `週期重置: 每月 1 號 (剩餘約 ${daysLeft} 天)`;
+                               let resetDate = new Date(now.getFullYear(), now.getMonth(), resetDay);
+                               if (now.getDate() >= resetDay) {
+                                 resetDate = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+                               }
+                               const diffTime = resetDate.getTime() - now.getTime();
+                               const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                               return `週期重置: 每月 ${resetDay} 號 (剩餘約 ${daysLeft} 天)`;
                              })()}
                           </div>
                         </div>
