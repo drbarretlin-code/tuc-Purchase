@@ -439,6 +439,10 @@ function App() {
           qstash_calls_today: uStats.qstash_calls_today || 0,
           estimated_egress_bytes: uStats.estimated_egress_bytes || 0
         });
+        // V26.18: 如果資料庫有紀錄模型名稱，優先以此為準 (解決前端偵測不到的問題)
+        if (uStats.last_ai_model) {
+          setCurrentAIModel(uStats.last_ai_model);
+        }
       } else {
         // V26.15: 若當天尚無紀錄，則重置為 0 (防止 UI 沒反應)
         setUsageStats({ qstash_calls_today: 0, estimated_egress_bytes: 0 });

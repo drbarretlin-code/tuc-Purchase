@@ -41,21 +41,38 @@ export async function publishWithRotation(publishOptions: any): Promise<any> {
   for (let i = 0; i < tokens.length; i++) {
     const currentToken = tokens[i];
     try {
-      const client = new Client({ token: currentToken });
-      
-      // 嘗試發送
-      const response = await client.publishJSON(publishOptions);
-      
-      // 紀錄成功使用的是備用金鑰
-      if (i > 0) {
-         console.warn(`[QStash Rotator] 注意：主金鑰已失效，本次成功使用備援金鑰 #${i} 投遞任務。`);
+      const response = await fetch(`https://qstash.upstash.io/v1/publish/${options.url}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+          ...(options.delay ? { 'Upstash-Delay': options.delay } : {}),
+          ...(options.retries !== undefined ? { 'Upstash-Retries': options.retries.toString() } : {}),
+        },
+        body: JSON.stringify(options.body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`QStash Error: ${response.status} ${errorText}`);
       }
 
-      // V26.10: 異步寫入用量日誌 (估計每次 QStash 交互消耗約 15KB Egress)
+      // V26.18: 改為 AWAIT 寫入用量日誌，確保 Serverless 程序不會在寫入完成前提前關閉
       if (supabase) {
-        supabase.rpc('increment_qstash_usage', { bytes_count: 15 * 1024 })
-          .then(() => console.log('[QStash Log] 成功寫入用量統計。'))
-          .catch(e => console.error('[QStash Log] 寫入統計失敗:', e.message));
+        const modelId = (options.body as any)?.modelId || null;
+        try {
+          const { error: rpcErr } = await supabase.rpc('increment_qstash_usage', { 
+            bytes_count: 15 * 1024,
+            model_name: modelId
+          });
+          if (rpcErr) {
+             console.error('[QStash Log] RPC 失敗 (可能未佈署 SQL):', rpcErr.message);
+          } else {
+             console.log('[QStash Log] 成功更新資源用量與模型標籤:', modelId);
+          }
+        } catch (rpcCatch) {
+          console.error('[QStash Log] RPC 例外:', rpcCatch);
+        }
       }
 
       return response;

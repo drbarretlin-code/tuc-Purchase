@@ -146,6 +146,7 @@ export async function processSingleChunkBackend(
       );
 
       result = await Promise.race([aiPromise, timeoutPromise]);
+      (result as any).usedModelId = modelId;
       console.log(`[Backend Parser] 成功使用 ${modelId} 完成解析。`);
       break; 
     } catch (err: any) {
@@ -171,45 +172,39 @@ export async function processSingleChunkBackend(
     }
   }
 
-  if (!result) {
-    throw lastError || new Error('所有備援模型皆不可用或回應超時。');
-  }
-  
-  const responseText = result.response.text();
-  if (!responseText) {
-    throw new Error('AI 回傳內容為空，可能是安全性過濾或配額耗盡。');
-  }
+  if (!result) throw lastError || new Error('所有可用 AI 模型均無法處理此請求');
 
-  let cleanJson = responseText.replace(/\`\`\`json|\`\`\`/g, '').trim();
+  const responseText = result.response.text();
+  const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
   
-  let parsed: any;
+  let parsedData: any;
   try {
-    parsed = JSON.parse(cleanJson);
+    parsedData = JSON.parse(cleanJson);
   } catch (err) {
-    let textContent = responseText;
-    // 嘗試從 JSON 格式中提取內容，避免標籤干擾
-    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-    const targetJson = jsonMatch ? jsonMatch[0] : textContent;
-    
+    // 備援方案：正則提取 JSON 塊
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const targetJson = jsonMatch ? jsonMatch[0] : responseText;
     try {
-      parsed = JSON.parse(targetJson);
+      parsedData = JSON.parse(targetJson);
     } catch (e) {
-      // 備援方案：正則提取
-      const entries = textContent.match(/"content":\s*"[^"]*"/g);
+      // 最終備援：手動正則匹配條目
+      const entries = responseText.match(/"content":\s*"([^"]*)"/g);
       const backupEntries = entries ? entries.map(m => ({ 
         category: '自動擷取', 
         content: m.replace(/"content":\s*"/, '').replace(/"$/, '') 
       })) : [];
-
-      parsed = {
+      parsedData = {
         docType: fileName.includes('KCG') ? 'Standard' : 'Specific',
-        specEntries: backupEntries.length > 0 ? backupEntries : [],
+        specEntries: backupEntries,
         fullJsonData: {}
       };
     }
   }
 
-  return parsed;
+  return { 
+    parsedData, 
+    usedModelId: (result as any).usedModelId 
+  };
 }
 
 function extractStringsFromBinary(buffer: ArrayBuffer): string {

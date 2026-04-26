@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       }
 
-      const parsedData = await processSingleChunkBackend(
+      const { parsedData, usedModelId } = await processSingleChunkBackend(
         textChunks[currentIndex],
         textChunks.length > 1,
         currentIndex,
@@ -241,7 +241,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 召喚下一批次 QStash，喘息 5 秒鐘
       await publishWithRotation({
         url: workerUrl,
-        body: { fileId, chunkIndex: currentIndex, language },
+        body: { fileId, chunkIndex: currentIndex, language, modelId: usedModelId },
         delay: '5s',
         retries: 3
       });
@@ -260,8 +260,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 喚醒處理下一筆待機檔案
       await publishWithRotation({
         url: workerUrl,
-        body: { action: 'process_next', language },
-        delay: '2s'
+        body: { action: 'process_next', language, modelId: usedModelId },
+        delay: '1s'
       });
     }
 
