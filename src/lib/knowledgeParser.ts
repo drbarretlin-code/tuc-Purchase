@@ -630,8 +630,8 @@ export const getHistorySuggestions = async (
 
     if (scoredData.length === 0) return { hints: [], status: 'empty' };
 
-    // 3. 排序並過取前 20 名 (移除 AI Rerank，直接回傳確定性結果)
-    const finalSelection = scoredData.sort((a, b) => b.score - a.score).slice(0, 20);
+    // 3. 排序並過取前 10 名 (移除 AI Rerank，直接回傳確定性結果)
+    const finalSelection = scoredData.sort((a, b) => b.score - a.score).slice(0, 10);
 
     const mappedHints = finalSelection.map((item) => ({
       id: item.id.toString(),
