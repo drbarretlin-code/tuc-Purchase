@@ -29,21 +29,53 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
   const renderBilingualText = (val: string | null | undefined, isAutoNumber = false) => {
     if (!val) return 'NA';
 
-    // V27.20: 處理手動雙語格式 (Thai \n (原文: Original))
+    // V27.22: 處理泰/中雙語格式 (Thai \n (原文: Original))
+    // 支援多組併列，並確保排版緊湊且結構清晰
     if (data.language === 'th-TH' && val.includes('(原文:')) {
-      const parts = val.split('\n(原文:');
-      const thaiPart = parts[0].trim();
-      const zhPart = (parts[1] || '').replace(/\)$/, '').trim();
-      
-      const processedThai = isAutoNumber ? processAutoNumbering(thaiPart) : thaiPart;
-      const processedZh = isAutoNumber ? processAutoNumbering(zhPart) : zhPart;
+      const lines = val.split('\n');
+      const pairs: { thai: string; zh: string }[] = [];
+      let currentThai = '';
+
+      lines.forEach(line => {
+        if (line.trim().startsWith('(原文:')) {
+          const zh = line.trim().replace(/^\(原文:\s*/, '').replace(/\)$/, '').trim();
+          pairs.push({ thai: currentThai.trim(), zh });
+          currentThai = '';
+        } else {
+          currentThai += (currentThai ? '\n' : '') + line;
+        }
+      });
+
+      // 處理剩餘的泰文（若有的話）
+      if (currentThai.trim()) {
+        pairs.push({ thai: currentThai.trim(), zh: '' });
+      }
 
       return (
         <div style={{ position: 'relative' }}>
-          <div style={{ color: '#000', fontWeight: 'normal' }}>{processedThai}</div>
-          <div style={{ color: '#666', fontSize: '0.9em', marginTop: '4px', paddingLeft: '8px', borderLeft: '2px solid #ddd', fontStyle: 'italic' }}>
-            {processedZh}
-          </div>
+          {pairs.map((p, idx) => (
+            <div key={idx} style={{ marginBottom: '2px' }}>
+              {/* 泰文部分：頂格顯示 */}
+              <div style={{ color: '#000', whiteSpace: 'pre-wrap' }}>
+                {isAutoNumber ? processAutoNumbering(p.thai) : p.thai}
+              </div>
+              {/* 中文原文：縮排、飾條、斜體，營造「附件」視覺感 */}
+              {p.zh && (
+                <div style={{ 
+                  color: '#666', 
+                  fontSize: '0.92em', 
+                  paddingLeft: '10px', 
+                  marginLeft: '4px',
+                  borderLeft: '2.5px solid #e5e7eb', 
+                  fontStyle: 'italic',
+                  marginTop: '1px',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {isAutoNumber ? processAutoNumbering(p.zh) : p.zh}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       );
     }
@@ -58,7 +90,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
         return (
           <>
             <span>{processedMain}</span>
-            <div style={{ color: '#666', fontSize: '0.9em', marginTop: '4px', paddingLeft: '8px', borderLeft: '2px solid #ddd' }}>
+            <div style={{ color: '#666', fontSize: '0.9em', marginTop: '2px', paddingLeft: '8px', borderLeft: '2px solid #ddd' }}>
               {processedZh}
             </div>
           </>
