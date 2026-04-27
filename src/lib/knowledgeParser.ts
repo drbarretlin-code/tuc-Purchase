@@ -60,11 +60,12 @@ export function getGeminiKeyPool(): string[] {
   return Array.from(new Set(keys));
 }
 
-export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
+export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<{ modelId: string; apiKey: string }> {
   const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
   console.log(`[AI Discovery] 啟動瀑布式偵測 (Waterfall V3)，金鑰池總數: ${keys.length}`);
 
-  if (cachedModelId) return cachedModelId;
+  const activeKey = localStorage.getItem('tuc_gemini_key') || (Array.isArray(apiKeys) ? apiKeys[0] : apiKeys);
+  if (cachedModelId && activeKey) return { modelId: cachedModelId, apiKey: activeKey };
 
   // 用於紀錄偵測到的最佳「非 100% 可用」模型，作為最後的防線
   let globalFallback: { modelId: string; apiKey: string } | null = null;
@@ -101,7 +102,7 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
         cachedModelId = mId;
         localStorage.setItem('tuc_gemini_key', currentKey);
         console.log(`[AI Discovery] 試驗成功！鎖定可用模型 ${mId} (金鑰索引: ${i})。`);
-        return cachedModelId;
+        return { modelId: mId, apiKey: currentKey };
 
       } catch (err: any) {
         const errMsg = err.message || '';
@@ -140,7 +141,7 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
     cachedModelId = globalFallback.modelId;
     localStorage.setItem('tuc_gemini_key', globalFallback.apiKey);
     console.log(`[AI Discovery] 未發現完全可用路徑，回退至首個限流模型: ${cachedModelId}。`);
-    return cachedModelId;
+    return globalFallback;
   }
 
   console.error(`[AI Discovery] 嚴重故障：金鑰池中所有組合皆無法連通。`);
@@ -847,10 +848,9 @@ export async function translateHints(
 ): Promise<AIHintSelection[]> {
   if (hints.length === 0) return hints;
 
-  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
-  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  // V27.29: 取得驗證過的可用金鑰與模型
+  const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
   const genAI = new GoogleGenerativeAI(workingKey);
-  const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
