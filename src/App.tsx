@@ -326,14 +326,17 @@ function App() {
   ];
 
   // V27.15: 產生 hints 的結構指紋，用於偵測何時需要觸發轉譯（例如從雲端導入資料後）
+  // V27.23: 增加內容首部指紋，避免內容異動但 ID/Length 未變時遺漏轉譯
   const hintsFingerprint = HINT_FIELDS.map(f => {
     const hints = (data as any)[f] || [];
-    return `${f}:${hints.length}:${hints[0]?.id || ''}`;
+    const firstHintContent = (hints[0]?.content || '').substring(0, 10);
+    return `${f}:${hints.length}:${hints[0]?.id || ''}:${firstHintContent}`;
   }).join('|');
 
   // V27.10/V27.15: 當語系變更或導入新建議條文時，同步將目前畫面上已有的 AI 建議（hints）進行轉譯
   useEffect(() => {
     let isCancelled = false;
+    let debounceTimer: any = null;
 
     // 繁體中文語系下不需要轉譯 (歷史建議多為繁體中文)
     if (data.language === 'zh-TW') return;
@@ -365,6 +368,7 @@ function App() {
         fieldsWithHints.forEach(field => {
           const hints = (data as any)[field];
           hints.forEach((h: any) => {
+            // V27.23: 若條文長度極短或明顯不是中文，可考慮跳過，但此處先全量處理
             allHintsToTranslate.push({ ...h, _field: field });
           });
         });
@@ -408,9 +412,15 @@ function App() {
       }
     };
 
-    translateAllHints();
+    // V27.23: 增加 1 秒延遲，避免與 SpecForm 自身的搜尋翻譯衝突
+    debounceTimer = setTimeout(() => {
+      if (!isCancelled) translateAllHints();
+    }, 1000);
 
-    return () => { isCancelled = true; };
+    return () => { 
+      isCancelled = true; 
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   }, [data.language, hintsFingerprint]);
 
 

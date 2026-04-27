@@ -867,13 +867,17 @@ export async function translateHints(
 
   const targetLabel = langMap[targetLang] || targetLang;
 
+  // V27.23: 增加偵測，若原文與目標語系相同則跳過 (防錯)
+  if (targetLang === 'zh-TW') return hints;
+
   // 組合條文以優化 API 效能
   const combinedText = hints.map((h, idx) => `ID:${idx} CONTENT:${h.content}`).join('\n---\n');
 
   const prompt = `You are a professional technical procurement translator. 
 Translate the following entries from Traditional Chinese into ${targetLabel}.
-Ensure technical terminology (e.g., PLC, SUS, HMI, safety standards) is accurate.
-Strictly maintain the format "ID:number CONTENT:translated_text" for each entry.
+Even if the content is highly technical, ensure all descriptions and requirements are translated to ${targetLabel}.
+Ensure technical terminology (e.g., PLC, SUS, HMI, safety standards) is accurate and consistent.
+STRICTLY maintain the format "ID:number CONTENT:translated_text" for each entry.
 
 DATA TO TRANSLATE:
 ${combinedText}`;
@@ -892,13 +896,14 @@ ${combinedText}`;
     const updatedHints = JSON.parse(JSON.stringify(hints)); // 深拷貝
 
     updatedHints.forEach((h: AIHintSelection, idx: number) => {
-      // V27.20: 記錄翻譯前的內容作為原始內容 (僅在尚未有原始內容時記錄)
+      // V27.20: 記錄翻譯前的內容作為原始內容
       if (!h.originalContent) {
         h.originalContent = hints[idx].content;
       }
 
-      // 尋找對應索引的內容
-      const regex = new RegExp(`ID:${idx}\\s*CONTENT:\\s*([\\s\\S]*?)(?=ID:${idx + 1}|$)`, 'i');
+      // V27.23: 增強正則表達式，處理可能出現的變體（如空格、標點、冒號全半形）
+      // 使用更寬鬆的匹配規則 ID[sep]idx CONTENT[sep]content
+      const regex = new RegExp(`ID\\s*[:：.]?\\s*${idx}\\s*CONTENT\\s*[:：.]?\\s*([\\s\\S]*?)(?=ID\\s*[:：.]?\\s*${idx + 1}|$)`, 'i');
       const match = translatedText.match(regex);
       if (match && match[1]) {
         h.content = match[1].trim();
