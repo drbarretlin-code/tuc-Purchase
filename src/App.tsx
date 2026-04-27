@@ -795,6 +795,8 @@ function App() {
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
+          const detectedName = (result?.detectedEquipment || '').trim();
+
           // V27.11: 即使 AI 無法識別（仍為未命名），也應寫入 is_calibrated = true
           // 這樣該檔案才會被 isUnnamedFile 判定為已結案，離開標籤修正列表，解決無限死循環
           if (!detectedName || detectedName === '未命名設備' || detectedName === '未知') {
