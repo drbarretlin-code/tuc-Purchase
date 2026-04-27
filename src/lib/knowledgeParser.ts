@@ -886,7 +886,11 @@ ${JSON.stringify(inputTexts)}`;
     });
     
     const text = result.response.text();
-    // V27.26: 強化 JSON 提取器，確保能處理包含廢話的回應
+    if (!text) throw new Error('AI returned empty translation');
+
+    console.log(`[AI Translation] 接收到回應 (${text.length} 字)。輸入條數: ${hints.length}`);
+
+    // V27.26: 強化 JSON 提取器
     let cleanJson = text;
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
@@ -895,7 +899,13 @@ ${JSON.stringify(inputTexts)}`;
       cleanJson = text.replace(/```json|```/g, '').trim();
     }
     
-    const translatedTexts = JSON.parse(cleanJson);
+    let translatedTexts;
+    try {
+      translatedTexts = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.error('[AI Translation] JSON 解析失敗。內容:', cleanJson.substring(0, 100));
+      throw parseErr;
+    }
 
     if (!Array.isArray(translatedTexts)) {
       throw new Error('AI did not return a JSON array');

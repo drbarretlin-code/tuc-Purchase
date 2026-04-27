@@ -100,6 +100,7 @@ interface Props {
   data: FormState;
   onChange: (newData: FormState) => void;
   isSyncBlocked?: boolean;
+  onForceTranslateField?: (field: string) => void;
 }
 
 const CompactThreshold: React.FC<{ 
@@ -184,7 +185,7 @@ const CompactThreshold: React.FC<{
   );
 };
 
-const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) => {
+const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false, onForceTranslateField }) => {
   const [activeTab, setActiveTab] = React.useState(0);
   const [isDbImportModalOpen, setIsDbImportModalOpen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
@@ -735,6 +736,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                       isTextArea={false} 
                       addon={<CompactThreshold value={data.matchThresholdHistory} onChange={(v) => updateField('matchThresholdHistory', v)} label={t('aiHistory', data.language)} />}
                       language={data.language}
+                      searchStatus={data.searchStatus['equipmentNameHistoryHints']}
+                      onForceTranslate={() => onForceTranslateField?.('equipmentNameHistoryHints')}
                     />
                   <div className="input-with-label">
                     <label>{t('category', data.language)}</label>
@@ -753,6 +756,8 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                     required 
                     addon={<CompactThreshold value={data.matchThresholdReg} onChange={(v) => updateField('matchThresholdReg', v)} label={t('aiReg', data.language)} icon={<Book size={10} />} />}
                     language={data.language}
+                    searchStatus={data.searchStatus['requirementDescHistoryHints']}
+                    onForceTranslate={() => onForceTranslateField?.('requirementDescHistoryHints')}
                   />
 
 
@@ -794,6 +799,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                      onHintToggle={(id: string) => toggleHint('envAIHints', 'envRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('envHistoryHints', 'envRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('envRegHints', 'envRequirements', id)}
+                     onForceTranslate={() => onForceTranslateField?.('envHistoryHints')}
                      language={data.language}
                   />
                   <SectionEditor 
@@ -807,6 +813,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                      onHintToggle={(id: string) => toggleHint('regAIHints', 'regRequirements', id)}
                      onHistoryHintToggle={(id: string) => toggleHint('regHistoryHints', 'regRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('regRegHints', 'regRequirements', id)}
+                     onForceTranslate={() => onForceTranslateField?.('regHistoryHints')}
                      language={data.language}
                   />
                   <SectionEditor 
@@ -818,6 +825,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                      searchStatus={data.searchStatus?.['maintHistoryHints'] || 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('maintHistoryHints', 'maintRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('maintRegHints', 'maintRequirements', id)}
+                     onForceTranslate={() => onForceTranslateField?.('maintHistoryHints')}
                      language={data.language}
                   />
                 </div>
@@ -833,6 +841,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                      searchStatus={data.safetyHistoryHints ? data.searchStatus['safetyHistoryHints'] : 'none'}
                      onHistoryHintToggle={(id: string) => toggleHint('safetyHistoryHints', 'safetyRequirements', id)}
                      onRegHintToggle={(id: string) => toggleHint('safetyRegHints', 'safetyRequirements', id)}
+                     onForceTranslate={() => onForceTranslateField?.('safetyHistoryHints')}
                      language={data.language}
                   />
                 </div>
@@ -849,6 +858,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                        searchStatus={data.searchStatus['elecHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('elecHistoryHints', 'elecSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('elecRegHints', 'elecSpecs', id)}
+                       onForceTranslate={() => onForceTranslateField?.('elecHistoryHints')}
                        language={data.language}
                     />
                     <SectionEditor 
@@ -860,6 +870,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                        searchStatus={data.searchStatus['mechHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('mechHistoryHints', 'mechSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('mechRegHints', 'mechSpecs', id)}
+                       onForceTranslate={() => onForceTranslateField?.('mechHistoryHints')}
                        language={data.language}
                     />
                     <SectionEditor 
@@ -871,6 +882,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                        searchStatus={data.searchStatus['physHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('physHistoryHints', 'physSpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('physRegHints', 'physSpecs', id)}
+                       onForceTranslate={() => onForceTranslateField?.('physHistoryHints')}
                        language={data.language}
                     />
                     <SectionEditor 
@@ -882,6 +894,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                        searchStatus={data.searchStatus['relyHistoryHints']}
                        onHistoryHintToggle={(id: string) => toggleHint('relyHistoryHints', 'relySpecs', id)}
                        onRegHintToggle={(id: string) => toggleHint('relyRegHints', 'relySpecs', id)}
+                       onForceTranslate={() => onForceTranslateField?.('relyHistoryHints')}
                        language={data.language}
                     />
                   </div>
@@ -893,6 +906,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                     regHints={data.rangeRegHints}
                     onHistoryHintToggle={(id: string) => toggleHint('rangeHistoryHints', 'rangeRange', id)}
                     onRegHintToggle={(id: string) => toggleHint('rangeRegHints', 'rangeRange', id)}
+                    onForceTranslate={() => onForceTranslateField?.('rangeHistoryHints')}
                     language={data.language}
                   />
                 </div>
@@ -913,6 +927,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                     onHintToggle={(id: string) => toggleHint('installAIHints', 'installStandard', id)}
                     onHistoryHintToggle={(id: string) => toggleHint('installHistoryHints', 'installStandard', id)}
                     onRegHintToggle={(id: string) => toggleHint('installRegHints', 'installStandard', id)}
+                    onForceTranslate={() => onForceTranslateField?.('installHistoryHints')}
                     language={data.language}
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -930,6 +945,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                   onHintToggle={(id: string) => toggleHint('acceptanceAIHints', 'acceptanceDesc', id)}
                   onHistoryHintToggle={(id: string) => toggleHint('acceptanceHistoryHints', 'acceptanceDesc', id)}
                   onRegHintToggle={(id: string) => toggleHint('acceptanceRegHints', 'acceptanceDesc', id)}
+                  onForceTranslate={() => onForceTranslateField?.('acceptanceHistoryHints')}
                   language={data.language}
                 />
                 <SectionEditor 
@@ -943,6 +959,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                    onHintToggle={(id: string) => toggleHint('complianceAIHints', 'complianceDesc', id)}
                    onHistoryHintToggle={(id: string) => toggleHint('complianceHistoryHints', 'complianceDesc', id)}
                    onRegHintToggle={(id: string) => toggleHint('complianceRegHints', 'complianceDesc', id)}
+                   onForceTranslate={() => onForceTranslateField?.('complianceHistoryHints')}
                    language={data.language}
                 />
                 <SectionEditor 

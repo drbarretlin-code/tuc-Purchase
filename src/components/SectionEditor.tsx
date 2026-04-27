@@ -19,6 +19,7 @@ interface Props {
   placeholder?: string;
   inputType?: string;
   searchStatus?: 'pending' | 'translating' | 'success' | 'no_key' | 'ai_error' | 'empty' | 'none';
+  onForceTranslate?: () => void;
   addon?: React.ReactNode;
   language: Language;
 }
@@ -154,9 +155,27 @@ const SectionEditor: React.FC<Props> = ({
           )}
           {searchStatus === 'ai_error' && (
             <div style={{ color: '#F87171' }}>
-              <p style={{ margin: 0, fontWeight: 'bold' }}>{t('aiError', language)}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ margin: 0, fontWeight: 'bold' }}>{t('aiError', language)}</p>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onForceTranslate?.(); }}
+                  style={{ fontSize: '0.75rem', background: 'rgba(248, 113, 113, 0.2)', border: '1px solid #F87171', color: 'white', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  重試轉譯
+                </button>
+              </div>
               <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.8 }}>{t('aiErrorDesc', language)}</p>
             </div>
+          )}
+          {searchStatus === 'success' && language !== 'zh-TW' && (
+             <div style={{ marginTop: '4px', textAlign: 'right' }}>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onForceTranslate?.(); }}
+                  style={{ fontSize: '0.7rem', color: '#60A5FA', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', opacity: 0.7 }}
+                >
+                  內容不對？強制重新轉譯
+                </button>
+             </div>
           )}
           {searchStatus === 'empty' && (
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>ℹ️ {t('noHints', language)}</p>

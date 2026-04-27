@@ -350,79 +350,103 @@ function App() {
     if (fieldsWithHints.length === 0) return;
 
     const translateAllHints = async () => {
-      console.log(`[AI Translation] 偵測到建議條文異動或語系切換 (${data.language})，啟動批量轉譯...`);
+      console.log(`[AI Translation] 啟動逐欄位轉譯程序 (${data.language})...`);
       
-      const apiKeys = KP.getGeminiKeyPool();
-      if (apiKeys.length === 0) return;
+      const apiPool = KP.getGeminiKeyPool();
+      if (apiPool.length === 0) return;
 
       setIsSyncingHints(true);
-      // 1. 先將所有相關欄位設為 translating 狀態
-      setData(prev => {
-        const newStatus = { ...prev.searchStatus };
-        fieldsWithHints.forEach(f => { newStatus[f] = 'translating'; });
-        return { ...prev, searchStatus: newStatus };
-      });
 
       try {
-        // 2. 收集所有條文進行批量翻譯
-        const allHintsToTranslate: any[] = [];
-        fieldsWithHints.forEach(field => {
-          const hints = (data as any)[field];
-          hints.forEach((h: any) => {
-            // V27.23: 若條文長度極短或明顯不是中文，可考慮跳過，但此處先全量處理
-            allHintsToTranslate.push({ ...h, _field: field });
-          });
-        });
+        // V27.31: 改為逐一欄位處理，確保穩定性並降低 AI 報錯機率
+        for (const field of fieldsWithHints) {
+          const currentHints = (data as any)[field] || [];
+          if (currentHints.length === 0) continue;
 
-        if (isCancelled) return;
+          // 啟發式檢查：如果內容已經包含泰文，則跳過此欄位 (避免重複翻譯)
+          const isThai = (text: string) => /[\u0E00-\u0E7F]/.test(text);
+          if (data.language === 'th-TH' && currentHints.every((h: any) => isThai(h.content))) {
+            console.log(`[AI Translation] 欄位 ${field} 已是泰文，跳過。`);
+            continue;
+          }
 
-        const translatedTotal = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
-        
-        if (isCancelled) return;
+          // 標記該欄位正在轉譯
+          setData(prev => ({
+            ...prev,
+            searchStatus: { ...prev.searchStatus, [field]: 'translating' }
+          }));
 
-        // 3. 重新分組回各個欄位
-        setData(prev => {
-          const nextState = { ...prev };
-          const nextStatus = { ...nextState.searchStatus };
+          console.log(`[AI Translation] 正在處理欄位: ${field} (${currentHints.length} 條)...`);
           
-          // 初始化清空目標欄位，準備填入翻譯後的
-          fieldsWithHints.forEach(f => { (nextState as any)[f] = []; });
+          try {
+            const translated = await KP.translateHints(currentHints, data.language, apiPool);
+            
+            if (isCancelled) break;
 
-          translatedTotal.forEach((h: any) => {
-            const field = h._field;
-            const cleanHint = { ...h };
-            delete cleanHint._field;
-            ((nextState as any)[field] as any[]).push(cleanHint);
-            nextStatus[field] = 'success';
-          });
-          
-          nextState.searchStatus = nextStatus;
-          return nextState;
-        });
-
+            setData(prev => ({
+              ...prev,
+              [field]: translated,
+              searchStatus: { ...prev.searchStatus, [field]: 'success' }
+            }));
+          } catch (innerErr) {
+            console.error(`[AI Translation] 欄位 ${field} 轉譯失敗:`, innerErr);
+            setData(prev => ({
+              ...prev,
+              searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
+            }));
+          }
+        }
       } catch (err) {
-        console.error('[AI Translation] Hints translation failed:', err);
-        if (isCancelled) return;
-        setData(prev => {
-          const nextStatus = { ...prev.searchStatus };
-          fieldsWithHints.forEach(f => { nextStatus[f] = 'ai_error'; });
-          return { ...prev, searchStatus: nextStatus };
-        });
+        console.error('[AI Translation] 全局循環異常:', err);
       } finally {
         if (!isCancelled) setIsSyncingHints(false);
       }
     };
 
-    // V27.28: 增加 300ms 延遲，並在觸發前再次確認是否正在同步中
+    // V27.31: 縮短延遲，讓使用者切換後能快速感知
     debounceTimer = setTimeout(() => {
       if (!isCancelled && !isSyncingHints) translateAllHints();
-    }, 300);
+    }, 400);
 
     return () => { 
       isCancelled = true; 
       if (debounceTimer) clearTimeout(debounceTimer);
     };
   }, [data.language, hintsFingerprint]);
+
+  // V27.32: 強制轉譯單一欄位的函式 (供 SectionEditor 手動觸發)
+  const forceTranslateField = async (field: string) => {
+    const currentHints = (data as any)[field] || [];
+    if (currentHints.length === 0) return;
+    
+    const apiPool = KP.getGeminiKeyPool();
+    if (apiPool.length === 0) {
+      alert('請先設定 Gemini API Key');
+      return;
+    }
+
+    console.log(`[AI Force Translate] 強制處理欄位: ${field}...`);
+    
+    setData(prev => ({
+      ...prev,
+      searchStatus: { ...prev.searchStatus, [field]: 'translating' }
+    }));
+
+    try {
+      const translated = await KP.translateHints(currentHints, data.language, apiPool);
+      setData(prev => ({
+        ...prev,
+        [field]: translated,
+        searchStatus: { ...prev.searchStatus, [field]: 'success' }
+      }));
+    } catch (err) {
+      console.error(`[AI Force Translate] 失敗:`, err);
+      setData(prev => ({
+        ...prev,
+        searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
+      }));
+    }
+  };
 
 
 
@@ -1398,7 +1422,12 @@ function App() {
           <div style={{ minWidth: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {(() => {
               const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
-              return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
+              return <SpecForm 
+                data={data} 
+                onChange={setData} 
+                isSyncBlocked={isSyncBlocked} 
+                onForceTranslateField={forceTranslateField} 
+              />;
             })()}
           </div>
         )}
