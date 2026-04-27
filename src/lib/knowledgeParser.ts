@@ -260,7 +260,9 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   let text = '';
   
   // V13.8: 複合式解析架構 (Docx/Doc 本地提取，PDF 自動回退多模態)
-  if (file.name.endsWith('.docx')) {
+  const lowerName = file.name.toLowerCase();
+  
+  if (lowerName.endsWith('.docx')) {
     const arrayBuffer = await file.arrayBuffer();
     try {
       const resp = await mammoth.extractRawText({ arrayBuffer });
@@ -270,11 +272,11 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       console.warn(`[AI Parser] .docx 本地提取失敗，嘗試粗暴掃描:`, err);
       text = extractStringsFromBinary(arrayBuffer);
     }
-  } else if (file.name.endsWith('.doc')) {
+  } else if (lowerName.endsWith('.doc')) {
     const arrayBuffer = await file.arrayBuffer();
     text = extractStringsFromBinary(arrayBuffer);
     console.log(`[AI Parser] .doc (Legacy) 字串掃描成功: ${text.length} 字`);
-  } else if (file.name.endsWith('.pdf')) {
+  } else if (lowerName.endsWith('.pdf')) {
     // V18: 徹底移除不穩定的 pdfjs-dist CDN Worker，全面啟用 Gemini 原生多模態 PDF 視覺解析。
     // 這能完美保留表格結構、繞過加密字體提取失敗，並解決大部分 CDN 逾時問題。
     const MAX_BASE64_SIZE = 15 * 1024 * 1024; // 15MB 上限 (Base64 會膨脹 33%，約佔 20MB Payload)
