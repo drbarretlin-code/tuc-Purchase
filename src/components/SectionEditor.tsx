@@ -28,7 +28,7 @@ const SectionEditor: React.FC<Props> = ({
   label, value, onChange, hints, historyHints, regHints, 
   onHintToggle, onHistoryHintToggle, onRegHintToggle, 
   isTextArea = true, required = false, placeholder, inputType = "text",
-  searchStatus = 'none', addon, language
+  searchStatus = 'none', onForceTranslate, addon, language
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
   const safeValue = (typeof value === 'string') ? value : (value != null ? String(value) : '');
