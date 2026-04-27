@@ -329,8 +329,8 @@ function App() {
   // V27.26: 增加內容首部指紋與當前語系，確保語系切換時能精確觸發
   const hintsFingerprint = HINT_FIELDS.map(f => {
     const hints = (data as any)[f] || [];
-    const firstHintContent = (hints[0]?.content || '').substring(0, 10);
-    return `${f}:${hints.length}:${hints[0]?.id || ''}:${firstHintContent}`;
+    // V28.5: 指紋排除內容首部，僅保留數量與 ID 異動，避免轉譯過程中內容變動導致無限迴圈
+    return `${f}:${hints.length}:${hints[0]?.id || ''}`;
   }).join('|') + `:${data.language}`;
 
   // V27.10/V27.15: 當語系變更或導入新建議條文時，同步將目前畫面上已有的 AI 建議（hints）進行轉譯
@@ -338,8 +338,29 @@ function App() {
     let isCancelled = false;
     let debounceTimer: any = null;
 
-    // 繁體中文語系下不需要轉譯 (歷史建議多為繁體中文)
-    if (data.language === 'zh-TW') return;
+    // V28.5: 繁體中文語系下執行「還原」邏輯，確保切換回中文時內容正確
+    if (data.language === 'zh-TW') {
+      const needsReversion = HINT_FIELDS.some(field => {
+        const hints = (data as any)[field] || [];
+        return hints.some((h: any) => h.originalContent && h.content !== h.originalContent);
+      });
+
+      if (needsReversion) {
+        console.log('[AI Translation] 切換回繁體中文，執行條文內容還原...');
+        const nextData = { ...data };
+        HINT_FIELDS.forEach(field => {
+          const hints = (data as any)[field] || [];
+          if (hints.length > 0) {
+            nextData[field as keyof FormState] = hints.map((h: any) => ({
+              ...h,
+              content: h.originalContent || h.content
+            })) as any;
+          }
+        });
+        setData(nextData);
+      }
+      return;
+    }
 
     // V27.28: 使用完整的金鑰池偵測，不再只檢查單一金鑰位
     const apiKeys = KP.getGeminiKeyPool();
@@ -363,10 +384,10 @@ function App() {
           const currentHints = (data as any)[field] || [];
           if (currentHints.length === 0) continue;
 
-          // 啟發式檢查：如果內容已經包含泰文，則跳過此欄位 (避免重複翻譯)
-          const isThai = (text: string) => /[\u0E00-\u0E7F]/.test(text);
-          if (data.language === 'th-TH' && currentHints.every((h: any) => isThai(h.content))) {
-            console.log(`[AI Translation] 欄位 ${field} 已是泰文，跳過。`);
+          // V28.5: 強化跳過邏輯 - 如果內容與原文不符，說明已經是轉譯後的狀態，且語系沒變則跳過
+          const hasBeenTranslated = currentHints.some((h: any) => h.originalContent && h.content !== h.originalContent);
+          if (hasBeenTranslated) {
+            console.log(`[AI Translation] 欄位 ${field} 偵測到已轉譯狀態，跳過。`);
             continue;
           }
 

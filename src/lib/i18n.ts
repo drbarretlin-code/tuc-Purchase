@@ -366,7 +366,17 @@ export const translations: Record<string, any> = {
     'enterPwdHint': '此區域受保護，請輸入管理員密碼',
     'newPwdPlaceholder': '新密碼...',
     'pwdPlaceholder': '請輸入密碼...',
-    'saveNewPwd': '儲存新密碼'
+    'saveNewPwd': '儲存新密碼',
+    
+    // Static AI Hints
+    'hintEnvTitle': '環保與能源效率建議',
+    'hintEnvDesc': '建議優先採購具備環保標章或節能標章之產品。需符合「節能減碳設施補助」相關規範。',
+    'hintRegTitle': '工程類別法規參考',
+    'hintRegDesc': '此工程需符合「營造安全衛生設施標準」以及台燿廠內機電工程管理規範。',
+    'hintSafetyTitle': '職業安全衛生法具體細則',
+    'hintSafetyDesc': '作業人員需具備相關證照（如特定瓦斯、電氣作業主管），並於施工前完成風險評估與教育訓練。',
+    'hintAcceptanceTitle': '驗收重點與關注內容',
+    'hintAcceptanceDesc': '重點檢查防震基座安裝、洩漏檢測機制以及與 PLC 系統整合之訊號正確性。應檢附測試報告與校驗記錄。'
   },
   'zh-CN': {
     'systemTitle': '采购验收规范建置表',
@@ -727,7 +737,17 @@ export const translations: Record<string, any> = {
     'enterPwdHint': '此区域受保护，请输入管理员密码',
     'newPwdPlaceholder': '新密码...',
     'pwdPlaceholder': '请输入密码...',
-    'saveNewPwd': '储存新密码'
+    'saveNewPwd': '储存新密码',
+
+    // Static AI Hints
+    'hintEnvTitle': '环保与能源效率建议',
+    'hintEnvDesc': '建议优先采购具备环保標章或节能標章之产品。需符合「节能减碳设施补助」相关规范。',
+    'hintRegTitle': '工程类别法规参考',
+    'hintRegDesc': '此工程需符合「营造安全卫生设施标准」以及台燿厂内机電工程管理规范。',
+    'hintSafetyTitle': '职业安全卫生法具体细则',
+    'hintSafetyDesc': '作业人员需具备相关证照（如特定瓦斯、电气作业主管），並于施工前完成风险评估与教育训练。',
+    'hintAcceptanceTitle': '验收重点与关注内容',
+    'hintAcceptanceDesc': '重点检查防震基座安装、泄漏检测机制以及与 PLC 系统整合之信号正确性。应检附测试报告与校验记录。'
   },
   'en-US': {
     'systemTitle': 'Procurement Spec Builder',
@@ -1098,7 +1118,17 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'statusFailed': 'Parsing Failed',
     'aiTranslatingContent': 'AI Deep Translating...',
     'aiTranslatingHint': 'Translating cloud content to your interface language, please wait.',
-    'viewDiagnostic': 'View Diagnostic'
+    'viewDiagnostic': 'View Diagnostic',
+
+    // Static AI Hints
+    'hintEnvTitle': 'Environmental & Energy Efficiency',
+    'hintEnvDesc': 'Prioritize products with eco-labels or energy-saving marks. Must comply with energy-saving facility subsidy regulations.',
+    'hintRegTitle': 'Engineering Regulations Reference',
+    'hintRegDesc': 'Must comply with "Occupational Safety and Health Facilities Standards" and TUC internal electromechanical management rules.',
+    'hintSafetyTitle': 'Safety & Health Specifics',
+    'hintSafetyDesc': 'Operators must have relevant certifications (e.g., specific gas/electrical supervisor) and complete risk assessment before work.',
+    'hintAcceptanceTitle': 'Acceptance Focus Areas',
+    'hintAcceptanceDesc': 'Focus on anti-vibration base installation, leak detection, and PLC signal integrity. Test reports and calibration logs required.'
   },
   'th-TH': {
     'systemTitle': 'แบบฟอร์มการสร้างข้อกำหนดการจัดซื้อและการรับมอบ',
@@ -1451,7 +1481,17 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'enterPwdHint': 'พื้นที่นี้ได้รับการคุ้มครอง โปรดป้อนรหัสผ่านผู้ดูแลระบบ',
     'newPwdPlaceholder': 'รหัสผ่านใหม่...',
     'pwdPlaceholder': 'ป้อนรหัสผ่าน...',
-    'saveNewPwd': 'บันทึกรหัสผ่านใหม่'
+    'saveNewPwd': 'บันทึกรหัสผ่านใหม่',
+
+    // Static AI Hints
+    'hintEnvTitle': 'คำแนะนำด้านสิ่งแวดล้อมและประสิทธิภาพพลังงาน',
+    'hintEnvDesc': 'แนะนำให้จัดซื้อผลิตภัณฑ์ที่มีฉลากสิ่งแวดล้อมหรือฉลากประหยัดพลังงาน ต้องเป็นไปตามข้อกำหนดการอุดหนุนสิ่งอำนวยความสะดวกประหยัดพลังงาน',
+    'hintRegTitle': 'อ้างอิงกฎระเบียบวิศวกรรม',
+    'hintRegDesc': 'งานวิศวกรรมนี้ต้องเป็นไปตามมาตรฐานความปลอดภัยอาชีวอนามัยและข้อกำหนดการจัดการวิศวกรรมไฟฟ้าเครื่องกลภายในโรงงาน TUC',
+    'hintSafetyTitle': 'รายละเอียดความปลอดภัยและอาชีวอนามัย',
+    'hintSafetyDesc': 'ผู้ปฏิบัติงานต้องมีใบรับรองที่เกี่ยวข้อง (เช่น หัวหน้างานแก๊ส/ไฟฟ้า) และประเมินความเสี่ยงก่อนเริ่มงาน',
+    'hintAcceptanceTitle': 'จุดเน้นการตรวจรับ',
+    'hintAcceptanceDesc': 'เน้นตรวจสอบการติดตั้งฐานกันสะเทือน กลไกตรวจจับการรั่วไหล และความถูกต้องของสัญญาณ PLC ต้องแนบรายงานการทดสอบและบันทึกการปรับเทียบ'
   }
 };
 
