@@ -1057,13 +1057,14 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
 
           const merged: FormState = {
             ...INITIAL_FORM_STATE,
-            ...data,
+            // V27.7: 從 INITIAL_FORM_STATE 開始，先保留使用者設定（語系、部門、門檻），
+            // 再以雲端資料全量覆蓋表單欄位，避免舊有欄位殘留干擾
+            language: data.language,
+            department: data.department,
+            matchThresholdHistory: data.matchThresholdHistory,
+            matchThresholdReg: data.matchThresholdReg,
             ...cleanImported,
-            searchStatus: {
-              ...(INITIAL_FORM_STATE.searchStatus || {}),
-              ...(data.searchStatus || {}),
-              ...(cleanImported.searchStatus || {})
-            }
+            searchStatus: {}
           };
           onChange(merged);
         }}

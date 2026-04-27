@@ -113,22 +113,33 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
       if (error) throw error;
 
+      // V27.7: 驗證 full_json_data 是否包含有效的 FormState 欄位
+      // 若只有 { summary, keywords } 等非 FormState 結構，視為無效，降級至 AI 組裝路徑
+      const FORM_STATE_VALIDATION_KEYS = [
+        'equipmentName', 'requirementDesc', 'appearance',
+        'installStandard', 'acceptanceDesc', 'envRequirements', 'safetyRequirements'
+      ];
+      const isValidFormJson = (json: any): boolean => {
+        if (!json || typeof json !== 'object') return false;
+        return FORM_STATE_VALIDATION_KEYS.some(
+          k => typeof json[k] === 'string' && json[k].trim().length > 0
+        );
+      };
+
       const mappedDocs = (data || [])
         .filter(item => {
-          // 若此檔案尚未解析（specificFileNames 中無記錄），仍保留顯示（讓使用者可嘗試 AI 組裝）
-          // 若已解析但完全沒有 Specific 條目，則排除（純技術/法令文件）
           const isParsedAsRegOnly =
-            specificEntries !== null &&  // 查詢成功
-            specificFileNames.size > 0 && // 至少有一些 Specific 檔案
-            !specificFileNames.has(item.original_name) && // 此檔無 Specific 條目
-            item.full_json_data === null;  // 且尚未手動回填 JSON（有 JSON 的優先保留）
+            specificEntries !== null &&
+            specificFileNames.size > 0 &&
+            !specificFileNames.has(item.original_name) &&
+            item.full_json_data === null;
           return !isParsedAsRegOnly;
         })
         .map(item => ({
           docId: item.id,
           equipmentName: item.display_name || item.original_name || t('unnamedDoc', language),
           createdAt: item.created_at,
-          hasJson: !!item.full_json_data,
+          hasJson: isValidFormJson(item.full_json_data), // V27.7: 嚴格驗證欄位，而非只判斷非 null
           fullJson: item.full_json_data,
           fileName: item.original_name,
           requester: item.requester
