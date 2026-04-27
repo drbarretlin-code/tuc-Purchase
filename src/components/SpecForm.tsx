@@ -73,9 +73,9 @@ const smartMergePreservingDefault = (
   // 以 zh-TW 版本為基準進行比對（雲端儲存的資料多為繁體中文）
   const defaultText = t(defaultKey, 'zh-TW');
 
-  // 若載入內容為空、i18n key 或與預設完全相同，直接回傳預設
+  // V27.8a: 回傳 defaultText（實際文字）而非 key，確保編輯區顯示完整系統預設條文
   if (!importedContent || importedContent.startsWith('default') || importedContent.trim() === defaultText.trim()) {
-    return defaultKey; // 回傳 key，讓 Preview v() 函式翻譯
+    return defaultText;
   }
 
   const defaultParagraphs = defaultText.split('\n').filter(p => p.trim());
@@ -89,7 +89,7 @@ const smartMergePreservingDefault = (
   });
 
   if (newParagraphs.length === 0) {
-    return defaultKey; // 所有內容都被預設涵蓋，回傳原始 key
+    return defaultText; // 所有內容都被預設涵蓋，回傳完整預設條文
   }
 
   // 預設條文 + 差異內容附加其後
