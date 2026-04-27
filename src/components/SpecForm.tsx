@@ -385,17 +385,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     );
 
     let nextContent = (data[contentField] as string) || '';
-    // V27.4: cleanHintContent 移除 AI 條文內的 --- 分隔符與多餘空行
     const hintText = cleanHintContent(targetHint.content);
 
+    // V27.8: 若欄位目前儲存的是 i18n default key（以 'default' 開頭），視為空白處理
+    // 避免 key 字串被拼入正文後無法被 v() 翻譯，顯示為 'defaultAccordingToTuc' 等
+    const isDefaultKey = nextContent.startsWith('default');
+    // 記錄此欄位的原始預設 key，供移除後還原
+    const originalDefaultKey = (INITIAL_FORM_STATE[contentField] as string) || '';
+
     if (newSelected) {
-      const baseContent = nextContent.trimEnd();
+      // 若目前為預設 key，起始內容視為空白，直接以 hintText 取代
+      const baseContent = isDefaultKey ? '' : nextContent.trimEnd();
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + hintText;
     } else {
       nextContent = nextContent.replace(hintText, '');
       nextContent = nextContent.replace(targetHint.content.trim(), '');
       nextContent = cleanHintContent(nextContent);
+      // V27.8: 移除後若欄位清空，且此欄位本有 default key，則還原預設值
+      if (!nextContent && originalDefaultKey.startsWith('default')) {
+        nextContent = originalDefaultKey;
+      }
     }
 
     onChange({
