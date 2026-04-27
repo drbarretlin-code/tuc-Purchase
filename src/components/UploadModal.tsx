@@ -143,17 +143,24 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
             throw new Error(`File size ${Math.round(file.size/1024/1024)}MB exceeds 50MB limit`);
           }
 
-          const ext = file.name.split('.').pop();
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-          const { error: storageError } = await client.storage.from('spec-files').upload(fileName, file);
+          // V27.16: 清除副檔名之後的冗餘名稱（如 .pdf.PDF.PDF），只保留第一個正規副檔名
+          let cleanFileName = file.name;
+          const extMatch = cleanFileName.match(/^(.+?\.(?:pdf|docx?|xlsx?|pptx?|jpe?g|png|txt|csv|rtf))(?:\.[a-zA-Z0-9]+)*$/i);
+          if (extMatch) {
+            cleanFileName = extMatch[1];
+          }
+
+          const ext = cleanFileName.split('.').pop() || 'pdf';
+          const storageFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+          const { error: storageError } = await client.storage.from('spec-files').upload(storageFileName, file);
           if (storageError) throw storageError;
 
-          const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(fileName);
-          const displayName = `${file.name} (${data.requester || t('unknown', language)})`;
+          const { data: { publicUrl } } = client.storage.from('spec-files').getPublicUrl(storageFileName);
+          const displayName = `${cleanFileName} (${data.requester || t('unknown', language)})`;
 
           const { data: inserted, error: insertError } = await client.from('tuc_uploaded_files').insert({
-            original_name: file.name,
-            storage_path: fileName,
+            original_name: cleanFileName,
+            storage_path: storageFileName,
             public_url: publicUrl,
             display_name: displayName,
             requester: data.requester || t('unknown', language),
@@ -166,7 +173,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
   
           if (insertError) throw insertError;
   
-          return { file, url: publicUrl, displayName, storagePath: fileName, id: inserted.id };
+          return { file, url: publicUrl, displayName, storagePath: storageFileName, id: inserted.id };
         } catch (err: any) {
           console.warn(`[Skip] File upload failed for ${file.name}: ${err.message}`);
           return { file, error: err.message };
