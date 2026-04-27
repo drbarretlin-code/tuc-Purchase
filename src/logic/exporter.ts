@@ -91,7 +91,8 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
     return lines.map((l, i) => {
       const isZh = lang === 'th-TH' && /[一-龥]/.test(l);
-      return new TextRun({ text: l, bold: isZh ? false : bold, break: i > 0 ? 1 : 0, color: isZh ? "666666" : undefined, size: isZh ? 18 : size });
+      const targetSize = isZh ? (size ? Math.floor(size * 0.85) : 18) : size;
+      return new TextRun({ text: l, bold: isZh ? false : bold, break: i > 0 ? 1 : 0, color: isZh ? "666666" : undefined, size: targetSize });
     });
   };
 
@@ -247,8 +248,8 @@ export const exportToWord = async (data: FormState, lang: Language) => {
             const isDropdown = colIndex === 0 || colIndex === 2;
             const cellValue = rowData[colIndex] || "";
             const runs = (isDropdown && deptKeyMap[cellValue]) 
-              ? createTextRuns(lStr(deptKeyMap[cellValue])) 
-              : [new TextRun({ text: cellValue })];
+              ? createTextRuns(lStr(deptKeyMap[cellValue]), false, 18) 
+              : [new TextRun({ text: cellValue, size: 18 })];
               
             return new TableCell({
               children: [new Paragraph({ children: runs, alignment: AlignmentType.CENTER })],

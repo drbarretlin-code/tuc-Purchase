@@ -232,13 +232,13 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
             </tr>
             <tr>
               <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, 30px)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, minmax(35px, auto))' }}>
                   {data.signOffGrid.map((row, ri) => 
                     row.map((cell, ci) => {
                       const isDropdown = ci === 0 || ci === 2 || ci === 4;
                       const displayContent = isDropdown && deptKeyMap[cell] ? renderBilingualLabel(deptKeyMap[cell]) : cell;
                       return (
-                        <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
+                        <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7.5pt', padding: '2px', textAlign: 'center', lineHeight: '1.2' }}>
                           {displayContent}
                         </div>
                       );
