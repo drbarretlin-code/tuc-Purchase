@@ -412,10 +412,10 @@ function App() {
       }
     };
 
-    // V27.23: 增加 1 秒延遲，避免與 SpecForm 自身的搜尋翻譯衝突
+    // V27.27: 縮短延遲至 200ms，確保在渲染穩定後能快速執行，不再被頻繁重置
     debounceTimer = setTimeout(() => {
       if (!isCancelled) translateAllHints();
-    }, 1000);
+    }, 200);
 
     return () => { 
       isCancelled = true; 
@@ -1532,6 +1532,20 @@ function App() {
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <Save size={18} /> {t('save', data.language)}
             </button>
+
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                onClick={() => {
+                  // 觸發強制轉譯指紋變更
+                  setData(prev => ({...prev, language: prev.language}));
+                  alert('已嘗試啟動批量轉譯，請稍候。');
+                }} 
+                className="ghost-button" 
+                style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', fontSize: '0.85rem' }}
+              >
+                <Repeat size={16} /> 手動同步轉譯建議條文
+              </button>
+            </div>
           </div>
         </div>
       )}

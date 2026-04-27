@@ -887,7 +887,7 @@ ${JSON.stringify(inputTexts)}`;
         temperature: 0.1,
         topP: 0.8,
         topK: 40,
-        responseMimeType: "application/json"
+        // V27.27: 移除強制 JSON 模式以提升舊模型相容性，改由 Prompt 與提取器確保結果
       }
     });
     
