@@ -326,67 +326,28 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
     }
   }, [data, scale]);
 
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [exportLang, setExportLang] = useState(data.language);
-  const [translatedData, setTranslatedData] = useState<FormState | null>(null);
-
-  useEffect(() => {
-    setExportLang(data.language);
-  }, [data.language]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleExportPdf = async () => {
-    if (exportLang === data.language) {
-      exportToPDF(data);
-      return;
-    }
-
-    // 啟動即時轉譯
-    setIsTranslating(true);
+    setIsExporting(true);
     try {
-      const apiKey = localStorage.getItem('tuc_gemini_key') || '';
-      const { translateFullSpec } = await import('../lib/knowledgeParser');
-      const translated = await translateFullSpec(data, exportLang, apiKey);
-      
-      // 確保轉譯後的資料帶有正確的語系標記
-      const finalData = { ...translated, language: exportLang };
-      
-      // 設定臨時資料供隱藏渲染
-      setTranslatedData(finalData);
-      
-      // 等待 React 渲染完成
-      setTimeout(() => {
-        exportToPDF(finalData);
-        setTranslatedData(null);
-        setIsTranslating(false);
-      }, 500);
-
-      setIsTranslating(false);
-    } catch (err) {
-      console.error('Export translation failed:', err);
-      alert('Translation failed. Exporting original version.');
-      exportToPDF(data);
-      setIsTranslating(false);
+      await exportToPDF(data);
+    } finally {
+      setIsExporting(false);
     }
   };
 
   return (
     <div className="preview-section glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
-      {isTranslating && (
+      {isExporting && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
-          background: 'rgba(0,0,0,0.7)', zIndex: 1000, 
+          background: 'rgba(0,0,0,0.5)', zIndex: 1000, 
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)'
+          backdropFilter: 'blur(2px)'
         }}>
           <Loader2 size={40} className="spin" color="#60A5FA" style={{ marginBottom: '1rem' }} />
-          <div style={{ color: '#60A5FA', fontWeight: 'bold' }}>{t('translating', data.language)}</div>
-        </div>
-      )}
-
-      {/* 隱藏的列印專用語系渲染區 */}
-      {translatedData && (
-        <div className="translated-print-wrapper" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <PaperContent data={translatedData} id="translated-paper" />
+          <div style={{ color: '#60A5FA', fontWeight: 'bold' }}>{t('exporting', data.language)}</div>
         </div>
       )}
 
@@ -413,28 +374,6 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             }
             body * { visibility: hidden; }
             
-            /* 核心：將列印容器移回正常流 */
-            .translated-print-wrapper {
-              position: static !important;
-              left: 0 !important;
-              top: 0 !important;
-              visibility: visible !important;
-              display: ${translatedData ? 'block' : 'none'} !important;
-            }
-
-            #translated-paper {
-              position: static !important;
-              width: 100% !important;
-              display: block !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              box-shadow: none !important;
-              border: none !important;
-            }
-            #translated-paper, #translated-paper * {
-              visibility: visible !important;
-            }
-            
             #preview-paper { 
               position: static !important;
               width: 100% !important; 
@@ -442,7 +381,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
               padding: 0 !important;
               box-shadow: none !important;
               border: none !important;
-              display: ${translatedData ? 'none' : 'block'} !important;
+              display: block !important;
             }
             #preview-paper, #preview-paper * {
               visibility: visible !important;
@@ -475,19 +414,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ fontSize: '0.7rem', color: '#888' }}>{t('exportPdf', data.language)}:</span>
-            <select 
-              value={exportLang}
-              onChange={(e) => setExportLang(e.target.value as any)}
-              style={{ background: 'transparent', color: 'white', border: 'none', fontSize: '0.75rem', outline: 'none', cursor: 'pointer' }}
-            >
-              <option value="zh-TW">繁體中文</option>
-              <option value="en-US">English</option>
-              <option value="zh-CN">简体中文</option>
-              <option value="th-TH">ภาษาไทย</option>
-            </select>
-          </div>
+
           <button onClick={() => exportToWord(data, data.language)} className="icon-btn">
             <FileJson size={18} /><span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>{t('docExportWord', data.language)}</span>
           </button>
@@ -495,7 +422,7 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
             onClick={handleExportPdf} 
             className="primary-button" 
             style={{ padding: '0.4rem 1rem' }}
-            disabled={isTranslating}
+            disabled={isExporting}
           >
             <Download size={16} /><span style={{ marginLeft: '4px' }}>{t('docExportPdf', data.language)}</span>
           </button>
@@ -520,4 +447,4 @@ const SpecPreview: React.FC<Props> = ({ data }) => {
   );
 };
 
-export default SpecPreview;
+export default React.memo(SpecPreview);

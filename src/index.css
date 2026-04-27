@@ -404,25 +404,25 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr !important;
     gap: 1rem !important;
   }
+  .app-container {
+    padding: 0.5rem !important;
+  }
 }
 
 @media (max-width: 768px) {
   .app-container {
-    padding: 0.75rem !important;
+    padding: 0.5rem !important;
   }
 
-  /* Form inner grids to single column */
-  .form-content-wrap div[style*="grid-template-columns: 1fr 1fr"],
-  .form-content-wrap div[style*="grid-template-columns: 1.5fr 1fr"],
-  .form-content-wrap div[style*="repeat(6, 1fr)"] {
-    grid-template-columns: 1fr !important;
+  .form-content-wrap {
+    padding: 1.25rem !important;
   }
 
   .form-header-toolbar {
     height: auto !important;
     flex-direction: column !important;
-    padding: 0.75rem !important;
-    gap: 0.5rem !important;
+    padding: 1rem !important;
+    gap: 0.75rem !important;
     align-items: flex-start !important;
   }
 
@@ -435,25 +435,23 @@ input:focus, select:focus, textarea:focus {
     display: none !important;
   }
   
-  /* Sidebar handling on tablet/mobile */
-  .form-sidebar {
-    width: 64px !important;
-  }
-  .form-sidebar.collapsed {
-    width: 64px !important; /* Keep it consistent as icons for space */
+  .primary-button, .ghost-button, .icon-btn {
+    min-height: 44px; /* Better for touch */
   }
 }
 
 @media (max-width: 480px) {
-  header[style*="display: flex"] {
+  .app-container header {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: center !important;
     gap: 1rem !important;
+    text-align: center;
   }
 
-  header div[style*="display: flex"] {
-    width: 100% !important;
-    justify-content: space-between !important;
+  .app-container header nav {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
   }
   
   .form-footer-nav {

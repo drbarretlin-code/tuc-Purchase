@@ -1219,4 +1219,4 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
   );
 };
 
-export default SpecForm;
+export default React.memo(SpecForm);
