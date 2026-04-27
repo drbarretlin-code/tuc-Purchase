@@ -355,21 +355,28 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     if (!targetHint) return;
 
     const newSelected = !targetHint.selected;
-    const nextHints = currentHints.map(h => 
+    const nextHints = currentHints.map(h =>
       String(h.id) === String(hintId) ? { ...h, selected: newSelected } : h
     );
 
     let nextContent = (data[contentField] as string) || '';
-    
+
     if (newSelected) {
-      // V14.2 防禦性合併：清潔尾端空白後，若有內容則強制補上單換行 \n
+      // V14.2 防禦性合併：清潔尾端空白後，若有內容則補單換行
+      // V27.4: 對 hint content 做 trim()，避免頭尾換行疊加產生 --- 折線
       const baseContent = nextContent.trimEnd();
+      const hintText = targetHint.content.trim();
       const separator = baseContent ? '\n' : '';
-      nextContent = baseContent + separator + targetHint.content;
+      nextContent = baseContent + separator + hintText;
     } else {
-      // 移除邏輯優化：精準替換目標內容，並清理多誤換行
-      nextContent = nextContent.replace(targetHint.content, '').trim();
-      nextContent = nextContent.replace(/\n{2,}/g, '\n');
+      // 移除邏輯：精準替換目標內容後，清理殘留的孤立 --- 折線與多餘換行
+      const hintText = targetHint.content.trim();
+      nextContent = nextContent.replace(hintText, '').trim();
+      // 清理連續空行（含孤立的 --- markdown 分隔符）
+      nextContent = nextContent
+        .split('\n')
+        .filter(line => line.trim() !== '' && line.trim() !== '---')
+        .join('\n');
     }
 
     onChange({
