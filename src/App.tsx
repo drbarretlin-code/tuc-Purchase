@@ -789,13 +789,15 @@ function App() {
         let currentDetectedLabel = '';
 
         try {
-          // V20: 後端代理下載
-          const resp = await fetch(`/api/download-file?storagePath=${encodeURIComponent(fileRecord.storage_path)}`);
-          const blob = await resp.blob();
-          const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
-
-          const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          const detectedName = (result?.detectedEquipment || '').trim();
+          // V27.15: 移除對 AI API 依賴，直接解析檔名提取關鍵字作為標籤，避免 Quota 耗盡，也免去下載檔案的頻寬成本
+          let detectedName = '未命名設備';
+          if (fileRecord.original_name) {
+            detectedName = fileRecord.original_name
+              .replace(/\.[^/.]+$/, "") // 移除副檔名
+              .replace(/(工程規範|規格書|回簽|合約|簽呈|附件|報價單|確認單|承攬書|v\d+|\d{4}-\d{2}-\d{2}|[()（）]).*$/gi, '') // 移除常見後綴
+              .replace(/^[_\-\s]+|[_\-\s]+$/g, '') // 移除頭尾符號與空白
+              .trim();
+          }
 
           // V27.11: 即使 AI 無法識別（仍為未命名），也應寫入 is_calibrated = true
           // 這樣該檔案才會被 isUnnamedFile 判定為已結案，離開標籤修正列表，解決無限死循環
