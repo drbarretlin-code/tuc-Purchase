@@ -262,7 +262,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
           {t('contractorNotice', data.language)}
         </h4>
         <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', lineHeight: '1.6', color: '#000' }}>
-          {v(data.contractorNotice)}
+          {renderBilingualText(data.contractorNotice)}
         </div>
       </div>
     </div>

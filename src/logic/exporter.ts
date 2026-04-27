@@ -87,11 +87,11 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     });
   };
 
-  const createTextRuns = (text: string, bold = false) => {
+  const createTextRuns = (text: string, bold = false, size?: number) => {
     const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
     return lines.map((l, i) => {
       const isZh = lang === 'th-TH' && /[一-龥]/.test(l);
-      return new TextRun({ text: l, bold: isZh ? false : bold, break: i > 0 ? 1 : 0, color: isZh ? "666666" : undefined, size: isZh ? 18 : undefined });
+      return new TextRun({ text: l, bold: isZh ? false : bold, break: i > 0 ? 1 : 0, color: isZh ? "666666" : undefined, size: isZh ? 18 : size });
     });
   };
 
@@ -136,7 +136,7 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({ 
       heading: HeadingLevel.HEADING_4, 
-      children: [...createTextRuns(lStr('contractorNotice'), true).map(run => ({ ...run, size: 28 }))],
+      children: [...createTextRuns(lStr('contractorNotice'), true, 28)],
       spacing: { before: 200, after: 200 }
     }),
     ...createMultilineParagraphs(vStr(data.contractorNotice), 40, 0),
