@@ -1118,16 +1118,18 @@ function App() {
     return 'unparsed';
   };
 
-  // V27.9: 判斷是否為「未命名」檔案（設備名稱未被 AI 定義）
+  // V27.9a: 判斷是否為「未命名」檔案（設備名稱未被 AI 定義為有意義的內容）
+  // 只依據 equipment_name 的實際內容判斷，不依賴 is_calibrated 欄位
   const isUnnamedFile = (f: any): boolean => {
     const name = (f.equipment_name || '').trim();
     return (
       !name ||
       name === '未命名設備' ||
+      name === '未知' ||
       name === 'Unknown Equipment' ||
       name === 'Unknown' ||
       name.startsWith('未命名') ||
-      f.is_calibrated !== true
+      name.startsWith('未知')
     );
   };
 
