@@ -788,7 +788,6 @@ function App() {
       return;
     }
 
-    const userApiKey = localStorage.getItem('tuc_gemini_key') || '';
     setIsReparsing(true);
 
     try {
