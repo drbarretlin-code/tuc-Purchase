@@ -235,17 +235,25 @@ const extractStringsFromBinary = (buffer: ArrayBuffer): string => {
 };
 
 export const processFileToKnowledge = async (file: File, apiKey?: string, equipmentName?: string, overrideDocId?: string, forceRebuild?: boolean) => {
-  const rawKey = apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
-  const finalKey = rawKey.trim();
-  
-  // V16: 本地化錯誤訊息 (需外部傳入 language，此處暫用預設或從 metadata/傳入)
-  // 修正：將 language 作為參數傳入 processFileToKnowledge
   const lang = (globalThis as any)._tuc_lang || 'zh-TW'; 
+
+  // V27.12: 取得完整金鑰池，支援多把 Key 瀑布輪替
+  let pool = getGeminiKeyPool();
+  const passedKey = (apiKey || import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '').trim();
   
-  if (!finalKey) throw new Error(t('aiNoKey', lang));
+  if (passedKey && !pool.includes(passedKey)) {
+    pool.unshift(passedKey); // 優先使用外部傳入的 Key
+  }
   
-  const genAI = new GoogleGenerativeAI(finalKey);
-  const modelId = await getAutoSelectedModel(finalKey);
+  if (pool.length === 0) throw new Error(t('aiNoKey', lang));
+
+  // 讓探針測試所有 Key 與所有 Model
+  const modelId = await getAutoSelectedModel(pool);
+  
+  // 取得探針測試成功的 Key (getAutoSelectedModel 會在成功時寫入 localStorage)
+  const workingKey = localStorage.getItem('tuc_gemini_key') || passedKey;
+  
+  const genAI = new GoogleGenerativeAI(workingKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   let inlineData: { data: string, mimeType: string } | null = null;
