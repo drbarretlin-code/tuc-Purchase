@@ -9,6 +9,7 @@ export interface AIHintSelection {
   selected: boolean;
   source?: string; // 來源檔案名稱
   docType: string; // V12: 新增文檔類型區分 (Specific/Standard/Global)
+  translatedLang?: string; // V28.8: 記錄目前內容所屬語系，避免重複或錯誤轉譯
 }
 
 export interface SpecImage {

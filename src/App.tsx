@@ -353,7 +353,8 @@ function App() {
           if (hints.length > 0) {
             (nextData as any)[field] = hints.map((h: any) => ({
               ...h,
-              content: h.originalContent || h.content
+              content: h.originalContent || h.content,
+              translatedLang: undefined // V28.8: 還原後清除標記
             })) as any;
           }
         });
@@ -384,10 +385,10 @@ function App() {
           const currentHints = (data as any)[field] || [];
           if (currentHints.length === 0) continue;
 
-          // V28.5: 強化跳過邏輯 - 如果內容與原文不符，說明已經是轉譯後的狀態，且語系沒變則跳過
-          const hasBeenTranslated = currentHints.some((h: any) => h.originalContent && h.content !== h.originalContent);
-          if (hasBeenTranslated) {
-            console.log(`[AI Translation] 欄位 ${field} 偵測到已轉譯狀態，跳過。`);
+          // V28.8: 使用精確的 translatedLang 屬性進行跳過判斷
+          const firstHint = currentHints[0] as any;
+          if (firstHint.translatedLang === data.language) {
+            console.log(`[AI Translation] 欄位 ${field} 已是最新語系 (${data.language})，跳過。`);
             continue;
           }
 

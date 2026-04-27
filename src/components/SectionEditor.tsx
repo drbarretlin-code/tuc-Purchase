@@ -125,7 +125,7 @@ const SectionEditor: React.FC<Props> = ({
             regHints.map((hint) => (
               <div key={hint.id} onClick={() => onRegHintToggle?.(hint.id)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} className="hint-item">
                 {hint.selected ? <CheckCircle2 size={16} color="#60A5FA" /> : <Circle size={16} color="#4B5563" />}
-                <div style={{ fontSize: '0.875rem' }}><p style={{ margin: 0 }}>{hint.content}</p></div>
+                <div style={{ fontSize: '0.875rem' }}><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{hint.content}</p></div>
               </div>
             ))
           )}
@@ -230,7 +230,7 @@ const SectionEditor: React.FC<Props> = ({
               >
                 {hint.selected ? <CheckCircle2 size={16} color="#10B981" /> : <Circle size={16} color="#4B5563" />}
                 <div style={{ fontSize: '0.875rem' }}>
-                  <p style={{ margin: 0 }}>{hint.content}</p>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{hint.content}</p>
                   <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{t('source', language)}: {(hint as any).source || t('unknown', language)}</span>
                 </div>
               </div>
@@ -285,7 +285,7 @@ const SectionEditor: React.FC<Props> = ({
               >
                 {hint.selected ? <CheckCircle2 size={16} color="#E60012" /> : <Circle size={16} color="#4B5563" />}
                 <div style={{ fontSize: '0.875rem' }}>
-                  <p style={{ margin: 0 }}>{hint.content}</p>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{hint.content}</p>
                 </div>
               </div>
             ))

@@ -872,7 +872,11 @@ GUIDELINES:
 2. Ensure technical terms (e.g., PLC, SUS304, HMI, RoHS, REACH) are preserved or translated correctly according to industry standards.
 3. The output MUST BE a valid JSON array of strings in the same order as the input.
 4. CRITICAL: The resulting strings must be entirely in ${targetLabel}. Do not leave any Traditional Chinese characters in the output.
-5. Maintain the professional, formal tone suitable for a procurement specification.
+5. LAYOUT & FORMATTING: 
+   - Break long sentences into clear, concise paragraphs.
+   - Use bullet points ( - ) for technical specifications or requirements to improve readability.
+   - Ensure the structure is professional and well-organized for a procurement document.
+6. Maintain the professional, formal tone suitable for a procurement specification.
 
 INPUT ARRAY:
 ${JSON.stringify(inputTexts)}`;
@@ -923,6 +927,7 @@ ${JSON.stringify(inputTexts)}`;
       
       if (translatedTexts[idx]) {
         h.content = translatedTexts[idx].trim();
+        h.translatedLang = targetLang; // V28.8: 標記已翻譯語系
       }
     });
 
