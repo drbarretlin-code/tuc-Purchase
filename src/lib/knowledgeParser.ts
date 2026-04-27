@@ -10,6 +10,14 @@ import { t } from './i18n';
  */
 let cachedModelId: string | null = null;
 export const getCachedModelId = () => cachedModelId;
+
+/** V27.5: 實際 API 呼叫遇 429/503 時呼叫此函式，強制下次重新偵測 */
+export function invalidateCachedModel() {
+  if (cachedModelId) {
+    console.warn(`[AI Discovery] 快取模型 ${cachedModelId} 已因限流/過載失效，下次將重新偵測。`);
+    cachedModelId = null;
+  }
+}
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -54,13 +62,13 @@ export function getGeminiKeyPool(): string[] {
 
 export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<string> {
   const keys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
-  console.log(`[AI Discovery] 啟動瀑布式偵測 (Waterfall V2)，金鑰池總數: ${keys.length}`);
+  console.log(`[AI Discovery] 啟動瀑布式偵測 (Waterfall V3)，金鑰池總數: ${keys.length}`);
 
   if (cachedModelId) return cachedModelId;
 
   // 用於紀錄偵測到的最佳「非 100% 可用」模型，作為最後的防線
   let globalFallback: { modelId: string; apiKey: string } | null = null;
-  
+
   const priorityList = [
     'gemini-3.1-pro-preview',
     'gemini-3.1-flash-lite-preview',
@@ -69,6 +77,8 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
     'gemini-2.5-pro',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-1.5-flash',      // V27.5: 穩定後備
+    'gemini-1.5-pro',        // V27.5: 穩定後備
     'gemini-pro-latest',
     'gemini-flash-latest',
   ];
@@ -83,14 +93,14 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
     for (const mId of priorityList) {
       try {
         const model = genAI.getGenerativeModel({ model: mId, safetySettings });
-        
+
         // 探針測試：嘗試生成 1 個 Token
         await Promise.race([
           model.generateContent({
             contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
             generationConfig: { maxOutputTokens: 1 }
           }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 10000)) // 縮短超時至 10s
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Probe timeout')), 10000))
         ]);
 
         // 若成功，立即鎖定並返回
@@ -103,24 +113,29 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
         const errMsg = err.message || '';
         const status = err.status || (err.response ? err.response.status : null);
 
-        // 偵測是否為 429 限流或 Quota 相關錯誤
-        const isRateLimited = errMsg.includes('429') || status === 429 || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exhausted');
+        // V27.5: 503 (Service Unavailable) 視同 429 限流處理
+        const isRateLimited =
+          errMsg.includes('429') || status === 429 ||
+          errMsg.includes('503') || status === 503 ||
+          errMsg.toLowerCase().includes('quota') ||
+          errMsg.toLowerCase().includes('exhausted') ||
+          errMsg.toLowerCase().includes('overloaded');
 
         if (isRateLimited) {
-          console.warn(`[AI Discovery] 模型 ${mId} 存在但暫時限流 (429)，將其存為全域備選，繼續嘗試後續組合...`);
+          console.warn(`[AI Discovery] 模型 ${mId} 暫時限流/過載 (${status || 'unknown'})，存為備選，繼續嘗試...`);
           if (!globalFallback) {
             globalFallback = { modelId: mId, apiKey: currentKey };
           }
-          continue; // 繼續嘗試下一個模型
+          continue;
         }
 
-        // 若為 API Key 根本性錯誤 (400/401/Invalid)，直接跳過此 Key 的所有模型，進入下一把 Key
+        // 若為 API Key 根本性錯誤 (400/401/Invalid)，直接跳過此 Key
         if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401 || status === 400 || errMsg.includes('not found')) {
           console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效，跳過該金鑰並嘗試下一把。`);
-          break; // 跳出內層模型迴圈
+          break;
         }
 
-        // 其他錯誤 (例如模型 ID 不存在 404)，繼續嘗試下一個模型
+        // 其他錯誤 (404 模型不存在等)，繼續嘗試下一個模型
         continue;
       }
     }
@@ -130,11 +145,10 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   if (globalFallback) {
     cachedModelId = globalFallback.modelId;
     localStorage.setItem('tuc_gemini_key', globalFallback.apiKey);
-    console.log(`[AI Discovery] 未發現全完可用的模型路徑，回退至首個發現的限流模型: ${cachedModelId}。`);
+    console.log(`[AI Discovery] 未發現完全可用路徑，回退至首個限流模型: ${cachedModelId}。`);
     return cachedModelId;
   }
 
-  // 最後防線：若完全無路可走，回傳一個基本預設值（通常這會導致後續呼叫報錯，交由 DiagnosticError 處理）
   console.error(`[AI Discovery] 嚴重故障：金鑰池中所有組合皆無法連通。`);
   return 'gemini-2.0-flash';
 }
@@ -332,11 +346,12 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
         });
       }
 
-      // V18.1: 精確識別 429 配額錯誤
-      if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
+      // V18.1 / V27.5: 429 配額或 503 過載攔截 — 同時清除快取讓下次重新偵測模型
+      if (msg.includes('429') || msg.includes('503') || msg.includes('Quota') || msg.includes('exhausted') || msg.toLowerCase().includes('overloaded')) {
+        invalidateCachedModel();
         throw new DiagnosticError({
           code: 'QUOTA_EXCEEDED',
-          message: 'Gemini API 每日或每分鐘配額已耗盡。',
+          message: 'Gemini API 每日或每分鐘配額已耗盡，或服務暫時過載。',
           rawError: msg,
           timestamp: new Date().toISOString(),
           suggestion: '請等待 1 分鐘後再試，或更換 API Key。如果您使用的是免費版，每日限制通常為 20-50 次。'
