@@ -145,7 +145,7 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   }
 
   console.error(`[AI Discovery] 嚴重故障：金鑰池中所有組合皆無法連通。`);
-  return 'gemini-2.0-flash';
+  return { modelId: 'gemini-1.5-flash', apiKey: Array.isArray(apiKeys) ? apiKeys[0] : apiKeys };
 }
 
 /**
@@ -242,11 +242,8 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
   
   if (pool.length === 0) throw new Error(t('aiNoKey', lang));
 
-  // 讓探針測試所有 Key 與所有 Model
-  const modelId = await getAutoSelectedModel(pool);
-  
-  // 取得探針測試成功的 Key (getAutoSelectedModel 會在成功時寫入 localStorage)
-  const workingKey = localStorage.getItem('tuc_gemini_key') || passedKey;
+  // V27.30: 讓探針測試所有 Key 與所有 Model 並取得成功的配對
+  const { modelId, apiKey: workingKey } = await getAutoSelectedModel(pool);
   
   const genAI = new GoogleGenerativeAI(workingKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
@@ -549,9 +546,7 @@ export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: 
   }
   
   try {
-    const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
-    const modelId = await getAutoSelectedModel(apiKey);
-    const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+    const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
     const genAI = new GoogleGenerativeAI(workingKey);
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
@@ -651,9 +646,7 @@ export const getHistorySuggestions = async (
  */
 export const syncFormDataToKnowledge = async (data: any, apiKey?: string | string[]) => {
   const finalKey = apiKey || getGeminiKeyPool();
-  const modelId = await getAutoSelectedModel(finalKey);
-  const keys = Array.isArray(finalKey) ? finalKey : [finalKey];
-  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const { modelId, apiKey: workingKey } = await getAutoSelectedModel(finalKey);
   const genAI = new GoogleGenerativeAI(workingKey);
 
   const docId = data.docId;
@@ -795,8 +788,8 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
   `;
 
   try {
-    const genAI = new GoogleGenerativeAI(rawKey);
-    const modelId = await getAutoSelectedModel(rawKey);
+    const { modelId, apiKey: workingKey } = await getAutoSelectedModel(rawKey);
+    const genAI = new GoogleGenerativeAI(workingKey);
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
     const result = await model.generateContent({
@@ -938,10 +931,8 @@ export async function translateCloudMetadata(
 ): Promise<{ id: string; name: string; tags?: string[] }[]> {
   if (items.length === 0 || targetLang === 'zh-TW') return items;
 
-  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
-  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
   const genAI = new GoogleGenerativeAI(workingKey);
-  const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
@@ -1007,10 +998,8 @@ export async function translateFullSpec(
 ): Promise<any> {
   if (!data || targetLang === 'zh-TW') return data;
 
-  const keys = Array.isArray(apiKey) ? apiKey : [apiKey];
-  const workingKey = localStorage.getItem('tuc_gemini_key') || keys[0];
+  const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
   const genAI = new GoogleGenerativeAI(workingKey);
-  const modelId = await getAutoSelectedModel(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
   const langMap: Record<string, string> = {
