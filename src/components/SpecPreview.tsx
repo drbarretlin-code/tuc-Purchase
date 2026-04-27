@@ -15,6 +15,17 @@ interface PaperProps {
 const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }) => {
   const hasImages = data.images.length > 0;
   const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
+  const deptKeyMap: Record<string, string> = {
+    '生產部': 'dept_Production',
+    '工程部': 'dept_Engineering',
+    '工安部': 'dept_Safety',
+    '設備部': 'dept_Equipment',
+    '品保部': 'dept_Quality',
+    '研發部': 'dept_RD',
+    'PRD': 'dept_PRD',
+    '採購部': 'dept_Purchasing'
+  };
+
   const renderBilingualText = (val: string | null | undefined, isAutoNumber = false) => {
     if (!val) return 'NA';
     if (val.startsWith('default')) {
@@ -223,11 +234,15 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
               <td colSpan={3} style={{ border: '1px solid black', padding: 0 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gridTemplateRows: 'repeat(3, 30px)' }}>
                   {data.signOffGrid.map((row, ri) => 
-                    row.map((cell, ci) => (
-                      <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
-                        {cell}
-                      </div>
-                    ))
+                    row.map((cell, ci) => {
+                      const isDropdown = ci === 0 || ci === 2 || ci === 4;
+                      const displayContent = isDropdown && deptKeyMap[cell] ? renderBilingualLabel(deptKeyMap[cell]) : cell;
+                      return (
+                        <div key={`${ri}-${ci}`} style={{ border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
+                          {displayContent}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </td>

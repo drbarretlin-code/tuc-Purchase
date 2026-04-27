@@ -275,6 +275,16 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
   }, []);
 
   const departments = ['生產部', '工程部', '工安部', '設備部', '品保部', '研發部', 'PRD', '採購部'];
+  const deptKeyMap: Record<string, string> = {
+    '生產部': 'dept_Production',
+    '工程部': 'dept_Engineering',
+    '工安部': 'dept_Safety',
+    '設備部': 'dept_Equipment',
+    '品保部': 'dept_Quality',
+    '研發部': 'dept_RD',
+    'PRD': 'dept_PRD',
+    '採購部': 'dept_Purchasing'
+  };
 
   const loadHistoryHints = async (mode: number | 'all') => {
     if (isAnalyzing) return;
@@ -971,7 +981,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                             style={{ width: '100%', height: '70px', border: 'none', background: 'transparent', color: 'white', fontSize: '0.85rem', textAlign: 'center' }}
                           >
                             <option value="">{t('chooseDept', data.language)}</option>
-                            {departments.map((d: string) => <option key={d} value={d}>{d}</option>)}
+                            {departments.map((d: string) => <option key={d} value={d}>{t(deptKeyMap[d], data.language)}</option>)}
                           </select>
                         ) : (
                           <textarea 

@@ -201,6 +201,18 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   // V9.9: 重構規格確認及會簽表格 (符合打勾圖示格式)
   // Grid: 6 columns
   const colSize = Math.floor(9066 / 6);
+  
+  const deptKeyMap: Record<string, string> = {
+    '生產部': 'dept_Production',
+    '工程部': 'dept_Engineering',
+    '工安部': 'dept_Safety',
+    '設備部': 'dept_Equipment',
+    '品保部': 'dept_Quality',
+    '研發部': 'dept_RD',
+    'PRD': 'dept_PRD',
+    '採購部': 'dept_Purchasing'
+  };
+
   const signOffTable = new Table({
     width: { size: 9066, type: WidthType.DXA },
     columnWidths: [colSize, colSize, colSize, colSize, colSize, colSize],
@@ -231,11 +243,19 @@ export const exportToWord = async (data: FormState, lang: Language) => {
         const rowData = data.signOffGrid[rowIndex] || ["", "", "", "", "", ""];
         const cells = [
           // 左側 4 欄
-          ...[0, 1, 2, 3].map(colIndex => new TableCell({
-            children: [new Paragraph({ text: rowData[colIndex] || "", alignment: AlignmentType.CENTER })],
-            verticalAlign: VerticalAlign.CENTER,
-            width: { size: colSize, type: WidthType.DXA }
-          })),
+          ...[0, 1, 2, 3].map(colIndex => {
+            const isDropdown = colIndex === 0 || colIndex === 2;
+            const cellValue = rowData[colIndex] || "";
+            const runs = (isDropdown && deptKeyMap[cellValue]) 
+              ? createTextRuns(lStr(deptKeyMap[cellValue])) 
+              : [new TextRun({ text: cellValue })];
+              
+            return new TableCell({
+              children: [new Paragraph({ children: runs, alignment: AlignmentType.CENTER })],
+              verticalAlign: VerticalAlign.CENTER,
+              width: { size: colSize, type: WidthType.DXA }
+            });
+          }),
           // 右側 2 欄 (垂直合併)
           new TableCell({
             children: rowIndex === 0 ? [new Paragraph({ children: [new TextRun({ text: t('docSignVendor', lang), bold: true })], alignment: AlignmentType.CENTER })] : [new Paragraph({ text: "" })],
