@@ -70,13 +70,15 @@ export async function getFileChunks(
   return { textChunks, inlineData };
 }
 
-// V26: 支援多金鑰輪替機制
-export function getApiKey() {
+// V27.6: 回傳所有金鑰陣列，讓呼叫端逐一嘗試
+export function getApiKeys(): string[] {
   const raw = process.env.SERVER_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
-  const keys = raw.split(',').map(k => k.trim()).filter(Boolean);
-  if (keys.length === 0) return '';
-  // 使用隨機或基於時間的分發，此處使用隨機
-  return keys[Math.floor(Math.random() * keys.length)];
+  return raw.split(/[,，]/).map(k => k.trim()).filter(Boolean);
+}
+/** 向下相容的單一金鑰取得 */
+export function getApiKey(): string {
+  const keys = getApiKeys();
+  return keys[0] || '';
 }
 
 export async function processSingleChunkBackend(
@@ -144,7 +146,8 @@ export async function processSingleChunkBackend(
     contents[0].parts.push({ inlineData: inlineData });
   }
 
-  // V27.5: 同步高階模型清單 (gemini-1.5 已停用，改採 2.5/3.0/3.1 架構)
+  // V27.6: 外層金鑰 × 內層模型 雙層輪替架構
+  // API Key 過期 (400/401) 時跳至下一把 Key；模型限流 (429/503) 時跳至下一個模型
   const modelsToTry = [
     'gemini-3.1-pro-preview',
     'gemini-3.1-flash-lite-preview',
@@ -153,59 +156,69 @@ export async function processSingleChunkBackend(
     'gemini-2.5-pro',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
     'gemini-pro-latest',
     'gemini-flash-latest'
   ];
+
+  // 整合傳入 Key 與環境變數 Key Pool，去重後作為候選清單
+  const keyPool: string[] = Array.from(new Set(
+    [apiKey, ...getApiKeys()].filter(Boolean)
+  ));
+  if (keyPool.length === 0) throw new Error('未設定 Gemini API Key，請在 Vercel 環境變數中設定 VITE_GEMINI_API_KEY。');
+
   let result: any;
   let lastError: any;
+  let foundResult = false;
 
-  for (const modelId of modelsToTry) {
-    try {
-      console.log(`[Backend Parser] 嘗試使用 ${modelId} 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}...`);
-      const currentModel = genAI.getGenerativeModel({ model: modelId, safetySettings });
-      
-      // V27.6: 提升 maxOutputTokens 至 8192 以支援高密度挖掘，並維持 40s 超時寬限
-      const aiPromise = currentModel.generateContent({
-        contents,
-        generationConfig: {
-          temperature: 0.1,
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 8192,
+  outerLoop:
+  for (const currentKey of keyPool) {
+    const currentGenAI = new GoogleGenerativeAI(currentKey);
+    for (const modelId of modelsToTry) {
+      try {
+        console.log(`[Backend Parser] Key(${currentKey.substring(0,6)}...) × 模型(${modelId}) — 解析 ${fileName} 切片 ${chunkIndex + 1}/${totalChunks}`);
+        const currentModel = currentGenAI.getGenerativeModel({ model: modelId, safetySettings });
+        const aiPromise = currentModel.generateContent({
+          contents,
+          generationConfig: { temperature: 0.1, topP: 0.8, topK: 40, maxOutputTokens: 8192 }
+        });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('AI_TIMEOUT')), 40000)
+        );
+        result = await Promise.race([aiPromise, timeoutPromise]);
+        (result as any).usedModelId = modelId;
+        console.log(`[Backend Parser] 成功：Key(${currentKey.substring(0,6)}...) × ${modelId}`);
+        foundResult = true;
+        break outerLoop;
+      } catch (err: any) {
+        lastError = err;
+        const msg = err.message || '';
+        const status = err.status;
+        // API Key 根本失效 → 跳出內層，換下一把 Key
+        if (status === 400 || status === 401 ||
+            msg.includes('API_KEY_INVALID') || msg.includes('API key expired') || msg.includes('API key not valid')) {
+          console.warn(`[Backend Parser] Key(${currentKey.substring(0,6)}...) 已失效 (${status})，嘗試下一把金鑰...`);
+          break;
         }
-      });
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('AI_TIMEOUT')), 40000)
-      );
-
-      result = await Promise.race([aiPromise, timeoutPromise]);
-      (result as any).usedModelId = modelId;
-      console.log(`[Backend Parser] 成功使用 ${modelId} 完成解析。`);
-      break; 
-    } catch (err: any) {
-      lastError = err;
-      if (err.message === 'AI_TIMEOUT') {
-        console.warn(`[Backend Parser] 型號 ${modelId} 回應超時 (40s)，嘗試下一個型號...`);
-        continue;
+        // 模型限流或過載 → 繼續嘗試下一個模型
+        if (status === 429 || status === 503 ||
+            msg.includes('429') || msg.includes('503') ||
+            msg.includes('quota') || msg.includes('Quota') ||
+            msg.includes('exhausted') || msg.includes('overloaded') ||
+            msg.includes('Service Unavailable') || msg.includes('high demand') ||
+            msg.includes('404') || msg.includes('not found') || msg.includes('not available') ||
+            msg === 'AI_TIMEOUT') {
+          console.warn(`[Backend Parser] ${modelId} 暫時不可用 (${status || msg.substring(0,30)})，嘗試下一個模型...`);
+          continue;
+        }
+        // 其他嚴重錯誤 → 直接拋出
+        throw err;
       }
-      if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('Quota exceeded')) {
-        console.warn(`[Backend Parser] 型號 ${modelId} 配額耗盡 (429)，嘗試切換備援型號...`);
-        continue;
-      }
-      if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('not available')) {
-        console.warn(`[Backend Parser] 型號 ${modelId} 失敗 (404)，嘗試下一個備援型號...`);
-        continue;
-      }
-      if (err.status === 503 || err.message?.includes('503') || err.message?.includes('Service Unavailable') || err.message?.includes('high demand')) {
-        console.warn(`[Backend Parser] 型號 ${modelId} 暫時繁忙 (503)，嘗試下一個備援型號...`);
-        continue;
-      }
-      // 如果是 429 或其他嚴重錯誤，直接拋出
-      throw err;
     }
   }
 
-  if (!result) throw lastError || new Error('所有可用 AI 模型均無法處理此請求');
+  if (!foundResult) throw lastError || new Error('所有可用 Key 與模型組合均無法完成請求，請更新 API Key 或稍後再試。');
 
   const responseText = result.response.text();
   const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
