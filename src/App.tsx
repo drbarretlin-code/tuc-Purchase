@@ -101,7 +101,7 @@ function App() {
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [isFixingSystem, setIsFixingSystem] = useState(false);
   const [searchQuery] = useState('');
-  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'>('all');
+  const [queueFilterTab, setQueueFilterTab] = useState<'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed' | 'unlabeled'>('all');
 
   // V10.3: 批次刪除狀態
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
@@ -763,9 +763,8 @@ function App() {
       type: typeof f.is_calibrated
     })));
 
-    // V16.10: 強化跳過機制 - 嚴謹判定 !== true (包含 false, undefined, null)
-    // 斷點續傳機制：僅選取尚未完成校準的檔案
-    const targets = cloudFiles.filter(f => f.is_calibrated !== true);
+    // V27.9: 只針對尚未被定義（未命名）的檔案進行標籤修正，不重複處理已有標籤的檔案
+    const targets = cloudFiles.filter(f => isUnnamedFile(f));
 
     console.log(`[校準啟動] 待處理總數: ${targets.length} / 全部總數: ${cloudFiles.length}`);
 
@@ -1119,8 +1118,20 @@ function App() {
     return 'unparsed';
   };
 
+  // V27.9: 判斷是否為「未命名」檔案（設備名稱未被 AI 定義）
+  const isUnnamedFile = (f: any): boolean => {
+    const name = (f.equipment_name || '').trim();
+    return (
+      !name ||
+      name === '未命名設備' ||
+      name === 'Unknown Equipment' ||
+      name === 'Unknown' ||
+      name.startsWith('未命名') ||
+      f.is_calibrated !== true
+    );
+  };
+
   const filteredFiles = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles).filter(f => {
-    // V17.9: 修正搜尋邏輯，同時支援原始檔名與翻譯檔名
     const nameToSearch = f.display_name || f.original_name || '';
     const matchesSearch = nameToSearch.includes(searchQuery) ||
       (f.equipment_name || '').includes(searchQuery) ||
@@ -1128,6 +1139,7 @@ function App() {
     if (!matchesSearch) return false;
 
     if (queueFilterTab === 'all') return true;
+    if (queueFilterTab === 'unlabeled') return isUnnamedFile(f); // V27.9
     return getFileCategory(f) === queueFilterTab;
   });
 
@@ -2021,7 +2033,7 @@ function App() {
             {/* 分頁篩選標籤列 */}
             {(() => {
               const listToCount = (data.language === 'zh-TW' ? cloudFiles : translatedCloudFiles);
-              const counts = {
+               const counts = {
                 all: listToCount.filter(f => {
                   const name = f.display_name || f.original_name || '';
                   return name.includes(searchQuery) || (f.equipment_name || '').includes(searchQuery) || (f.requester || '').includes(searchQuery);
@@ -2030,15 +2042,17 @@ function App() {
                 pending: listToCount.filter(f => getFileCategory(f) === 'pending').length,
                 processing: listToCount.filter(f => getFileCategory(f) === 'processing').length,
                 failed: listToCount.filter(f => getFileCategory(f) === 'failed').length,
-                unparsed: listToCount.filter(f => getFileCategory(f) === 'unparsed').length
+                unparsed: listToCount.filter(f => getFileCategory(f) === 'unparsed').length,
+                unlabeled: listToCount.filter(f => isUnnamedFile(f)).length // V27.9
               };
-              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed'; labelKey: string; color: string }[] = [
+              const tabs: { key: 'all' | 'parsed' | 'pending' | 'processing' | 'failed' | 'unparsed' | 'unlabeled'; labelKey: string; color: string }[] = [
                 { key: 'all', labelKey: 'allFiles', color: '#888' },
                 { key: 'parsed', labelKey: 'queueParsed', color: '#10B981' },
                 { key: 'pending', labelKey: 'queuePending', color: '#F59E0B' },
                 { key: 'processing', labelKey: 'queueProcessing', color: '#60A5FA' },
                 { key: 'failed', labelKey: 'queueFailed', color: '#EF4444' },
                 { key: 'unparsed', labelKey: 'unparsed', color: '#888' },
+                { key: 'unlabeled', labelKey: 'tabUnlabeled', color: '#F97316' }, // V27.9
               ];
               return (
                 <div style={{
