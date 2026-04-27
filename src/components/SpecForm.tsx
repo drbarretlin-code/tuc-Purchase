@@ -20,6 +20,7 @@ import {
   PenTool,
   Trash2,
   Repeat,
+  Square,
   ShieldAlert,
   Book,
   Loader2
@@ -198,6 +199,12 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const abortedRef = React.useRef(false);
+
+  const handleAbortAnalysis = () => {
+    abortedRef.current = true;
+    setIsAnalyzing(false);
+  };
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -209,6 +216,7 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
 
   const loadHistoryHints = async (mode: number | 'all') => {
     if (isAnalyzing) return;
+    abortedRef.current = false;
     setIsAnalyzing(true);
     const categoryMap: Record<number, {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}[]> = {
       0: [
@@ -255,29 +263,31 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     const apiKeys = KP.getGeminiKeyPool();
 
     try {
+      // --- 中斷點 1: 開始翻譯前 ---
+      if (abortedRef.current) return;
+
       // 1. One API call for expanding queries (or loaded from Local cache)
       const transStatus = { ...initialStatus };
       targets.forEach((t: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => { transStatus[t.key as string] = 'translating'; transStatus[t.regKey as string] = 'translating'; });
-      onChange({...data, searchStatus: transStatus}); // Show translating status initially
+      onChange({...data, searchStatus: transStatus});
       
       const variants = await KP.translateSearchQueries(data.equipmentName, data.requirementDesc, apiKeys);
+
+      // --- 中斷點 2: 翻譯完成後 ---
+      if (abortedRef.current) return;
 
       // 2. Perform all Local Supabase Database queries concurrently
       const allResults = await Promise.all(targets.map(async (target: {key: keyof FormState, regKey: keyof FormState, category: string, contextKeywords: string[]}) => {
         try {
-          // V14.6: Plan D - 隱含關鍵字補強邏輯
-          // 針對不同欄位主題，動態將對應的關鍵字加入搜尋變體中，引導 AI 與資料庫進行更精確的主題比對
           const fieldReqVariants = [...variants.reqVariants];
           if (target.contextKeywords && target.contextKeywords.length > 0) {
-            // 將關鍵字直接加入變體清單，這樣 calculateMaxTokenOverlap 就會同時考慮這些主題詞
             target.contextKeywords.forEach((kw: string) => {
               if (!fieldReqVariants.includes(kw)) {
                 fieldReqVariants.push(kw);
               }
             });
-            // 進階優化：將原本的變體與關鍵字組合成新詞條（例如 "馬達 安全"）
             variants.reqVariants.forEach((rv: string) => {
-              target.contextKeywords.slice(0, 2).forEach((kw: string) => { // 僅取前兩個最核心的關鍵字組合，避免組合爆炸
+              target.contextKeywords.slice(0, 2).forEach((kw: string) => {
                 fieldReqVariants.push(`${rv} ${kw}`);
               });
             });
@@ -296,6 +306,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
         }
       }));
 
+      // --- 中斷點 3: 資料庫查詢完成後 ---
+      if (abortedRef.current) return;
+
       // 3. Collect ALL found hints for batched translation
       let allHintsToTranslate: AIHintSelection[] = [];
       allResults.forEach(r => { 
@@ -306,6 +319,9 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       if (allHintsToTranslate.length > 0 && apiKeys) {
         const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
         
+        // --- 中斷點 4: 翻譯條文完成後 ---
+        if (abortedRef.current) return;
+
         let ptr = 0;
         allResults.forEach(r => {
           r.res.hints = translatedAll.slice(ptr, ptr + r.res.hints.length);
@@ -313,15 +329,17 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
         });
       }
 
-      // 5. Commit to state
-      const nextData = { ...data, searchStatus: { ...data.searchStatus } };
-      allResults.forEach(({ target, res }) => {
-        (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
-        (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
-        nextData.searchStatus[target.key as string] = res.status;
-        nextData.searchStatus[target.regKey as string] = res.status;
-      });
-      onChange(nextData);
+      // 5. Commit to state (只在未中斷時執行)
+      if (!abortedRef.current) {
+        const nextData = { ...data, searchStatus: { ...data.searchStatus } };
+        allResults.forEach(({ target, res }) => {
+          (nextData as any)[target.key] = res.hints.filter((h: AIHintSelection) => h.docType === 'Specific');
+          (nextData as any)[target.regKey] = res.hints.filter((h: AIHintSelection) => h.docType !== 'Specific');
+          nextData.searchStatus[target.key as string] = res.status;
+          nextData.searchStatus[target.regKey as string] = res.status;
+        });
+        onChange(nextData);
+      }
 
     } catch (err) {
       console.error(err);
@@ -570,23 +588,27 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
                   </div>
                   
                   <button 
-                    onClick={() => loadHistoryHints('all')}
-                    disabled={isAnalyzing}
+                    onClick={() => isAnalyzing ? handleAbortAnalysis() : loadHistoryHints('all')}
                     className="primary-button"
                     style={{ 
                       padding: '6px 12px', 
                       fontSize: '0.75rem',
                       borderRadius: '8px',
-                      background: 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
+                      background: isAnalyzing
+                        ? 'linear-gradient(135deg, #7F1D1D 0%, #450a0a 100%)'
+                        : 'linear-gradient(135deg, var(--tuc-red) 0%, #B91C1C 100%)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       whiteSpace: 'nowrap',
-                      width: 'auto'
+                      width: 'auto',
+                      border: isAnalyzing ? '1px solid rgba(239,68,68,0.4)' : undefined
                     }}
                   >
-                    <Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> 
-                    {isAnalyzing ? t('aiGenerating', data.language) : t('regenerate', data.language)}
+                    {isAnalyzing
+                      ? <><Square size={12} fill="currentColor" /> {t('aiAbort', data.language)}</>  
+                      : <><Repeat size={14} className={isAnalyzing ? 'animate-spin' : ''} /> {t('regenerate', data.language)}</>  
+                    }
                   </button>
                 </h3>
                 
