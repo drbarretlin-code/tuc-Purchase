@@ -731,16 +731,31 @@ function App() {
 
       const uniqueTags = Array.from(new Set(tagArray));
 
+      const primaryName = uniqueTags[0] || '';
+
       const { error } = await supabase
         .from('tuc_uploaded_files')
-        .update({ equipment_tags: uniqueTags })
+        .update({ 
+          equipment_tags: uniqueTags,
+          equipment_name: primaryName,
+          is_calibrated: true
+        })
         .eq('id', fileId);
 
       if (error) throw error;
 
       // 本地同步優化
       setCloudFiles(prev => prev.map(f => {
-        if (f.id === fileId) return { ...f, equipment_tags: uniqueTags };
+        if (f.id === fileId) {
+          const newDisplayName = `${f.original_name} (${primaryName})`;
+          return { 
+            ...f, 
+            equipment_tags: uniqueTags,
+            equipment_name: primaryName,
+            is_calibrated: true,
+            display_name: newDisplayName
+          };
+        }
         return f;
       }));
       setEditingFileId(null);
