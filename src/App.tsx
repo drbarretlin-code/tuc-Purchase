@@ -786,34 +786,46 @@ function App() {
         setReparseProgress(Math.round(((i + 1) / totalCount) * 100));
         setReparseCurrentFile(fileRecord.original_name);
 
-        let currentDetectedLabel = fileRecord.equipment_name;
+        let currentDetectedLabel = '';
 
         try {
-          // V20: 改用後端代理下載 (service role key，不走 CDN)，消除 Cached Egress 消耗
+          // V20: 後端代理下載
           const resp = await fetch(`/api/download-file?storagePath=${encodeURIComponent(fileRecord.storage_path)}`);
           const blob = await resp.blob();
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          currentDetectedLabel = result?.detectedEquipment || fileRecord.equipment_name;
+          const detectedName = (result?.detectedEquipment || '').trim();
 
-          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
-          const updateData: any = {
-            is_calibrated: true,
-            equipment_name: currentDetectedLabel,
-            equipment_tags: [currentDetectedLabel],
-            display_name: newDisplayName
-          };
-
-          const { error: updateError } = await supabase.from('tuc_uploaded_files')
-            .update(updateData)
-            .eq('id', fileRecord.id);
-
-          if (updateError) {
-            console.error('更新標籤失敗:', updateError);
-            throw new Error(`更新資料庫失敗: ${updateError.message}`);
+          // V27.10: 僅在 AI 偵測到有意義名稱時才寫入，避免 is_calibrated=true 被錯誤標記
+          // 若 AI 無法識別，跳過此檔，下次執行時仍可重試
+          if (!detectedName || isUnnamedFile({ equipment_name: detectedName })) {
+            console.warn(`[Calibrate] AI 無法識別設備名稱: ${fileRecord.original_name}，跳過（下次可重試）`);
+            continue;
           }
 
+          currentDetectedLabel = detectedName;
+          const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
+
+          const { error: updateError } = await supabase.from('tuc_uploaded_files')
+            .update({
+              is_calibrated: true,
+              equipment_name: currentDetectedLabel,
+              equipment_tags: [currentDetectedLabel],
+              display_name: newDisplayName
+            })
+            .eq('id', fileRecord.id);
+
+          if (updateError) throw new Error(`DB 寫入失敗: ${updateError.message}`);
+
+          // V27.10: 僅在 DB 寫入成功後才更新本地狀態（確保兩者一致）
+          setCloudFiles(prev => prev.map(f =>
+            f.id === fileRecord.id
+              ? { ...f, is_calibrated: true, equipment_name: currentDetectedLabel, equipment_tags: [currentDetectedLabel], display_name: newDisplayName }
+              : f
+          ));
+
+          // 同步更新知識條目的 equipment_name metadata
           if (currentDetectedLabel !== fileRecord.equipment_name) {
             const { data: entries } = await supabase
               .from('tuc_history_knowledge')
@@ -822,32 +834,23 @@ function App() {
 
             if (entries) {
               for (const entry of entries) {
-                const newMetadata = { ...entry.metadata, equipment_name: currentDetectedLabel };
-                await supabase.from('tuc_history_knowledge').update({ metadata: newMetadata }).eq('id', entry.id);
+                await supabase.from('tuc_history_knowledge')
+                  .update({ metadata: { ...entry.metadata, equipment_name: currentDetectedLabel } })
+                  .eq('id', entry.id);
               }
             }
           }
+
+          console.log(`[Calibrate] ✓ ${fileRecord.original_name} → ${currentDetectedLabel}`);
         } catch (e: any) {
-          console.error(`[Batch] 檔案 ${fileRecord.original_name} 校準失敗:`, e);
-          // V13.7: 改為 continue，避免單一檔案配額耗盡或錯誤導致整批中斷
+          console.error(`[Calibrate] ✗ ${fileRecord.original_name}:`, e.message);
+          // DB 未寫入 → 本地狀態不更新 → 重整後仍在未命名列表，可重試
           continue;
         }
 
-        setCloudFiles(prev => prev.map(f => {
-          if (f.id === fileRecord.id) {
-            return {
-              ...f,
-              is_calibrated: true,
-              equipment_name: currentDetectedLabel,
-              equipment_tags: [currentDetectedLabel],
-              display_name: `${fileRecord.original_name} (${currentDetectedLabel})` // V27.9b: 即時同步顯示名稱
-            };
-          }
-          return f;
-        }));
-
         await new Promise(r => setTimeout(r, 100));
         if (i < totalCount - 1) await new Promise(r => setTimeout(r, 6000));
+
       }
 
       // V9.7: 增加寫入緩衝時間
