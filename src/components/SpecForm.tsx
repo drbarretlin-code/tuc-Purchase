@@ -34,6 +34,68 @@ import type { FormState, AIHintSelection } from '../types/form';
 import { INITIAL_FORM_STATE } from '../types/form';
 import { DatabaseImportModal } from './DatabaseImportModal';
 
+// ============================================================
+// V27.8: 雲端載入時的智慧合併工具函式
+// ============================================================
+
+/** 字元 Bigram Jaccard 相似度（0-1），適用於中文技術文字比對 */
+const bigramJaccard = (a: string, b: string): number => {
+  const getBigrams = (s: string): Set<string> => {
+    const cleaned = s.replace(/\s+/g, '');
+    const set = new Set<string>();
+    for (let i = 0; i < cleaned.length - 1; i++) {
+      set.add(cleaned[i] + cleaned[i + 1]);
+    }
+    return set;
+  };
+  const aSet = getBigrams(a);
+  const bSet = getBigrams(b);
+  if (aSet.size === 0 && bSet.size === 0) return 1;
+  if (aSet.size === 0 || bSet.size === 0) return 0;
+  let intersection = 0;
+  for (const bigram of aSet) {
+    if (bSet.has(bigram)) intersection++;
+  }
+  return intersection / (aSet.size + bSet.size - intersection);
+};
+
+/**
+ * V27.8: 保留預設條文的智慧合併
+ * - 對載入內容逐段與預設條文比對
+ * - 相似度 ≥ threshold → 捨棄（已被預設涵蓋）
+ * - 相似度 < threshold → 保留並附加於預設文字之後
+ */
+const smartMergePreservingDefault = (
+  defaultKey: string,
+  importedContent: string,
+  threshold: number = 0.75
+): string => {
+  // 以 zh-TW 版本為基準進行比對（雲端儲存的資料多為繁體中文）
+  const defaultText = t(defaultKey, 'zh-TW');
+
+  // 若載入內容為空、i18n key 或與預設完全相同，直接回傳預設
+  if (!importedContent || importedContent.startsWith('default') || importedContent.trim() === defaultText.trim()) {
+    return defaultKey; // 回傳 key，讓 Preview v() 函式翻譯
+  }
+
+  const defaultParagraphs = defaultText.split('\n').filter(p => p.trim());
+  const importedParagraphs = importedContent.split('\n').filter(p => p.trim());
+
+  // 對每段載入內容求與所有預設段落的最高相似度
+  const newParagraphs = importedParagraphs.filter(importedPara => {
+    if (!importedPara.trim()) return false;
+    const maxSim = Math.max(...defaultParagraphs.map(dp => bigramJaccard(importedPara, dp)));
+    return maxSim < threshold; // 相似度不到門殾→保留（為新內容）
+  });
+
+  if (newParagraphs.length === 0) {
+    return defaultKey; // 所有內容都被預設涵蓋，回傳原始 key
+  }
+
+  // 預設條文 + 差異內容附加其後
+  return defaultText + '\n' + newParagraphs.join('\n');
+};
+
 interface Props {
   data: FormState;
   onChange: (newData: FormState) => void;
@@ -1086,6 +1148,22 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
             }
             return acc;
           }, {});
+
+          // V27.8: 對「安裝標準」與「遵守事項」執行智慧合併
+          // 保留預設條文，載入內容與預設相似度 < 75% 的段落才附加于後
+          const SMART_MERGE_FIELDS: { field: string; defaultKey: string }[] = [
+            { field: 'installStandard', defaultKey: 'defaultInstallStd' },
+            { field: 'complianceDesc',  defaultKey: 'defaultCompliance'  },
+          ];
+          SMART_MERGE_FIELDS.forEach(({ field, defaultKey }) => {
+            const importedValue = cleanImported[field];
+            if (typeof importedValue === 'string') {
+              cleanImported[field] = smartMergePreservingDefault(defaultKey, importedValue, 0.75);
+            } else {
+              // 沒有載入內容，保留預設 key
+              cleanImported[field] = defaultKey;
+            }
+          });
 
           const merged: FormState = {
             ...INITIAL_FORM_STATE,
