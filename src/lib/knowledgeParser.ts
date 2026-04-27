@@ -870,17 +870,17 @@ export async function translateHints(
   // V27.23: 增加偵測，若原文與目標語系相同則跳過 (防錯)
   if (targetLang === 'zh-TW') return hints;
 
-  // 組合條文以優化 API 效能
-  const combinedText = hints.map((h, idx) => `ID:${idx} CONTENT:${h.content}`).join('\n---\n');
+  // V27.25: 改用 JSON 模式進行轉譯，消除正則解析失敗的風險
+  const inputTexts = hints.map(h => h.content);
 
   const prompt = `You are a professional technical procurement translator. 
-Translate the following entries from Traditional Chinese into ${targetLabel}.
-Even if the content is highly technical, ensure all descriptions and requirements are translated to ${targetLabel}.
-Ensure technical terminology (e.g., PLC, SUS, HMI, safety standards) is accurate and consistent.
-STRICTLY maintain the format "ID:number CONTENT:translated_text" for each entry.
+Translate the following array of Traditional Chinese strings into ${targetLabel}.
+Even if the content is highly technical, ensure all descriptions and requirements are translated into natural and professional ${targetLabel}.
+Maintain technical accuracy for terms like PLC, SUS, HMI.
+RETURN ONLY A JSON ARRAY OF STRINGS. Keep the same array order.
 
-DATA TO TRANSLATE:
-${combinedText}`;
+INPUT:
+${JSON.stringify(inputTexts)}`;
 
   try {
     const result = await model.generateContent({
@@ -889,24 +889,30 @@ ${combinedText}`;
         temperature: 0.1,
         topP: 0.8,
         topK: 40,
+        responseMimeType: "application/json" // 強制 AI 回傳 JSON
       }
     });
     
-    const translatedText = result.response.text();
+    const text = result.response.text();
+    // 移除可能存在的 Markdown 代碼塊標記
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const translatedTexts = JSON.parse(cleanJson);
+
+    if (!Array.isArray(translatedTexts)) {
+      throw new Error('AI did not return a JSON array');
+    }
+
     const updatedHints = JSON.parse(JSON.stringify(hints)); // 深拷貝
 
     updatedHints.forEach((h: AIHintSelection, idx: number) => {
-      // V27.20: 記錄翻譯前的內容作為原始內容
+      // 記錄翻譯前的內容作為原始內容
       if (!h.originalContent) {
         h.originalContent = hints[idx].content;
       }
-
-      // V27.23: 增強正則表達式，處理可能出現的變體（如空格、標點、冒號全半形）
-      // 使用更寬鬆的匹配規則 ID[sep]idx CONTENT[sep]content
-      const regex = new RegExp(`ID\\s*[:：.]?\\s*${idx}\\s*CONTENT\\s*[:：.]?\\s*([\\s\\S]*?)(?=ID\\s*[:：.]?\\s*${idx + 1}|$)`, 'i');
-      const match = translatedText.match(regex);
-      if (match && match[1]) {
-        h.content = match[1].trim();
+      
+      // 依據陣列索引對回翻譯內容
+      if (translatedTexts[idx]) {
+        h.content = translatedTexts[idx].trim();
       }
     });
 
