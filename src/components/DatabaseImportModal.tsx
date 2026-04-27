@@ -92,7 +92,20 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     setLoading(true);
     try {
       if (!supabase) return;
-      
+
+      // V27.3: 排除純技術法令類檔案
+      // 策略：取得所有擁有 Specific 條目的來源檔名，
+      // 未出現在此集合內的檔案即視為「純 Standard/Global」，予以排除。
+      const { data: specificEntries } = await supabase
+        .from('tuc_history_knowledge')
+        .select('source_file_name')
+        .eq('metadata->>docType', 'Specific');
+
+      // 建立「有設備規範條目」的檔名集合
+      const specificFileNames = new Set<string>(
+        (specificEntries || []).map((e: any) => e.source_file_name as string)
+      );
+
       const { data, error } = await supabase
         .from('tuc_uploaded_files')
         .select('id, original_name, display_name, created_at, full_json_data, requester')
@@ -100,17 +113,28 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
 
       if (error) throw error;
 
-      const mappedDocs = data?.map(item => ({
-        docId: item.id,
-        equipmentName: item.display_name || item.original_name || t('unnamedDoc', language),
-        createdAt: item.created_at,
-        hasJson: !!item.full_json_data,
-        fullJson: item.full_json_data,
-        fileName: item.original_name,
-        requester: item.requester
-      }));
+      const mappedDocs = (data || [])
+        .filter(item => {
+          // 若此檔案尚未解析（specificFileNames 中無記錄），仍保留顯示（讓使用者可嘗試 AI 組裝）
+          // 若已解析但完全沒有 Specific 條目，則排除（純技術/法令文件）
+          const isParsedAsRegOnly =
+            specificEntries !== null &&  // 查詢成功
+            specificFileNames.size > 0 && // 至少有一些 Specific 檔案
+            !specificFileNames.has(item.original_name) && // 此檔無 Specific 條目
+            item.full_json_data === null;  // 且尚未手動回填 JSON（有 JSON 的優先保留）
+          return !isParsedAsRegOnly;
+        })
+        .map(item => ({
+          docId: item.id,
+          equipmentName: item.display_name || item.original_name || t('unnamedDoc', language),
+          createdAt: item.created_at,
+          hasJson: !!item.full_json_data,
+          fullJson: item.full_json_data,
+          fileName: item.original_name,
+          requester: item.requester
+        }));
 
-      setDocuments(mappedDocs || []);
+      setDocuments(mappedDocs);
     } catch (err) {
       console.error('Fetch docs failed:', err);
     } finally {
