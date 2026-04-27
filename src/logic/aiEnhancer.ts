@@ -1,3 +1,5 @@
+import { t } from '../lib/i18n';
+
 export interface AIHint {
   section: 'environmental' | 'regulations' | 'safety' | 'acceptance';
   title: string;

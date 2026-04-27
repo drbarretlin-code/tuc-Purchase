@@ -351,7 +351,7 @@ function App() {
         HINT_FIELDS.forEach(field => {
           const hints = (data as any)[field] || [];
           if (hints.length > 0) {
-            nextData[field as keyof FormState] = hints.map((h: any) => ({
+            (nextData as any)[field] = hints.map((h: any) => ({
               ...h,
               content: h.originalContent || h.content
             })) as any;
