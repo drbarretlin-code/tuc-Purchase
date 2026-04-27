@@ -28,6 +28,26 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
   const renderBilingualText = (val: string | null | undefined, isAutoNumber = false) => {
     if (!val) return 'NA';
+
+    // V27.20: 處理手動雙語格式 (Thai \n (原文: Original))
+    if (data.language === 'th-TH' && val.includes('(原文:')) {
+      const parts = val.split('\n(原文:');
+      const thaiPart = parts[0].trim();
+      const zhPart = (parts[1] || '').replace(/\)$/, '').trim();
+      
+      const processedThai = isAutoNumber ? processAutoNumbering(thaiPart) : thaiPart;
+      const processedZh = isAutoNumber ? processAutoNumbering(zhPart) : zhPart;
+
+      return (
+        <div style={{ position: 'relative' }}>
+          <div style={{ color: '#000', fontWeight: 'normal' }}>{processedThai}</div>
+          <div style={{ color: '#666', fontSize: '0.9em', marginTop: '4px', paddingLeft: '8px', borderLeft: '2px solid #ddd', fontStyle: 'italic' }}>
+            {processedZh}
+          </div>
+        </div>
+      );
+    }
+
     if (val.startsWith('default')) {
       const mainText = t(val, data.language);
       const processedMain = isAutoNumber ? processAutoNumbering(mainText) : mainText;
@@ -99,8 +119,8 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection1')} <span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
         <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
-          <strong>{renderBilingualLabel('reqDesc')}：</strong>
-          <div style={{ whiteSpace: 'pre-wrap', color: '#333' }}>{data.requirementDesc || 'NA'}</div>
+          <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{renderBilingualLabel('reqDesc')}：</div>
+          <div style={{ whiteSpace: 'pre-wrap', color: '#333', paddingLeft: '4px' }}>{renderBilingualText(data.requirementDesc)}</div>
         </div>
       </div>
 
@@ -125,16 +145,25 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection6')}</h4>
-        <div style={{ marginLeft: '1.2rem' }}>
-          <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_1')}</strong> {renderBilingualText(data.envRequirements)}</div>
-          <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_2')}</strong> {renderBilingualText(data.regRequirements)}</div>
-          <div style={{ whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_3')}</strong> {renderBilingualText(data.maintRequirements)}</div>
+        <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
+          <div style={{ marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{renderBilingualLabel('docSub6_1')}</div>
+            <div style={{ paddingLeft: '4px' }}>{renderBilingualText(data.envRequirements)}</div>
+          </div>
+          <div style={{ marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{renderBilingualLabel('docSub6_2')}</div>
+            <div style={{ paddingLeft: '4px' }}>{renderBilingualText(data.regRequirements)}</div>
+          </div>
+          <div style={{ whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{renderBilingualLabel('docSub6_3')}</div>
+            <div style={{ paddingLeft: '4px' }}>{renderBilingualText(data.maintRequirements)}</div>
+          </div>
         </div>
       </div>
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection7')}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.safetyRequirements)}</div>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', marginTop: '4px' }}>{renderBilingualText(data.safetyRequirements)}</div>
       </div>
 
       <div className="doc-section">
@@ -161,17 +190,19 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection9')}</h4>
-        <div style={{ marginLeft: '1.2rem' }}>
-          <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{renderBilingualText(data.installStandard, true)}</div>
-          <div style={{ margin: '8px 0' }}><strong>{renderBilingualLabel('docSub9_date')}</strong> {data.deliveryDate || 'NA'} | <strong>{renderBilingualLabel('docSub9_period')}</strong> {data.workPeriod || 'NA'}</div>
-          <strong>{renderBilingualLabel('docSub9_acceptance')}</strong>
-          <div style={{ whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.acceptanceDesc)}</div>
+        <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt', marginBottom: '8px' }}>{renderBilingualText(data.installStandard, true)}</div>
+          <div style={{ marginBottom: '8px', fontSize: '10pt' }}>
+            <strong>{renderBilingualLabel('docSub9_date')}</strong> {data.deliveryDate || 'NA'} | <strong>{renderBilingualLabel('docSub9_period')}</strong> {data.workPeriod || 'NA'}
+          </div>
+          <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{renderBilingualLabel('docSub9_acceptance')}</div>
+          <div style={{ whiteSpace: 'pre-wrap', paddingLeft: '4px' }}>{renderBilingualText(data.acceptanceDesc)}</div>
         </div>
       </div>
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection10')}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{renderBilingualText(data.complianceDesc, true)}</div>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt', marginTop: '4px' }}>{renderBilingualText(data.complianceDesc, true)}</div>
       </div>
 
       {/* Conditional Sections XI & XII */}

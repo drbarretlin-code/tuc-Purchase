@@ -469,9 +469,24 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
       // 若目前為預設 key，起始內容視為空白，直接以 hintText 取代
       const baseContent = isDefaultKey ? '' : nextContent.trimEnd();
       const separator = baseContent ? '\n' : '';
-      nextContent = baseContent + separator + hintText;
+      
+      // V27.20: 雙語併列處理
+      let finalHintText = hintText;
+      if (data.language === 'th-TH' && targetHint.originalContent) {
+        finalHintText = `${hintText}\n(原文: ${targetHint.originalContent})`;
+      }
+      
+      nextContent = baseContent + separator + finalHintText;
     } else {
-      nextContent = nextContent.replace(hintText, '');
+      const hintContent = cleanHintContent(targetHint.content);
+      nextContent = nextContent.replace(hintContent, '');
+      
+      // V27.20: 同步移除雙語原文部分
+      if (targetHint.originalContent) {
+        const originalText = `\n(原文: ${targetHint.originalContent})`;
+        nextContent = nextContent.replace(originalText, '');
+      }
+      
       nextContent = nextContent.replace(targetHint.content.trim(), '');
       nextContent = cleanHintContent(nextContent);
       // V27.8: 移除後若欄位清空，且此欄位本有 default key，則還原預設值

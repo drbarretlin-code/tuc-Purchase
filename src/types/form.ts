@@ -4,6 +4,7 @@ export type 工程類別 = '新增' | '修繕' | '整改' | '優化' | '購置';
 export interface AIHintSelection {
   id: string;
   content: string;
+  originalContent?: string; // V27.20: 記錄原始中文內容，供雙語對照使用
   link?: string;
   selected: boolean;
   source?: string; // 來源檔案名稱

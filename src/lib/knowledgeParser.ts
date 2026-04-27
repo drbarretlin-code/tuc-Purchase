@@ -892,6 +892,11 @@ ${combinedText}`;
     const updatedHints = JSON.parse(JSON.stringify(hints)); // 深拷貝
 
     updatedHints.forEach((h: AIHintSelection, idx: number) => {
+      // V27.20: 記錄翻譯前的內容作為原始內容 (僅在尚未有原始內容時記錄)
+      if (!h.originalContent) {
+        h.originalContent = hints[idx].content;
+      }
+
       // 尋找對應索引的內容
       const regex = new RegExp(`ID:${idx}\\s*CONTENT:\\s*([\\s\\S]*?)(?=ID:${idx + 1}|$)`, 'i');
       const match = translatedText.match(regex);
