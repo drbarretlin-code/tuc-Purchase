@@ -349,6 +349,13 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     onChange({ ...data, [field]: value });
   };
 
+  const cleanHintContent = (raw: string): string =>
+    raw
+      .split('\n')
+      .filter(line => line.trim() !== '' && line.trim() !== '---')
+      .join('\n')
+      .trim();
+
   const toggleHint = (hintField: keyof FormState, contentField: keyof FormState, hintId: string) => {
     const currentHints = (data[hintField] as AIHintSelection[]) || [];
     const targetHint = currentHints.find(h => String(h.id) === String(hintId));
@@ -360,23 +367,17 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     );
 
     let nextContent = (data[contentField] as string) || '';
+    // V27.4: cleanHintContent 移除 AI 條文內的 --- 分隔符與多餘空行
+    const hintText = cleanHintContent(targetHint.content);
 
     if (newSelected) {
-      // V14.2 防禦性合併：清潔尾端空白後，若有內容則補單換行
-      // V27.4: 對 hint content 做 trim()，避免頭尾換行疊加產生 --- 折線
       const baseContent = nextContent.trimEnd();
-      const hintText = targetHint.content.trim();
       const separator = baseContent ? '\n' : '';
       nextContent = baseContent + separator + hintText;
     } else {
-      // 移除邏輯：精準替換目標內容後，清理殘留的孤立 --- 折線與多餘換行
-      const hintText = targetHint.content.trim();
-      nextContent = nextContent.replace(hintText, '').trim();
-      // 清理連續空行（含孤立的 --- markdown 分隔符）
-      nextContent = nextContent
-        .split('\n')
-        .filter(line => line.trim() !== '' && line.trim() !== '---')
-        .join('\n');
+      nextContent = nextContent.replace(hintText, '');
+      nextContent = nextContent.replace(targetHint.content.trim(), '');
+      nextContent = cleanHintContent(nextContent);
     }
 
     onChange({
