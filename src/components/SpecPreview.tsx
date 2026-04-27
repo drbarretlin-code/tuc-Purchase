@@ -15,7 +15,43 @@ interface PaperProps {
 const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }) => {
   const hasImages = data.images.length > 0;
   const currentDate = new Date().toLocaleDateString(data.language === 'en-US' ? 'en-US' : (data.language === 'th-TH' ? 'th-TH' : (data.language === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
-  const v = (val: string | null | undefined) => (val?.startsWith('default') ? t(val, data.language) : (val || 'NA'));
+  const renderBilingualText = (val: string | null | undefined, isAutoNumber = false) => {
+    if (!val) return 'NA';
+    if (val.startsWith('default')) {
+      const mainText = t(val, data.language);
+      const processedMain = isAutoNumber ? processAutoNumbering(mainText) : mainText;
+      
+      if (data.language === 'th-TH') {
+        const zhText = t(val, 'zh-TW');
+        const processedZh = isAutoNumber ? processAutoNumbering(zhText) : zhText;
+        return (
+          <>
+            <span>{processedMain}</span>
+            <div style={{ color: '#666', fontSize: '0.9em', marginTop: '4px', paddingLeft: '8px', borderLeft: '2px solid #ddd' }}>
+              {processedZh}
+            </div>
+          </>
+        );
+      }
+      return processedMain;
+    }
+    return isAutoNumber ? processAutoNumbering(val) : val;
+  };
+
+  const renderBilingualLabel = (key: string) => {
+    if (data.language === 'th-TH') {
+      return (
+        <span style={{ display: 'inline-block' }}>
+          <span>{t(key, data.language)}</span>
+          <br />
+          <span style={{ color: '#666', fontSize: '0.85em', fontWeight: 'normal' }}>
+            {t(key, 'zh-TW')}
+          </span>
+        </span>
+      );
+    }
+    return t(key, data.language);
+  };
   return (
     <div id={id} ref={previewRef} className="preview-content" style={{ 
       width: '210mm', minHeight: '297mm', background: 'white', padding: '15mm 20mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)', position: 'relative', color: '#000', fontSize: '11pt', lineBreak: 'anywhere'
@@ -23,8 +59,14 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
 
       {/* Header */}
       <div style={{ borderBottom: '2.5px solid black', paddingBottom: '0.8rem', marginBottom: '1.2rem', position: 'relative' }}>
-        <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>{t('docCompanyName', data.language)}</h1>
-        <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>{t('docCompanyEnglish', data.language)}</h2>
+        <h1 style={{ textAlign: 'center', margin: '0', fontSize: '20pt' }}>
+          {data.language === 'th-TH' ? 'Taiwan Union Technology (THAILAND) CO., LTD.' : t('docCompanyName', data.language)}
+        </h1>
+        {data.language !== 'th-TH' && (
+          <h2 style={{ textAlign: 'center', margin: '0 0 0.4rem', fontSize: '14pt', fontWeight: 'normal' }}>
+            {t('docCompanyEnglish', data.language)}
+          </h2>
+        )}
         
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <h3 style={{ margin: '0', fontSize: '16pt', fontWeight: 'bold' }}>{t('docTitle', data.language)}</h3>
@@ -38,94 +80,94 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '10pt' }}>
-        <div>{t('docDept', data.language)}{data.department || 'NA'}</div>
-        <div>{t('docRequester', data.language)}{data.requester || 'NA'} {data.extension ? `(${t('docExtension', data.language)}: ${data.extension})` : ''}</div>
+        <div>{renderBilingualLabel('docDept')}: {data.department || 'NA'}</div>
+        <div>{renderBilingualLabel('docRequester')}: {data.requester || 'NA'} {data.extension ? `(${t('docExtension', data.language)}: ${data.extension})` : ''}</div>
       </div>
 
       {/* Sections I - X */}
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection1', data.language)}<span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection1')} <span style={{ fontWeight: 'normal' }}>{getFullSpecName(data)}</span></h4>
         <div style={{ marginLeft: '1.2rem', marginTop: '4px' }}>
-          <strong>{t('reqDesc', data.language)}：</strong>
+          <strong>{renderBilingualLabel('reqDesc')}：</strong>
           <div style={{ whiteSpace: 'pre-wrap', color: '#333' }}>{data.requirementDesc || 'NA'}</div>
         </div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection2', data.language)}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{v(data.appearance)}</div>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection2')}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', color: '#333' }}>{renderBilingualText(data.appearance)}</div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection3', data.language)}<span style={{ fontWeight: 'normal' }}>{v(data.quantityUnit)}</span></h4>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection3')} <span style={{ fontWeight: 'normal' }}>{renderBilingualText(data.quantityUnit)}</span></h4>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection4', data.language)}</h4>
-        <div style={{ marginLeft: '1.2rem' }}>{v(data.equipmentName)}</div>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection4')}</h4>
+        <div style={{ marginLeft: '1.2rem' }}>{renderBilingualText(data.equipmentName)}</div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection5', data.language)}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.rangeRange)}</div>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection5')}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.rangeRange)}</div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection6', data.language)}</h4>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection6')}</h4>
         <div style={{ marginLeft: '1.2rem' }}>
-          <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_1', data.language)}</strong> {v(data.envRequirements)}</div>
-          <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_2', data.language)}</strong> {v(data.regRequirements)}</div>
-          <div style={{ whiteSpace: 'pre-wrap' }}><strong>{t('docSub6_3', data.language)}</strong> {v(data.maintRequirements)}</div>
+          <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_1')}</strong> {renderBilingualText(data.envRequirements)}</div>
+          <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_2')}</strong> {renderBilingualText(data.regRequirements)}</div>
+          <div style={{ whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_3')}</strong> {renderBilingualText(data.maintRequirements)}</div>
         </div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection7', data.language)}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{v(data.safetyRequirements)}</div>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection7')}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.safetyRequirements)}</div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection8', data.language)}</h4>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection8')}</h4>
         <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
           <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_1', data.language)}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.elecSpecs)}</div>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_1')}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.elecSpecs)}</div>
           </div>
           <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_2', data.language)}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.mechSpecs)}</div>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_2')}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.mechSpecs)}</div>
           </div>
           <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_3', data.language)}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.physSpecs)}</div>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_3')}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.physSpecs)}</div>
           </div>
           <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{t('docSub8_4', data.language)}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{v(data.relySpecs)}</div>
+            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_4')}</span>
+            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.relySpecs)}</div>
           </div>
         </div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection9', data.language)}</h4>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection9')}</h4>
         <div style={{ marginLeft: '1.2rem' }}>
-          <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.installStandard))}</div>
-          <div style={{ margin: '8px 0' }}><strong>{t('docSub9_date', data.language)}</strong> {data.deliveryDate || 'NA'} | <strong>{t('docSub9_period', data.language)}</strong> {data.workPeriod || 'NA'}</div>
-          <strong>{t('docSub9_acceptance', data.language)}</strong>
-          <div style={{ whiteSpace: 'pre-wrap' }}>{v(data.acceptanceDesc)}</div>
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{renderBilingualText(data.installStandard, true)}</div>
+          <div style={{ margin: '8px 0' }}><strong>{renderBilingualLabel('docSub9_date')}</strong> {data.deliveryDate || 'NA'} | <strong>{renderBilingualLabel('docSub9_period')}</strong> {data.workPeriod || 'NA'}</div>
+          <strong>{renderBilingualLabel('docSub9_acceptance')}</strong>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.acceptanceDesc)}</div>
         </div>
       </div>
 
       <div className="doc-section">
-        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection10', data.language)}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{processAutoNumbering(v(data.complianceDesc))}</div>
+        <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection10')}</h4>
+        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap', fontSize: '10pt' }}>{renderBilingualText(data.complianceDesc, true)}</div>
       </div>
 
       {/* Conditional Sections XI & XII */}
       {hasImages && (
         <>
           <div className="doc-section" style={{ pageBreakBefore: 'always' }}>
-            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection11', data.language)}</h4>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection11')}</h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '10px' }}>
               {data.images.map(img => (
                 <div key={img.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '8px' }}>
@@ -137,7 +179,7 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
           </div>
 
           <div className="doc-section">
-            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{t('docSection12', data.language)}</h4>
+            <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection12')}</h4>
             <table style={{ border: '1px solid black', width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '9pt' }}>
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
@@ -152,8 +194,8 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
               <tbody>
                 {data.tableData.map((row, i) => (
                   <tr key={i}>
-                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.category?.startsWith('default') ? t(row.category, data.language) : row.category}</td>
-                    <td style={{ border: '1px solid black' }}>{row.item?.startsWith('default') ? t(row.item, data.language) : row.item}</td>
+                    <td style={{ border: '1px solid black', textAlign: 'center' }}>{renderBilingualText(row.category)}</td>
+                    <td style={{ border: '1px solid black' }}>{renderBilingualText(row.item)}</td>
                     <td style={{ border: '1px solid black' }}>{row.spec}</td>
                     <td style={{ border: '1px solid black' }}>{row.method}</td>
                     <td style={{ border: '1px solid black', textAlign: 'center' }}>{row.samples}</td>

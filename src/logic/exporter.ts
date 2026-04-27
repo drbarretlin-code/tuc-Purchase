@@ -57,87 +57,114 @@ export const exportToWord = async (data: FormState, lang: Language) => {
   const now = new Date();
   const dateStr = now.toLocaleDateString(lang === 'en-US' ? 'en-US' : (lang === 'th-TH' ? 'th-TH' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')));
 
-  const v = (text: string | null | undefined, lang: Language) => (text?.startsWith('default') ? t(text, lang) : (text || 'NA'));
+  const vStr = (text: string | null | undefined) => {
+    if (!text) return 'NA';
+    if (text.startsWith('default')) {
+      if (lang === 'th-TH') {
+        return `${t(text, lang)}\n${t(text, 'zh-TW')}`;
+      }
+      return t(text, lang);
+    }
+    return text;
+  };
+
+  const lStr = (key: string) => {
+    if (lang === 'th-TH') {
+      return `${t(key, lang)}\n${t(key, 'zh-TW')}`;
+    }
+    return t(key, lang);
+  };
 
   const createMultilineParagraphs = (text: string, spacingAfter = 40, lastSpacingAfter = 200) => {
     const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
     if (lines.length === 0) return [new Paragraph({ text: 'NA', spacing: { after: lastSpacingAfter } })];
-    return lines.map((l, i) => new Paragraph({ 
-      children: [new TextRun({ text: l })], 
-      spacing: { after: i === lines.length - 1 ? lastSpacingAfter : spacingAfter } 
-    }));
+    return lines.map((l, i) => {
+      const isZh = lang === 'th-TH' && /[一-龥]/.test(l);
+      return new Paragraph({ 
+        children: [new TextRun({ text: l, color: isZh ? "666666" : undefined, size: isZh ? 18 : undefined })], 
+        spacing: { after: i === lines.length - 1 ? lastSpacingAfter : spacingAfter } 
+      });
+    });
+  };
+
+  const createTextRuns = (text: string, bold = false) => {
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
+    return lines.map((l, i) => {
+      const isZh = lang === 'th-TH' && /[一-龥]/.test(l);
+      return new TextRun({ text: l, bold: isZh ? false : bold, break: i > 0 ? 1 : 0, color: isZh ? "666666" : undefined, size: isZh ? 18 : undefined });
+    });
   };
 
   const bodyContent = [
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection1', lang)}${getFullSpecName(data)}`, bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('reqDesc', lang)}：`, bold: true })] }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(`${lStr('docSection1')} ${getFullSpecName(data)}`, true)] }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('reqDesc')}：`, true)] }),
     ...createMultilineParagraphs(data.requirementDesc || 'NA'),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection2', lang), bold: true })] }),
-    ...createMultilineParagraphs(v(data.appearance, lang)),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection2'), true)] }),
+    ...createMultilineParagraphs(vStr(data.appearance)),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: `${t('docSection3', lang)}${v(data.quantityUnit, lang)}`, bold: true })], spacing: { after: 200 } }),
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection4', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: v(data.equipmentName, lang) })], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(`${lStr('docSection3')} ${vStr(data.quantityUnit)}`, true)], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection4'), true)] }),
+    new Paragraph({ children: [...createTextRuns(vStr(data.equipmentName))], spacing: { after: 200 } }),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection5', lang), bold: true })] }),
-    ...createMultilineParagraphs(v(data.rangeRange, lang)),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection5'), true)] }),
+    ...createMultilineParagraphs(vStr(data.rangeRange)),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection6', lang), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_1', lang), bold: true }), new TextRun({ text: v(data.envRequirements, lang) })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_2', lang), bold: true }), new TextRun({ text: v(data.regRequirements, lang) })] }),
-    new Paragraph({ children: [new TextRun({ text: t('docSub6_3', lang), bold: true }), new TextRun({ text: v(data.maintRequirements, lang) })], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection6'), true)] }),
+    new Paragraph({ children: [...createTextRuns(lStr('docSub6_1'), true), new TextRun({ text: " " }), ...createTextRuns(vStr(data.envRequirements))] }),
+    new Paragraph({ children: [...createTextRuns(lStr('docSub6_2'), true), new TextRun({ text: " " }), ...createTextRuns(vStr(data.regRequirements))] }),
+    new Paragraph({ children: [...createTextRuns(lStr('docSub6_3'), true), new TextRun({ text: " " }), ...createTextRuns(vStr(data.maintRequirements))], spacing: { after: 200 } }),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection7', lang), bold: true })] }),
-    ...createMultilineParagraphs(v(data.safetyRequirements, lang)),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection7'), true)] }),
+    ...createMultilineParagraphs(vStr(data.safetyRequirements)),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection8', lang), bold: true })], spacing: { after: 100 } }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_1', lang)} ${v(data.elecSpecs, lang)}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_2', lang)} ${v(data.mechSpecs, lang)}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_3', lang)} ${v(data.physSpecs, lang)}` })] }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub8_4', lang)} ${v(data.relySpecs, lang)}` })] }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection8'), true)], spacing: { after: 100 } }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub8_1')} ${vStr(data.elecSpecs)}`)] }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub8_2')} ${vStr(data.mechSpecs)}`)] }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub8_3')} ${vStr(data.physSpecs)}`)] }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub8_4')} ${vStr(data.relySpecs)}`)] }),
     
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection9', lang), bold: true })], spacing: { before: 200, after: 100 } }),
-    ...processAutoNumbering(v(data.installStandard, lang)).split('\n').filter(l => l.trim()).map(l => new Paragraph({ children: [new TextRun({ text: l })], spacing: { after: 40 } })),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_date', lang)} ${data.deliveryDate || 'NA'} | ${t('docSub9_period', lang)} ${data.workPeriod || 'NA'}`, bold: true })], spacing: { before: 100, after: 100 } }),
-    new Paragraph({ children: [new TextRun({ text: `${t('docSub9_acceptance', lang)} `, bold: true }), new TextRun({ text: v(data.acceptanceDesc, lang) })], spacing: { after: 200 } }),
-    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection10', lang), bold: true })], spacing: { before: 200, after: 100 } }),
-    ...processAutoNumbering(v(data.complianceDesc, lang)).split('\n').filter(l => l.trim()).map(l => new Paragraph({ children: [new TextRun({ text: l })], spacing: { after: 40 } })),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection9'), true)], spacing: { before: 200, after: 100 } }),
+    ...createMultilineParagraphs(processAutoNumbering(vStr(data.installStandard)), 40, 40),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub9_date')} ${data.deliveryDate || 'NA'} | ${lStr('docSub9_period')} ${data.workPeriod || 'NA'}`, true)], spacing: { before: 100, after: 100 } }),
+    new Paragraph({ children: [...createTextRuns(`${lStr('docSub9_acceptance')} `, true), ...createTextRuns(vStr(data.acceptanceDesc))], spacing: { after: 200 } }),
+    new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection10'), true)], spacing: { before: 200, after: 100 } }),
+    ...createMultilineParagraphs(processAutoNumbering(vStr(data.complianceDesc)), 40, 40),
     
     
     // 廠商注意事項 (A4 直向整頁)
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({ 
       heading: HeadingLevel.HEADING_4, 
-      children: [new TextRun({ text: t('contractorNotice', lang), bold: true, size: 28 })],
+      children: [...createTextRuns(lStr('contractorNotice'), true).map(run => ({ ...run, size: 28 }))],
       spacing: { before: 200, after: 200 }
     }),
-    ...createMultilineParagraphs(v(data.contractorNotice, lang), 40, 0),
+    ...createMultilineParagraphs(vStr(data.contractorNotice), 40, 0),
   ];
 
   const optionalSections: (Paragraph | Table)[] = [];
   if (hasImages) {
     optionalSections.push(
-      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection11', lang), bold: true })], spacing: { before: 400 } }),
-      new Paragraph({ text: t('docImgNote', lang) }),
-      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [new TextRun({ text: t('docSection12', lang), bold: true })], spacing: { before: 400, after: 200 } }),
+      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection11'), true)], spacing: { before: 400 } }),
+      new Paragraph({ children: [...createTextRuns(lStr('docImgNote'))] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_4, children: [...createTextRuns(lStr('docSection12'), true)], spacing: { before: 400, after: 200 } }),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [
           new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblCat', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblItem', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblSpec', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblMethod', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblCount', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t('docTblConfirm', lang), bold: true })], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblCat'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblItem'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblSpec'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblMethod'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblCount'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(lStr('docTblConfirm'), true)], alignment: AlignmentType.CENTER })], shading: { fill: "F5F5F5" } }),
             ]
           }),
           ...data.tableData.map(row => new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ text: v(row.category, lang) })] }),
-              new TableCell({ children: [new Paragraph({ text: v(row.item, lang) })] }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(vStr(row.category))] })] }),
+              new TableCell({ children: [new Paragraph({ children: [...createTextRuns(vStr(row.item))] })] }),
               new TableCell({ children: [new Paragraph({ text: row.spec })] }),
               new TableCell({ children: [new Paragraph({ text: row.method })] }),
               new TableCell({ children: [new Paragraph({ text: row.samples, alignment: AlignmentType.CENTER })] }),
@@ -251,8 +278,8 @@ export const exportToWord = async (data: FormState, lang: Language) => {
     },
     sections: [{
       children: [
-        new Paragraph({ text: t('docCompanyName', lang), style: "TUCMainTitle" }),
-        new Paragraph({ text: t('docCompanyEnglish', lang), style: "TUCCenter", spacing: { after: 200 } }),
+        new Paragraph({ text: lang === 'th-TH' ? 'Taiwan Union Technology (THAILAND) CO., LTD.' : t('docCompanyName', lang), style: "TUCMainTitle" }),
+        ...(lang !== 'th-TH' ? [new Paragraph({ text: t('docCompanyEnglish', lang), style: "TUCCenter", spacing: { after: 200 } })] : []),
         new Paragraph({ 
           children: [new TextRun({ text: t('docTitle', lang), bold: true, size: 36, underline: { color: "000000" } })], 
           style: "TUCCenter", 
