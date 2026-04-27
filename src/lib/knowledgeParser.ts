@@ -872,8 +872,9 @@ export async function translateHints(
   const inputTexts = hints.map(h => h.content);
 
   const prompt = `You are a professional technical procurement translator. 
-Translate the following array of Traditional Chinese strings into ${targetLabel}.
-Even if the content is highly technical, ensure all descriptions and requirements are translated into natural and professional ${targetLabel}.
+Translate the array of Traditional Chinese strings into ${targetLabel}.
+CRITICAL: Even if the content is highly technical, EVERYTHING must be translated into ${targetLabel}.
+DO NOT return any Chinese characters in the result.
 Maintain technical accuracy for terms like PLC, SUS, HMI.
 RETURN ONLY A JSON ARRAY OF STRINGS. Keep the same array order.
 

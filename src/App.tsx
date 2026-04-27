@@ -341,8 +341,9 @@ function App() {
     // 繁體中文語系下不需要轉譯 (歷史建議多為繁體中文)
     if (data.language === 'zh-TW') return;
 
-    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
-    if (!apiKey) return;
+    // V27.28: 使用完整的金鑰池偵測，不再只檢查單一金鑰位
+    const apiKeys = KP.getGeminiKeyPool();
+    if (apiKeys.length === 0 || isSyncingHints) return;
 
     // 檢查是否有任何 hint 需要翻譯
     const fieldsWithHints = HINT_FIELDS.filter(field => (data as any)[field] && (data as any)[field].length > 0);
@@ -412,10 +413,10 @@ function App() {
       }
     };
 
-    // V27.27: 縮短延遲至 200ms，確保在渲染穩定後能快速執行，不再被頻繁重置
+    // V27.28: 增加 300ms 延遲，並在觸發前再次確認是否正在同步中
     debounceTimer = setTimeout(() => {
-      if (!isCancelled) translateAllHints();
-    }, 200);
+      if (!isCancelled && !isSyncingHints) translateAllHints();
+    }, 300);
 
     return () => { 
       isCancelled = true; 
