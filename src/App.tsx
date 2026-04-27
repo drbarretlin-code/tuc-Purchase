@@ -845,7 +845,22 @@ function App() {
           console.log(`[Calibrate] ✓ ${fileRecord.original_name} → ${currentDetectedLabel}`);
         } catch (e: any) {
           console.error(`[Calibrate] ✗ ${fileRecord.original_name}:`, e.message);
-          // DB 未寫入 → 本地狀態不更新 → 重整後仍在未命名列表，可重試
+          
+          // V27.13: 若為配額耗盡或 API Key 錯誤，代表所有可用 Key 均已失效
+          // 必須中斷整個批次處理，保留斷點，而不是 continue 導致後續全部白白報錯
+          if (
+            e.message.includes('配額') || 
+            e.message.includes('過載') || 
+            e.message.includes('API_KEY_EXPIRED') || 
+            e.message.includes('QUOTA') ||
+            e.message.includes('429') ||
+            e.message.includes('503')
+          ) {
+            alert(`API 配額已耗盡或全數過載，自動為您中斷任務。\n已完成至第 ${i} 筆，未完成的檔案下次可從此斷點繼續執行。`);
+            break;
+          }
+
+          // 其他單一檔案的解析錯誤 (如 PDF 破壞等)，則跳過該檔繼續
           continue;
         }
 
