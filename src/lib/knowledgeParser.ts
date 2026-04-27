@@ -70,15 +70,9 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   let globalFallback: { modelId: string; apiKey: string } | null = null;
 
   const priorityList = [
-    'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-pro-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',      // V27.5: 穩定後備
-    'gemini-1.5-pro',        // V27.5: 穩定後備
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
     'gemini-pro-latest',
     'gemini-flash-latest',
   ];
@@ -867,10 +861,14 @@ export async function translateHints(
 
   const targetLabel = langMap[targetLang] || targetLang;
 
-  // V27.23: 增加偵測，若原文與目標語系相同則跳過 (防錯)
   if (targetLang === 'zh-TW') return hints;
 
-  // V27.25: 改用 JSON 模式進行轉譯，消除正則解析失敗的風險
+  // V27.26: 增加啟發式偵測，如果內容已經包含泰文字元且目標是泰文，則跳過
+  const isThai = (text: string) => /[\u0E00-\u0E7F]/.test(text);
+  if (targetLang === 'th-TH' && hints.every(h => isThai(h.content))) {
+    return hints;
+  }
+
   const inputTexts = hints.map(h => h.content);
 
   const prompt = `You are a professional technical procurement translator. 
@@ -889,28 +887,33 @@ ${JSON.stringify(inputTexts)}`;
         temperature: 0.1,
         topP: 0.8,
         topK: 40,
-        responseMimeType: "application/json" // 強制 AI 回傳 JSON
+        responseMimeType: "application/json"
       }
     });
     
     const text = result.response.text();
-    // 移除可能存在的 Markdown 代碼塊標記
-    const cleanJson = text.replace(/```json|```/g, '').trim();
+    // V27.26: 強化 JSON 提取器，確保能處理包含廢話的回應
+    let cleanJson = text;
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    } else {
+      cleanJson = text.replace(/```json|```/g, '').trim();
+    }
+    
     const translatedTexts = JSON.parse(cleanJson);
 
     if (!Array.isArray(translatedTexts)) {
       throw new Error('AI did not return a JSON array');
     }
 
-    const updatedHints = JSON.parse(JSON.stringify(hints)); // 深拷貝
+    const updatedHints = JSON.parse(JSON.stringify(hints));
 
     updatedHints.forEach((h: AIHintSelection, idx: number) => {
-      // 記錄翻譯前的內容作為原始內容
       if (!h.originalContent) {
         h.originalContent = hints[idx].content;
       }
       
-      // 依據陣列索引對回翻譯內容
       if (translatedTexts[idx]) {
         h.content = translatedTexts[idx].trim();
       }

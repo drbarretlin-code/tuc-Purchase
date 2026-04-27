@@ -326,12 +326,12 @@ function App() {
   ];
 
   // V27.15: 產生 hints 的結構指紋，用於偵測何時需要觸發轉譯（例如從雲端導入資料後）
-  // V27.23: 增加內容首部指紋，避免內容異動但 ID/Length 未變時遺漏轉譯
+  // V27.26: 增加內容首部指紋與當前語系，確保語系切換時能精確觸發
   const hintsFingerprint = HINT_FIELDS.map(f => {
     const hints = (data as any)[f] || [];
     const firstHintContent = (hints[0]?.content || '').substring(0, 10);
     return `${f}:${hints.length}:${hints[0]?.id || ''}:${firstHintContent}`;
-  }).join('|');
+  }).join('|') + `:${data.language}`;
 
   // V27.10/V27.15: 當語系變更或導入新建議條文時，同步將目前畫面上已有的 AI 建議（hints）進行轉譯
   useEffect(() => {
