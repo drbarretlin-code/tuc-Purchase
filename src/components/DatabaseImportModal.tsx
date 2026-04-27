@@ -121,7 +121,8 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
   const handleSelect = async (doc: any) => {
     if (doc.hasJson) {
       // 確保傳出的資料包含 docId (處理可能缺少的舊資料)
-      onSelect({ ...doc.fullJson, docId: doc.docId });
+      // V27.2: await onSelect 確保 async 狀態更新（語系轉譯 + onChange）在關閉 Modal 前完成
+      await onSelect({ ...doc.fullJson, docId: doc.docId });
       onClose();
     } else {
       // 執行反向組裝
@@ -129,7 +130,7 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
       try {
         const assembled = await assembleJsonFromExistingEntries(doc.docId, undefined, doc.fileName);
         if (assembled) {
-          onSelect(assembled);
+          await onSelect(assembled);
           onClose();
         } else {
           alert(t('aiAssembleFail', language));

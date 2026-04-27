@@ -767,7 +767,7 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
 
   const prompt = `
     請將以下零散的採購條文「反向組裝」成一個結構化的 JSON 檔案。
-    欄位包含：equipmentName, requirementDesc, appearance, quantityUnit, scopeScope, rangeRange, envRequirements, regRequirements, maintRequirements, safetyRequirements, elecSpecs, mechSpecs, physSpecs, relySpecs, installStandard, workPeriod, acceptanceDesc, complianceDesc, tableData (JSONArray)。
+    欄位包含：equipmentName, requirementDesc, appearance, quantityUnit, equipmentScope, rangeRange, envRequirements, regRequirements, maintRequirements, safetyRequirements, elecSpecs, mechSpecs, physSpecs, relySpecs, installStandard, workPeriod, acceptanceDesc, complianceDesc, contractorNotice, tableData (JSONArray)。
     請依據條文內容進行最佳分類與填充。若條文與某欄位不相關，請留空。
 
     內容：
