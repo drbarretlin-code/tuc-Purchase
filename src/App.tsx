@@ -353,6 +353,100 @@ function App() {
     }
   };
 
+  // V27.10: 當切換語系時，同步將目前畫面上已有的 AI 建議（hints）也進行轉譯
+  useEffect(() => {
+    let isCancelled = false;
+
+    const hintFields = [
+      'requirementDescHistoryHints', 'requirementDescRegHints',
+      'appearanceHistoryHints', 'appearanceRegHints',
+      'rangeHistoryHints', 'rangeRegHints',
+      'envAIHints', 'envHistoryHints', 'envRegHints',
+      'regAIHints', 'regHistoryHints', 'regRegHints',
+      'maintHistoryHints', 'maintRegHints',
+      'safetyAIHints', 'safetyHistoryHints', 'safetyRegHints',
+      'elecHistoryHints', 'elecRegHints',
+      'mechHistoryHints', 'mechRegHints',
+      'physHistoryHints', 'physRegHints',
+      'relyHistoryHints', 'relyRegHints',
+      'installAIHints', 'installHistoryHints', 'installRegHints',
+      'acceptanceAIHints', 'acceptanceHistoryHints', 'acceptanceRegHints',
+      'complianceAIHints', 'complianceHistoryHints', 'complianceRegHints'
+    ];
+
+    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
+    if (!apiKey) return;
+
+    // 檢查是否有任何 hint 需要翻譯
+    const fieldsWithHints = hintFields.filter(field => (data as any)[field] && (data as any)[field].length > 0);
+    if (fieldsWithHints.length === 0) return;
+
+    const translateAllHints = async () => {
+      console.log(`[AI Translation] 語系變更為 ${data.language}，啟動現有建議條文同步轉譯...`);
+      
+      const apiKeys = KP.getGeminiKeyPool();
+      if (apiKeys.length === 0) return;
+
+      // 1. 先將所有相關欄位設為 translating 狀態
+      setData(prev => {
+        const newStatus = { ...prev.searchStatus };
+        fieldsWithHints.forEach(f => { newStatus[f] = 'translating'; });
+        return { ...prev, searchStatus: newStatus };
+      });
+
+      try {
+        // 2. 收集所有條文進行批量翻譯
+        const allHintsToTranslate: any[] = [];
+        fieldsWithHints.forEach(field => {
+          const hints = (data as any)[field];
+          hints.forEach((h: any) => {
+            allHintsToTranslate.push({ ...h, _field: field });
+          });
+        });
+
+        if (isCancelled) return;
+
+        const translatedTotal = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
+        
+        if (isCancelled) return;
+
+        // 3. 重新分組回各個欄位
+        setData(prev => {
+          const nextState = { ...prev };
+          const nextStatus = { ...nextState.searchStatus };
+          
+          // 初始化清空目標欄位，準備填入翻譯後的
+          fieldsWithHints.forEach(f => { (nextState as any)[f] = []; });
+
+          translatedTotal.forEach((h: any) => {
+            const field = h._field;
+            const cleanHint = { ...h };
+            delete cleanHint._field;
+            ((nextState as any)[field] as any[]).push(cleanHint);
+            nextStatus[field] = 'success';
+          });
+          
+          nextState.searchStatus = nextStatus;
+          return nextState;
+        });
+
+      } catch (err) {
+        console.error('[AI Translation] Hints translation failed:', err);
+        if (isCancelled) return;
+        setData(prev => {
+          const nextStatus = { ...prev.searchStatus };
+          fieldsWithHints.forEach(f => { nextStatus[f] = 'ai_error'; });
+          return { ...prev, searchStatus: nextStatus };
+        });
+      }
+    };
+
+    translateAllHints();
+
+    return () => { isCancelled = true; };
+  }, [data.language]);
+
+
   const handleCheckHealth = async () => {
     setIsCheckingHealth(true);
     try {
