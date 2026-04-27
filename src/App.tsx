@@ -795,16 +795,15 @@ function App() {
           const fileObj = new File([blob], fileRecord.original_name, { type: blob.type });
 
           const result = await KP.processFileToKnowledge(fileObj, userApiKey, fileRecord.equipment_name, fileRecord.id);
-          const detectedName = (result?.detectedEquipment || '').trim();
-
-          // V27.10: 僅在 AI 偵測到有意義名稱時才寫入，避免 is_calibrated=true 被錯誤標記
-          // 若 AI 無法識別，跳過此檔，下次執行時仍可重試
-          if (!detectedName || isUnnamedFile({ equipment_name: detectedName })) {
-            console.warn(`[Calibrate] AI 無法識別設備名稱: ${fileRecord.original_name}，跳過（下次可重試）`);
-            continue;
+          // V27.11: 即使 AI 無法識別（仍為未命名），也應寫入 is_calibrated = true
+          // 這樣該檔案才會被 isUnnamedFile 判定為已結案，離開標籤修正列表，解決無限死循環
+          if (!detectedName || detectedName === '未命名設備' || detectedName === '未知') {
+            console.warn(`[Calibrate] AI 盡力了但無法識別設備名稱: ${fileRecord.original_name}，記錄為已校準`);
+            currentDetectedLabel = fileRecord.equipment_name || '未命名設備';
+          } else {
+            currentDetectedLabel = detectedName;
           }
 
-          currentDetectedLabel = detectedName;
           const newDisplayName = `${fileRecord.original_name} (${currentDetectedLabel})`;
 
           const { error: updateError } = await supabase.from('tuc_uploaded_files')
@@ -1122,9 +1121,12 @@ function App() {
     return 'unparsed';
   };
 
-  // V27.9a: 判斷是否為「未命名」檔案（設備名稱未被 AI 定義為有意義的內容）
-  // 只依據 equipment_name 的實際內容判斷，不依賴 is_calibrated 欄位
+  // V27.9b: 判斷是否需要「標籤修正」
+  // 1. 若已經被 AI 校準過 (is_calibrated=true)，視為已結案（不論結果是否成功命名），不需再修
+  // 2. 若未校準過，且名稱為空或無意義字眼，才需要修
   const isUnnamedFile = (f: any): boolean => {
+    if (f.is_calibrated === true) return false;
+
     const name = (f.equipment_name || '').trim();
     return (
       !name ||
