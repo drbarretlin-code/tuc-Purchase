@@ -839,7 +839,8 @@ function App() {
               ...f,
               is_calibrated: true,
               equipment_name: currentDetectedLabel,
-              equipment_tags: [currentDetectedLabel]
+              equipment_tags: [currentDetectedLabel],
+              display_name: `${fileRecord.original_name} (${currentDetectedLabel})` // V27.9b: 即時同步顯示名稱
             };
           }
           return f;
