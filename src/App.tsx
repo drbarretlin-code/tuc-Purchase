@@ -367,39 +367,45 @@ function App() {
       const apiPool = KP.getGeminiKeyPool();
       if (apiPool.length === 0 || isSyncingHints) return;
 
-      // 找出所有「有內容但語系不對」的欄位
-      const pendingFields = HINT_FIELDS.filter(field => {
-        const hints = (data as any)[field] || [];
-        return hints.length > 0 && hints[0].translatedLang !== data.language;
-      });
-
-      if (pendingFields.length === 0) return;
-
+      // 每次執行時從當前狀態重新計算待處理欄位
       setIsSyncingHints(true);
-      console.log(`[AI Translation] 偵測到 ${pendingFields.length} 個欄位待轉譯...`);
+      console.log(`[AI Translation] 檢查待轉譯欄位...`);
 
       try {
-        const nextData = { ...data };
-        let hasChanges = false;
-
-        for (const field of pendingFields) {
+        for (const field of HINT_FIELDS) {
           if (isCancelled) break;
-          const currentHints = (data as any)[field] || [];
+          
+          // 重要：使用函數式更新來讀取與寫入，確保不覆蓋其他狀態
+          let fieldHints: AIHintSelection[] = [];
+          let currentLang = '';
+          
+          setData(prev => {
+            fieldHints = (prev as any)[field] || [];
+            currentLang = prev.language;
+            return prev;
+          });
+
+          if (fieldHints.length === 0 || currentLang === 'zh-TW') continue;
+          if (fieldHints[0].translatedLang === currentLang) continue;
+
+          console.log(`[AI Translation] 正在轉譯欄位: ${field} (${fieldHints.length} 條)...`);
           
           try {
-            const translated = await KP.translateHints(currentHints, data.language, apiPool);
-            (nextData as any)[field] = translated;
-            hasChanges = true;
-          } catch (err) {
-            console.error(`[AI Translation] 欄位 ${field} 失敗:`, err);
-          }
-        }
+            const translated = await KP.translateHints(fieldHints, currentLang, apiPool);
+            if (isCancelled) break;
 
-        if (!isCancelled && hasChanges) {
-          setData({
-            ...nextData,
-            searchStatus: { ...nextData.searchStatus, ...Object.fromEntries(pendingFields.map(f => [f, 'success'])) }
-          });
+            setData(prev => ({
+              ...prev,
+              [field]: translated,
+              searchStatus: { ...prev.searchStatus, [field]: 'success' }
+            }));
+          } catch (err) {
+            console.error(`[AI Translation] 欄位 ${field} 轉譯失敗:`, err);
+            setData(prev => ({
+              ...prev,
+              searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
+            }));
+          }
         }
       } finally {
         if (!isCancelled) setIsSyncingHints(false);

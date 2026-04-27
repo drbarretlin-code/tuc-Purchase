@@ -856,12 +856,6 @@ export async function translateHints(
 
   if (targetLang === 'zh-TW') return hints;
 
-  // V27.26: 增加啟發式偵測，如果內容已經包含泰文字元且目標是泰文，則跳過
-  const isThai = (text: string) => /[\u0E00-\u0E7F]/.test(text);
-  if (targetLang === 'th-TH' && hints.every(h => isThai(h.content))) {
-    return hints;
-  }
-
   const inputTexts = hints.map(h => h.content);
 
   const prompt = `You are an expert technical translator specializing in industrial procurement specifications.
@@ -869,14 +863,14 @@ Translate the following array of technical requirement strings into ${targetLabe
 
 GUIDELINES:
 1. The input strings are primarily in Traditional Chinese but may contain technical terms in English or other languages.
-2. Ensure technical terms (e.g., PLC, SUS304, HMI, RoHS, REACH) are preserved or translated correctly according to industry standards.
-3. The output MUST BE a valid JSON array of strings in the same order as the input.
-4. CRITICAL: The resulting strings must be entirely in ${targetLabel}. Do not leave any Traditional Chinese characters in the output.
-5. LAYOUT & FORMATTING: 
+2. TARGET LANGUAGE: ${targetLabel}. The output must be NATURALLY phrased in ${targetLabel}.
+3. Ensure technical terms (e.g., PLC, SUS304, HMI, RoHS, REACH) are preserved or translated correctly according to industry standards.
+4. The output MUST BE a valid JSON array of strings in the same order as the input.
+5. CRITICAL: The resulting strings must be entirely in ${targetLabel}. DO NOT return any Chinese characters.
+6. LAYOUT & FORMATTING: 
    - Break long sentences into clear, concise paragraphs.
    - Use bullet points ( - ) for technical specifications or requirements to improve readability.
-   - Ensure the structure is professional and well-organized for a procurement document.
-6. Maintain the professional, formal tone suitable for a procurement specification.
+   - Maintain the professional, formal tone suitable for a procurement document.
 
 INPUT ARRAY:
 ${JSON.stringify(inputTexts)}`;
