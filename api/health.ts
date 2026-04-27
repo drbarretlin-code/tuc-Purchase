@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const envStatus = {
     QSTASH_TOKEN_CONFIGURED: !!process.env.QSTASH_TOKEN,
     QSTASH_URL_CONFIGURED: !!process.env.QSTASH_URL,
-    SERVER_GEMINI_API_KEY_CONFIGURED: !!process.env.SERVER_GEMINI_API_KEY,
+    VITE_GEMINI_API_KEY_CONFIGURED: !!process.env.VITE_GEMINI_API_KEY,
     SUPABASE_SERVICE_ROLE_KEY_CONFIGURED: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 
