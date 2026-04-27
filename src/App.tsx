@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
@@ -44,7 +44,54 @@ function App() {
 
     // V17.8: 動態網頁標題
     document.title = t('systemTitle', data.language);
+
+    // V28.1: 當語系變更時，自動同步表單中的 AI 建議事項
+    if (prevLangRef.current !== data.language) {
+      syncFormHintsLanguage(data.language);
+      prevLangRef.current = data.language;
+    }
   }, [data.language]);
+
+  const syncFormHintsLanguage = async (targetLang: Language) => {
+    const apiKeys = KP.getGeminiKeyPool();
+    if (!apiKeys || apiKeys.length === 0) return;
+
+    // 1. 收集所有 Hints 欄位
+    const hintFieldKeys = Object.keys(data).filter(k => k.endsWith('Hints')) as (keyof FormState)[];
+    
+    // 2. 收集所有非空的建議項目
+    const allHintsToTranslate: { field: keyof FormState; hints: any[] }[] = [];
+    hintFieldKeys.forEach(key => {
+      const hints = data[key] as any[];
+      if (Array.isArray(hints) && hints.length > 0) {
+        allHintsToTranslate.push({ field: key, hints });
+      }
+    });
+
+    if (allHintsToTranslate.length === 0) return;
+
+    setIsSyncingHints(true);
+    try {
+      // 3. 展平所有建議以進行批次轉譯
+      const flatHints = allHintsToTranslate.flatMap(item => item.hints);
+      const translatedFlat = await KP.translateHints(flatHints, targetLang, apiKeys);
+
+      // 4. 將轉譯後的建議重新分配回各個欄位
+      const nextData = { ...data };
+      let ptr = 0;
+      allHintsToTranslate.forEach(item => {
+        const count = item.hints.length;
+        (nextData as any)[item.field] = translatedFlat.slice(ptr, ptr + count);
+        ptr += count;
+      });
+
+      setData(nextData);
+    } catch (err) {
+      console.error('[SyncHints] 語系同步失敗:', err);
+    } finally {
+      setIsSyncingHints(false);
+    }
+  };
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
@@ -128,6 +175,8 @@ function App() {
   // V18.6: 雲端查閱器垂直調整器狀態 (V19.2: 預設調降高度以增加下方列表能見度)
   const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(420);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
+  const [isSyncingHints, setIsSyncingHints] = useState(false); // V28.1
+  const prevLangRef = useRef(data.language);
 
   useEffect(() => {
     const handleResize = () => {
@@ -1221,6 +1270,12 @@ function App() {
               <option value="en-US">🇺🇸 English</option>
               <option value="th-TH">🇹🇭 ภาษาไทย</option>
             </select>
+            {isSyncingHints && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', color: '#60A5FA', fontSize: '0.65rem', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', zIndex: 100 }}>
+                <Loader2 size={10} className="animate-spin" />
+                <span>Syncing Hints...</span>
+              </div>
+            )}
           </div>
 
 
