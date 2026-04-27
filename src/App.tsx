@@ -333,20 +333,20 @@ function App() {
     return `${f}:${hints.length}:${hints[0]?.id || ''}`;
   }).join('|') + `:${data.language}`;
 
-  // V27.10/V27.15: 當語系變更或導入新建議條文時，同步將目前畫面上已有的 AI 建議（hints）進行轉譯
+  // V28.10: 穩定轉譯監聽器 - 僅在語系或文件 ID 變更時觸發
+  // 避開依賴會隨內容變動的指紋，防止 setData 導致的 Effect 自我取消
   useEffect(() => {
     let isCancelled = false;
     let debounceTimer: any = null;
 
-    // V28.5: 繁體中文語系下執行「還原」邏輯，確保切換回中文時內容正確
+    // 繁體中文語系下執行「還原」邏輯
     if (data.language === 'zh-TW') {
-      const needsReversion = HINT_FIELDS.some(field => {
+      const hasTranslated = HINT_FIELDS.some(field => {
         const hints = (data as any)[field] || [];
-        return hints.some((h: any) => h.originalContent && h.content !== h.originalContent);
+        return hints.some((h: any) => h.translatedLang);
       });
 
-      if (needsReversion) {
-        console.log('[AI Translation] 切換回繁體中文，執行條文內容還原...');
+      if (hasTranslated) {
         const nextData = { ...data };
         HINT_FIELDS.forEach(field => {
           const hints = (data as any)[field] || [];
@@ -354,8 +354,8 @@ function App() {
             (nextData as any)[field] = hints.map((h: any) => ({
               ...h,
               content: h.originalContent || h.content,
-              translatedLang: undefined // V28.8: 還原後清除標記
-            })) as any;
+              translatedLang: undefined
+            }));
           }
         });
         setData(nextData);
@@ -363,78 +363,58 @@ function App() {
       return;
     }
 
-    // V27.28: 使用完整的金鑰池偵測，不再只檢查單一金鑰位
-    const apiKeys = KP.getGeminiKeyPool();
-    if (apiKeys.length === 0 || isSyncingHints) return;
-
-    // 檢查是否有任何 hint 需要翻譯
-    const fieldsWithHints = HINT_FIELDS.filter(field => (data as any)[field] && (data as any)[field].length > 0);
-    if (fieldsWithHints.length === 0) return;
-
-    const translateAllHints = async () => {
-      console.log(`[AI Translation] 啟動逐欄位轉譯程序 (${data.language})...`);
-      
+    const translatePendingFields = async () => {
       const apiPool = KP.getGeminiKeyPool();
-      if (apiPool.length === 0) return;
+      if (apiPool.length === 0 || isSyncingHints) return;
+
+      // 找出所有「有內容但語系不對」的欄位
+      const pendingFields = HINT_FIELDS.filter(field => {
+        const hints = (data as any)[field] || [];
+        return hints.length > 0 && hints[0].translatedLang !== data.language;
+      });
+
+      if (pendingFields.length === 0) return;
 
       setIsSyncingHints(true);
+      console.log(`[AI Translation] 偵測到 ${pendingFields.length} 個欄位待轉譯...`);
 
       try {
-        // V27.31: 改為逐一欄位處理，確保穩定性並降低 AI 報錯機率
-        for (const field of fieldsWithHints) {
+        const nextData = { ...data };
+        let hasChanges = false;
+
+        for (const field of pendingFields) {
+          if (isCancelled) break;
           const currentHints = (data as any)[field] || [];
-          if (currentHints.length === 0) continue;
-
-          // V28.8: 使用精確的 translatedLang 屬性進行跳過判斷
-          const firstHint = currentHints[0] as any;
-          if (firstHint.translatedLang === data.language) {
-            console.log(`[AI Translation] 欄位 ${field} 已是最新語系 (${data.language})，跳過。`);
-            continue;
-          }
-
-          // 標記該欄位正在轉譯
-          setData(prev => ({
-            ...prev,
-            searchStatus: { ...prev.searchStatus, [field]: 'translating' }
-          }));
-
-          console.log(`[AI Translation] 正在處理欄位: ${field} (${currentHints.length} 條)...`);
           
           try {
             const translated = await KP.translateHints(currentHints, data.language, apiPool);
-            
-            if (isCancelled) break;
-
-            setData(prev => ({
-              ...prev,
-              [field]: translated,
-              searchStatus: { ...prev.searchStatus, [field]: 'success' }
-            }));
-          } catch (innerErr) {
-            console.error(`[AI Translation] 欄位 ${field} 轉譯失敗:`, innerErr);
-            setData(prev => ({
-              ...prev,
-              searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
-            }));
+            (nextData as any)[field] = translated;
+            hasChanges = true;
+          } catch (err) {
+            console.error(`[AI Translation] 欄位 ${field} 失敗:`, err);
           }
         }
-      } catch (err) {
-        console.error('[AI Translation] 全局循環異常:', err);
+
+        if (!isCancelled && hasChanges) {
+          setData({
+            ...nextData,
+            searchStatus: { ...nextData.searchStatus, ...Object.fromEntries(pendingFields.map(f => [f, 'success'])) }
+          });
+        }
       } finally {
         if (!isCancelled) setIsSyncingHints(false);
       }
     };
 
-    // V27.31: 縮短延遲，讓使用者切換後能快速感知
     debounceTimer = setTimeout(() => {
-      if (!isCancelled && !isSyncingHints) translateAllHints();
-    }, 400);
+      if (!isCancelled) translatePendingFields();
+    }, 800);
 
     return () => { 
       isCancelled = true; 
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [data.language, hintsFingerprint]);
+  }, [data.language, data.docId, hintsFingerprint]); // V28.11: 重新加入穩定的 hintsFingerprint，確保新搜尋能觸發轉譯
 
   // V27.32: 強制轉譯單一欄位的函式 (供 SectionEditor 手動觸發)
   const forceTranslateField = async (field: string) => {
