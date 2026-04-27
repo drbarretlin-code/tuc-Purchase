@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { FormState } from './types/form';
+import type { FormState, AIHintSelection } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
