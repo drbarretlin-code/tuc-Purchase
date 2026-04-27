@@ -593,8 +593,8 @@ export const getHistorySuggestions = async (
   category: string, 
   eqKeywords: string[] = [], 
   reqKeywords: string[] = [],
-  thresholdHistory: number = 0.3,
-  thresholdReg: number = 0.1
+  thresholdHistory: number = 0.5,
+  thresholdReg: number = 0.5
 ): Promise<{ hints: AIHintSelection[], status: 'success' | 'no_key' | 'ai_error' | 'empty' }> => {
   const apiKey = import.meta.env.VITE_GEMINI_KEY || localStorage.getItem('tuc_gemini_key') || '';
   if (!apiKey) return { hints: [], status: 'no_key' };

@@ -44,54 +44,9 @@ function App() {
 
     // V17.8: 動態網頁標題
     document.title = t('systemTitle', data.language);
-
-    // V28.1: 當語系變更時，自動同步表單中的 AI 建議事項
-    if (prevLangRef.current !== data.language) {
-      syncFormHintsLanguage(data.language);
-      prevLangRef.current = data.language;
-    }
   }, [data.language]);
 
-  const syncFormHintsLanguage = async (targetLang: Language) => {
-    const apiKeys = KP.getGeminiKeyPool();
-    if (!apiKeys || apiKeys.length === 0) return;
 
-    // 1. 收集所有 Hints 欄位
-    const hintFieldKeys = Object.keys(data).filter(k => k.endsWith('Hints')) as (keyof FormState)[];
-    
-    // 2. 收集所有非空的建議項目
-    const allHintsToTranslate: { field: keyof FormState; hints: any[] }[] = [];
-    hintFieldKeys.forEach(key => {
-      const hints = data[key] as any[];
-      if (Array.isArray(hints) && hints.length > 0) {
-        allHintsToTranslate.push({ field: key, hints });
-      }
-    });
-
-    if (allHintsToTranslate.length === 0) return;
-
-    setIsSyncingHints(true);
-    try {
-      // 3. 展平所有建議以進行批次轉譯
-      const flatHints = allHintsToTranslate.flatMap(item => item.hints);
-      const translatedFlat = await KP.translateHints(flatHints, targetLang, apiKeys);
-
-      // 4. 將轉譯後的建議重新分配回各個欄位
-      const nextData = { ...data };
-      let ptr = 0;
-      allHintsToTranslate.forEach(item => {
-        const count = item.hints.length;
-        (nextData as any)[item.field] = translatedFlat.slice(ptr, ptr + count);
-        ptr += count;
-      });
-
-      setData(nextData);
-    } catch (err) {
-      console.error('[SyncHints] 語系同步失敗:', err);
-    } finally {
-      setIsSyncingHints(false);
-    }
-  };
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
@@ -176,7 +131,6 @@ function App() {
   const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(420);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
   const [isSyncingHints, setIsSyncingHints] = useState(false); // V28.1
-  const prevLangRef = useRef(data.language);
 
   useEffect(() => {
     const handleResize = () => {
@@ -353,40 +307,51 @@ function App() {
     }
   };
 
-  // V27.10: 當切換語系時，同步將目前畫面上已有的 AI 建議（hints）也進行轉譯
+  // V27.15: 定義所有需要 AI 轉譯的建議欄位清單 (用於 Deep Sync)
+  const HINT_FIELDS = [
+    'requirementDescHistoryHints', 'requirementDescRegHints',
+    'appearanceHistoryHints', 'appearanceRegHints',
+    'rangeHistoryHints', 'rangeRegHints',
+    'envAIHints', 'envHistoryHints', 'envRegHints',
+    'regAIHints', 'regHistoryHints', 'regRegHints',
+    'maintHistoryHints', 'maintRegHints',
+    'safetyAIHints', 'safetyHistoryHints', 'safetyRegHints',
+    'elecHistoryHints', 'elecRegHints',
+    'mechHistoryHints', 'mechRegHints',
+    'physHistoryHints', 'physRegHints',
+    'relyHistoryHints', 'relyRegHints',
+    'installAIHints', 'installHistoryHints', 'installRegHints',
+    'acceptanceAIHints', 'acceptanceHistoryHints', 'acceptanceRegHints',
+    'complianceAIHints', 'complianceHistoryHints', 'complianceRegHints'
+  ];
+
+  // V27.15: 產生 hints 的結構指紋，用於偵測何時需要觸發轉譯（例如從雲端導入資料後）
+  const hintsFingerprint = HINT_FIELDS.map(f => {
+    const hints = (data as any)[f] || [];
+    return `${f}:${hints.length}:${hints[0]?.id || ''}`;
+  }).join('|');
+
+  // V27.10/V27.15: 當語系變更或導入新建議條文時，同步將目前畫面上已有的 AI 建議（hints）進行轉譯
   useEffect(() => {
     let isCancelled = false;
 
-    const hintFields = [
-      'requirementDescHistoryHints', 'requirementDescRegHints',
-      'appearanceHistoryHints', 'appearanceRegHints',
-      'rangeHistoryHints', 'rangeRegHints',
-      'envAIHints', 'envHistoryHints', 'envRegHints',
-      'regAIHints', 'regHistoryHints', 'regRegHints',
-      'maintHistoryHints', 'maintRegHints',
-      'safetyAIHints', 'safetyHistoryHints', 'safetyRegHints',
-      'elecHistoryHints', 'elecRegHints',
-      'mechHistoryHints', 'mechRegHints',
-      'physHistoryHints', 'physRegHints',
-      'relyHistoryHints', 'relyRegHints',
-      'installAIHints', 'installHistoryHints', 'installRegHints',
-      'acceptanceAIHints', 'acceptanceHistoryHints', 'acceptanceRegHints',
-      'complianceAIHints', 'complianceHistoryHints', 'complianceRegHints'
-    ];
+    // 繁體中文語系下不需要轉譯 (歷史建議多為繁體中文)
+    if (data.language === 'zh-TW') return;
 
     const apiKey = localStorage.getItem('tuc_gemini_key') || '';
     if (!apiKey) return;
 
     // 檢查是否有任何 hint 需要翻譯
-    const fieldsWithHints = hintFields.filter(field => (data as any)[field] && (data as any)[field].length > 0);
+    const fieldsWithHints = HINT_FIELDS.filter(field => (data as any)[field] && (data as any)[field].length > 0);
     if (fieldsWithHints.length === 0) return;
 
     const translateAllHints = async () => {
-      console.log(`[AI Translation] 語系變更為 ${data.language}，啟動現有建議條文同步轉譯...`);
+      console.log(`[AI Translation] 偵測到建議條文異動或語系切換 (${data.language})，啟動批量轉譯...`);
       
       const apiKeys = KP.getGeminiKeyPool();
       if (apiKeys.length === 0) return;
 
+      setIsSyncingHints(true);
       // 1. 先將所有相關欄位設為 translating 狀態
       setData(prev => {
         const newStatus = { ...prev.searchStatus };
@@ -438,13 +403,16 @@ function App() {
           fieldsWithHints.forEach(f => { nextStatus[f] = 'ai_error'; });
           return { ...prev, searchStatus: nextStatus };
         });
+      } finally {
+        if (!isCancelled) setIsSyncingHints(false);
       }
     };
 
     translateAllHints();
 
     return () => { isCancelled = true; };
-  }, [data.language]);
+  }, [data.language, hintsFingerprint]);
+
 
 
   const handleCheckHealth = async () => {
