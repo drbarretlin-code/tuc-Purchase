@@ -19,14 +19,20 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
   const [translatedDocs, setTranslatedDocs] = useState<any[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<any>(null);
 
   useEffect(() => {
     if (documents.length > 0 && language !== 'zh-TW') {
-      translateList();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const timer = setTimeout(() => {
+        translateList();
+      }, 500); // V27.21: 增加 Debounce 避免輸入時頻繁觸發 AI
+      setDebounceTimer(timer);
     } else {
       setTranslatedDocs(documents);
     }
-  }, [documents, language, searchQuery]); // 當搜尋關鍵字變更時，重新觸發翻譯邏輯
+    return () => { if (debounceTimer) clearTimeout(debounceTimer); };
+  }, [documents, language, searchQuery]); 
 
   const translateList = async () => {
     const apiKey = localStorage.getItem('tuc_gemini_key') || '';
@@ -34,16 +40,23 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     
     setIsTranslating(true);
     try {
-      // V17.5: 動態過濾翻譯 - 優先翻譯搜尋結果
+      // V27.21: 修正翻譯過濾邏輯 - 先比對原始設備名稱
       const currentFiltered = documents.filter(d => 
-        d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase())
+        d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (d.fileName || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
       
-      // 僅翻譯當前可見或搜尋到的前 30 筆，避免消耗過多 Token 與 API 逾時
-      const itemsToTranslate = currentFiltered.slice(0, 30).map(d => ({
+      let itemsToTranslate = currentFiltered.slice(0, 30).map(d => ({
         id: d.docId,
         name: d.equipmentName
       }));
+
+      if (itemsToTranslate.length === 0 && documents.length > 0) {
+        itemsToTranslate = documents.slice(0, 30).map(d => ({
+          id: d.docId,
+          name: d.equipmentName
+        }));
+      }
 
       if (itemsToTranslate.length === 0) {
         setIsTranslating(false);
@@ -146,6 +159,8 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         }));
 
       setDocuments(mappedDocs);
+      // V27.21: 立即初始化 translatedDocs 避免畫面被 Loader 鎖死
+      setTranslatedDocs(mappedDocs);
     } catch (err) {
       console.error('Fetch docs failed:', err);
     } finally {
@@ -178,8 +193,11 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
     }
   };
 
-  const filteredDocs = (language === 'zh-TW' ? documents : translatedDocs).filter(d => 
-    d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase())
+  // V27.21: 支援雙語搜尋 (同時比對翻譯後名稱與原始檔案名稱/請求者)
+  const filteredDocs = (language === 'zh-TW' ? documents : (translatedDocs.length > 0 ? translatedDocs : documents)).filter(d => 
+    d.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (d.fileName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (d.requester || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (!isOpen) return null;
@@ -211,10 +229,10 @@ export const DatabaseImportModal: React.FC<DatabaseImportModalProps> = ({ isOpen
         </div>
 
         <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
-          {loading || (isTranslating && translatedDocs.length === 0) ? (
+          {loading ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <Loader2 className="animate-spin" style={{ margin: '0 auto 12px' }} />
-              {isTranslating ? t('aiTranslatingContent', language) : t('loadingCloud', language)}
+              {t('loadingCloud', language)}
             </div>
           ) : filteredDocs.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
