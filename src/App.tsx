@@ -377,7 +377,7 @@ function App() {
           
           // 重要：使用函數式更新來讀取與寫入，確保不覆蓋其他狀態
           let fieldHints: AIHintSelection[] = [];
-          let currentLang = '';
+          let currentLang: Language = 'zh-TW';
           
           setData(prev => {
             fieldHints = (prev as any)[field] || [];
@@ -408,7 +408,7 @@ function App() {
           }
         }
       } finally {
-        if (!isCancelled) setIsSyncingHints(false);
+        setIsSyncingHints(false);
       }
     };
 

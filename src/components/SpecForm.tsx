@@ -390,16 +390,22 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false, onFo
 
       // 4. One API call to translate everything back to UI language
       if (allHintsToTranslate.length > 0 && apiKeys) {
-        const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
-        
-        // --- 中斷點 4: 翻譯條文完成後 ---
-        if (abortedRef.current) return;
+        try {
+          const translatedAll = await KP.translateHints(allHintsToTranslate, data.language, apiKeys);
+          
+          // --- 中斷點 4: 翻譯條文完成後 ---
+          if (abortedRef.current) return;
 
-        let ptr = 0;
-        allResults.forEach(r => {
-          r.res.hints = translatedAll.slice(ptr, ptr + r.res.hints.length);
-          ptr += r.res.hints.length;
-        });
+          let ptr = 0;
+          allResults.forEach(r => {
+            r.res.hints = translatedAll.slice(ptr, ptr + r.res.hints.length);
+            ptr += r.res.hints.length;
+          });
+        } catch (transErr) {
+          console.error('[AI Translation] Batch translation failed:', transErr);
+          // V28.12: 轉譯失敗時，將該次搜尋的所有欄位狀態標記為 ai_error，而非 success
+          allResults.forEach(r => { r.res.status = 'ai_error'; });
+        }
       }
 
       // 5. Commit to state (只在未中斷時執行)

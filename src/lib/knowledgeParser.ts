@@ -871,65 +871,60 @@ GUIDELINES:
    - Break long sentences into clear, concise paragraphs.
    - Use bullet points ( - ) for technical specifications or requirements to improve readability.
    - Maintain the professional, formal tone suitable for a procurement document.
+   - If a string is already in ${targetLabel}, do not change it.
 
 INPUT ARRAY:
 ${JSON.stringify(inputTexts)}`;
 
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.8,
-        topK: 40,
-        // V27.27: 移除強制 JSON 模式以提升舊模型相容性，改由 Prompt 與提取器確保結果
-      }
-    });
-    
-    const text = result.response.text();
-    if (!text) throw new Error('AI returned empty translation');
-
-    console.log(`[AI Translation] 接收到回應 (${text.length} 字)。輸入條數: ${hints.length}`);
-
-    // V27.26: 強化 JSON 提取器
-    let cleanJson = text;
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      cleanJson = jsonMatch[0];
-    } else {
-      cleanJson = text.replace(/```json|```/g, '').trim();
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.8,
+      topK: 40,
     }
-    
-    let translatedTexts;
-    try {
-      translatedTexts = JSON.parse(cleanJson);
-    } catch (parseErr) {
-      console.error('[AI Translation] JSON 解析失敗。內容:', cleanJson.substring(0, 100));
-      throw parseErr;
-    }
+  });
+  
+  const text = result.response.text();
+  if (!text) throw new Error('AI returned empty translation');
 
-    if (!Array.isArray(translatedTexts)) {
-      throw new Error('AI did not return a JSON array');
-    }
+  console.log(`[AI Translation] 接收到回應 (${text.length} 字)。輸入條數: ${hints.length}`);
 
-    const updatedHints = JSON.parse(JSON.stringify(hints));
-
-    updatedHints.forEach((h: AIHintSelection, idx: number) => {
-      if (!h.originalContent) {
-        h.originalContent = hints[idx].content;
-      }
-      
-      if (translatedTexts[idx]) {
-        h.content = translatedTexts[idx].trim();
-        h.translatedLang = targetLang; // V28.8: 標記已翻譯語系
-      }
-    });
-
-    return updatedHints;
-  } catch (err) {
-    console.error('[AI Translation Error]:', err);
-    return hints; // 失敗時保留原文
+  // V27.26: 強化 JSON 提取器
+  let cleanJson = text;
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (jsonMatch) {
+    cleanJson = jsonMatch[0];
+  } else {
+    cleanJson = text.replace(/```json|```/g, '').trim();
   }
+  
+  let translatedTexts;
+  try {
+    translatedTexts = JSON.parse(cleanJson);
+  } catch (parseErr) {
+    console.error('[AI Translation] JSON 解析失敗。內容:', cleanJson.substring(0, 100));
+    throw new Error(`AI 翻譯格式解析失敗: ${parseErr instanceof Error ? parseErr.message : 'Unknown'}`);
+  }
+
+  if (!Array.isArray(translatedTexts)) {
+    throw new Error('AI did not return a JSON array');
+  }
+
+  const updatedHints = JSON.parse(JSON.stringify(hints));
+
+  updatedHints.forEach((h: AIHintSelection, idx: number) => {
+    if (!h.originalContent) {
+      h.originalContent = hints[idx].content;
+    }
+    
+    if (translatedTexts[idx]) {
+      h.content = translatedTexts[idx].trim();
+      h.translatedLang = targetLang; // V28.8: 標記已翻譯語系
+    }
+  });
+
+  return updatedHints;
 }
 
 /**
