@@ -71,11 +71,12 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   let globalFallback: { modelId: string; apiKey: string } | null = null;
 
   const priorityList = [
-    'gemini-2.0-flash-exp',
+    'gemini-3-flash',
+    'gemini-2.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3-pro',
+    'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro-latest',
-    'gemini-flash-latest',
   ];
 
   for (let i = 0; i < keys.length; i++) {
@@ -124,13 +125,20 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
           continue;
         }
 
-        // 若為 API Key 根本性錯誤 (400/401/Invalid)，直接跳過此 Key
-        if (errMsg.includes('API key expired') || errMsg.includes('API_KEY_INVALID') || status === 401 || status === 400 || errMsg.includes('not found')) {
+        // V28: 精確判定錯誤類型
+        const isKeyError = 
+          status === 401 || 
+          errMsg.includes('API key expired') || 
+          errMsg.includes('API_KEY_INVALID') ||
+          (status === 400 && (errMsg.includes('API key') || errMsg.includes('key is not valid')));
+
+        if (isKeyError) {
           console.warn(`[AI Discovery] 金鑰索引 ${i} 已失效，跳過該金鑰並嘗試下一把。`);
           break;
         }
 
-        // 其他錯誤 (404 模型不存在等)，繼續嘗試下一個模型
+        // 其他錯誤 (404 模型不存在、400 格式錯誤等)，視為該模型不支援，繼續嘗試下一個模型
+        console.warn(`[AI Discovery] 模型 ${mId} 偵測失敗 (${status || 'unknown'})，繼續嘗試下一個模型...`);
         continue;
       }
     }
