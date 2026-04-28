@@ -2073,6 +2073,7 @@ function App() {
                         }}
                       >
                         {isResetting ? <Loader2 size={14} className="spin" /> : <Repeat size={14} />}
+                        {selectedFileIds.length > 0 
                           ? `${t('resetAndReparseSelected', data.language)} (${selectedFileIds.length})` 
                           : t('resetAndReparseAll', data.language)}
                       </button>
