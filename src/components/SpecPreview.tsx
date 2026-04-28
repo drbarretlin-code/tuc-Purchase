@@ -35,18 +35,29 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
       if (data.language === 'th-TH') {
         const zhText = t(val, 'zh-TW');
         const processedZh = isAutoNumber ? processAutoNumbering(zhText) : zhText;
+        
+        // V28.x: 實作逐條對照邏輯 (按行分割並交叉顯示)
+        const mainLines = processedMain.split('\n');
+        const zhLines = processedZh.split('\n');
+        
         return (
-          <>
-            <span>{processedMain}</span>
-            <div style={{ color: '#666', fontSize: '0.9em', marginTop: '4px', paddingLeft: '8px', borderLeft: '2px solid #ddd' }}>
-              {processedZh}
-            </div>
-          </>
+          <div className="bilingual-block">
+            {mainLines.map((line: string, i: number) => (
+              <div key={i} style={{ marginBottom: '6px' }}>
+                <div style={{ fontWeight: 500 }}>{line}</div>
+                {zhLines[i] && (
+                  <div style={{ color: '#666', fontSize: '0.9em', marginTop: '2px', paddingLeft: '8px', borderLeft: '2px solid #ddd' }}>
+                    {zhLines[i]}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         );
       }
-      return processedMain;
+      return <div style={{ whiteSpace: 'pre-wrap' }}>{processedMain}</div>;
     }
-    return isAutoNumber ? processAutoNumbering(val) : val;
+    return <div style={{ whiteSpace: 'pre-wrap' }}>{isAutoNumber ? processAutoNumbering(val) : val}</div>;
   };
 
   const renderBilingualLabel = (key: string) => {
@@ -126,35 +137,44 @@ const PaperContent: React.FC<PaperProps> = ({ data, totalPages, previewRef, id }
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection6')}</h4>
         <div style={{ marginLeft: '1.2rem' }}>
-          <div style={{ marginBottom: '4px', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_1')}</strong> {renderBilingualText(data.envRequirements)}</div>
-          <div style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_2')}</strong> {renderBilingualText(data.regRequirements)}</div>
-          <div style={{ whiteSpace: 'pre-wrap' }}><strong>{renderBilingualLabel('docSub6_3')}</strong> {renderBilingualText(data.maintRequirements)}</div>
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{renderBilingualLabel('docSub6_1')}</div>
+            {renderBilingualText(data.envRequirements)}
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{renderBilingualLabel('docSub6_2')}</div>
+            {renderBilingualText(data.regRequirements)}
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{renderBilingualLabel('docSub6_3')}</div>
+            {renderBilingualText(data.maintRequirements)}
+          </div>
         </div>
       </div>
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection7')}</h4>
-        <div style={{ marginLeft: '1.2rem', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.safetyRequirements)}</div>
+        <div style={{ marginLeft: '1.2rem', marginTop: '8px' }}>{renderBilingualText(data.safetyRequirements)}</div>
       </div>
 
       <div className="doc-section">
         <h4 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '2px' }}>{renderBilingualLabel('docSection8')}</h4>
-        <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', marginTop: '4px' }}>
-          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_1')}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.elecSpecs)}</div>
+        <div style={{ marginLeft: '1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem 1.5rem', marginTop: '8px' }}>
+          <div style={{ border: '1px solid #ddd', padding: '6px 10px' }}>
+            <div style={{ color: '#666', fontSize: '9pt', borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px', fontWeight: 'bold' }}>{renderBilingualLabel('docSub8_1')}</div>
+            {renderBilingualText(data.elecSpecs)}
           </div>
-          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_2')}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.mechSpecs)}</div>
+          <div style={{ border: '1px solid #ddd', padding: '6px 10px' }}>
+            <div style={{ color: '#666', fontSize: '9pt', borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px', fontWeight: 'bold' }}>{renderBilingualLabel('docSub8_2')}</div>
+            {renderBilingualText(data.mechSpecs)}
           </div>
-          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_3')}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.physSpecs)}</div>
+          <div style={{ border: '1px solid #ddd', padding: '6px 10px' }}>
+            <div style={{ color: '#666', fontSize: '9pt', borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px', fontWeight: 'bold' }}>{renderBilingualLabel('docSub8_3')}</div>
+            {renderBilingualText(data.physSpecs)}
           </div>
-          <div style={{ border: '1px solid #ddd', padding: '4px 8px' }}>
-            <span style={{ color: '#666', fontSize: '9pt' }}>{renderBilingualLabel('docSub8_4')}</span>
-            <div style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{renderBilingualText(data.relySpecs)}</div>
+          <div style={{ border: '1px solid #ddd', padding: '6px 10px' }}>
+            <div style={{ color: '#666', fontSize: '9pt', borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px', fontWeight: 'bold' }}>{renderBilingualLabel('docSub8_4')}</div>
+            {renderBilingualText(data.relySpecs)}
           </div>
         </div>
       </div>

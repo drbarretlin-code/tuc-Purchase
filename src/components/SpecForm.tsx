@@ -463,15 +463,22 @@ const SpecForm: React.FC<Props> = ({ data, onChange, isSyncBlocked = false }) =>
     const originalDefaultKey = (INITIAL_FORM_STATE[contentField] as string) || '';
     // 判斷欄位目前是否仍為 i18n default key（以 'default' 開頭）
     const isDefaultKey = nextContent.startsWith('default');
-    // V28.x: 取得預設文字的完整展開內容（以 zh-TW 為基準，與語系無關），作為 baseContent
-    // 確保勾選引用條文時，預設文字被保留並置於引用條文之前
-    const expandedDefaultText = isDefaultKey ? t(nextContent, 'zh-TW') : '';
+    
+    // V28.x: 取得預設文字的完整展開內容
+    // 若為泰文語系，展開內容需包含泰文與中文對照，確保預設泰文不遺失
+    let expandedDefaultText = '';
+    if (isDefaultKey) {
+      if (data.language === 'th-TH') {
+        expandedDefaultText = t(nextContent, 'th-TH') + '\n' + t(nextContent, 'zh-TW');
+      } else {
+        expandedDefaultText = t(nextContent, data.language);
+      }
+    }
 
     if (newSelected) {
       // 若目前為預設 key，以展開後的預設文字為起始底稿，再附加引用條文
-      // 若已是純文字，直接於尾端附加
       const baseContent = isDefaultKey ? expandedDefaultText.trimEnd() : nextContent.trimEnd();
-      const separator = baseContent ? '\n' : '';
+      const separator = baseContent ? '\n\n' : ''; // 使用雙換行區隔預設內容與引用內容
       nextContent = baseContent + separator + hintText;
     } else {
       // 取消勾選：僅移除 hintText，保留其餘內容
