@@ -16,6 +16,8 @@ export function invalidateCachedModel() {
   if (cachedModelId) {
     console.warn(`[AI Discovery] 快取模型 ${cachedModelId} 已因限流/過載失效，下次將重新偵測。`);
     cachedModelId = null;
+    // V28.x: 同步清除 sessionStorage 快取
+    try { sessionStorage.removeItem('tuc_model_cache'); } catch {}
   }
 }
 const safetySettings = [
@@ -67,6 +69,20 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   const activeKey = localStorage.getItem('tuc_gemini_key') || (Array.isArray(apiKeys) ? apiKeys[0] : apiKeys);
   if (cachedModelId && activeKey) return { modelId: cachedModelId, apiKey: activeKey };
 
+  // V28.x: sessionStorage TTL 快取（30 分鐘），跨頁面重整保留探針結果
+  const _MODEL_TTL = 30 * 60 * 1000;
+  try {
+    const _raw = sessionStorage.getItem('tuc_model_cache');
+    if (_raw) {
+      const { modelId: _mId, apiKey: _aKey, ts } = JSON.parse(_raw);
+      if (_mId && _aKey && Date.now() - ts < _MODEL_TTL) {
+        cachedModelId = _mId;
+        console.log(`[AI Discovery] 命中 sessionStorage 快取：${_mId}，剩餘 TTL ${Math.round((_MODEL_TTL - (Date.now() - ts)) / 60000)} 分鐘。`);
+        return { modelId: _mId, apiKey: _aKey };
+      }
+    }
+  } catch {}
+
   // 用於紀錄偵測到的最佳「非 100% 可用」模型，作為最後的防線
   let globalFallback: { modelId: string; apiKey: string } | null = null;
 
@@ -102,6 +118,8 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
         // 若成功，立即鎖定並返回
         cachedModelId = mId;
         localStorage.setItem('tuc_gemini_key', currentKey);
+        // V28.x: 寫入 sessionStorage 快取
+        try { sessionStorage.setItem('tuc_model_cache', JSON.stringify({ modelId: mId, apiKey: currentKey, ts: Date.now() })); } catch {}
         console.log(`[AI Discovery] 試驗成功！鎖定可用模型 ${mId} (金鑰索引: ${i})。`);
         return { modelId: mId, apiKey: currentKey };
 
@@ -552,6 +570,19 @@ export const translateSearchQueries = async (eqK: string, reqK: string, apiKey: 
   if (searchVariantCache && searchVariantCache.eqKey === eqK && searchVariantCache.reqKey === reqK) {
     return searchVariantCache.variants;
   }
+  // V28.x: sessionStorage 快取（60 分鐘）
+  const _SEARCH_TTL = 60 * 60 * 1000;
+  try {
+    const _raw = sessionStorage.getItem('tuc_search_variants');
+    if (_raw) {
+      const { eqKey: cEq, reqKey: cReq, variants, ts } = JSON.parse(_raw);
+      if (cEq === eqK && cReq === reqK && Date.now() - ts < _SEARCH_TTL) {
+        searchVariantCache = { eqKey: eqK, reqKey: reqK, variants };
+        console.log('[Search Cache] 命中 sessionStorage 快取，跳過翻譯 API 呼叫。');
+        return variants;
+      }
+    }
+  } catch {}
   
   try {
     const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
@@ -579,6 +610,8 @@ Term 2 (req): ${reqK || ' '}
     if (!parsed.reqVariants.includes(reqK)) parsed.reqVariants.push(reqK);
     
     searchVariantCache = { eqKey: eqK, reqKey: reqK, variants: parsed };
+    // V28.x: 同步寫入 sessionStorage
+    try { sessionStorage.setItem('tuc_search_variants', JSON.stringify({ eqKey: eqK, reqKey: reqK, variants: parsed, ts: Date.now() })); } catch {}
     return parsed;
   } catch (err) {
     console.warn('Search query translation failed, using original.', err);
@@ -849,7 +882,22 @@ export async function translateHints(
 ): Promise<AIHintSelection[]> {
   if (hints.length === 0) return hints;
 
-  // V27.29: 取得驗證過的可用金鑰與模型
+  // zh-TW 為系統原生語系，無需翻譯
+  if (targetLang === 'zh-TW') return hints;
+
+  // V28.x: 過濾出尚未翻譯至目標語系的子集，避免重複呼叫 API
+  const needsTranslation = hints.filter(h => h.translatedLang !== targetLang);
+
+  if (needsTranslation.length === 0) {
+    console.log(`[AI Translation] 全部 ${hints.length} 條已為目標語系 (${targetLang})，跳過 API 呼叫。`);
+    return hints;
+  }
+
+  if (needsTranslation.length < hints.length) {
+    console.log(`[AI Translation] ${hints.length - needsTranslation.length} 條命中語系快取，僅翻譯剩餘 ${needsTranslation.length} 條。`);
+  }
+
+  // V27.29: 取得驗證過的可用金鑰與模型（此時才發起探針，減少不必要的 API 呼叫）
   const { modelId, apiKey: workingKey } = await getAutoSelectedModel(apiKey);
   const genAI = new GoogleGenerativeAI(workingKey);
   const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
@@ -859,12 +907,9 @@ export async function translateHints(
     'en-US': 'English',
     'th-TH': 'Thai (ภาษาไทย)'
   };
-
   const targetLabel = langMap[targetLang] || targetLang;
 
-  if (targetLang === 'zh-TW') return hints;
-
-  const inputTexts = hints.map(h => h.content);
+  const inputTexts = needsTranslation.map(h => h.content);
 
   const prompt = `You are an expert technical translator specializing in industrial procurement specifications.
 Translate the following array of technical requirement strings into ${targetLabel}.
@@ -886,17 +931,13 @@ ${JSON.stringify(inputTexts)}`;
 
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.1,
-      topP: 0.8,
-      topK: 40,
-    }
+    generationConfig: { temperature: 0.1, topP: 0.8, topK: 40 }
   });
-  
+
   const text = result.response.text();
   if (!text) throw new Error('AI returned empty translation');
 
-  console.log(`[AI Translation] 接收到回應 (${text.length} 字)。輸入條數: ${hints.length}`);
+  console.log(`[AI Translation] 接收到回應 (${text.length} 字)。本次翻譯條數: ${needsTranslation.length}`);
 
   // V27.26: 強化 JSON 提取器
   let cleanJson = text;
@@ -906,7 +947,7 @@ ${JSON.stringify(inputTexts)}`;
   } else {
     cleanJson = text.replace(/```json|```/g, '').trim();
   }
-  
+
   let translatedTexts;
   try {
     translatedTexts = JSON.parse(cleanJson);
@@ -919,20 +960,19 @@ ${JSON.stringify(inputTexts)}`;
     throw new Error('AI did not return a JSON array');
   }
 
-  const updatedHints = JSON.parse(JSON.stringify(hints));
-
-  updatedHints.forEach((h: AIHintSelection, idx: number) => {
-    if (!h.originalContent) {
-      h.originalContent = hints[idx].content;
-    }
-    
+  // 更新需要翻譯的子集
+  const translatedSubset: AIHintSelection[] = JSON.parse(JSON.stringify(needsTranslation));
+  translatedSubset.forEach((h, idx) => {
+    if (!h.originalContent) h.originalContent = needsTranslation[idx].content;
     if (translatedTexts[idx]) {
       h.content = translatedTexts[idx].trim();
-      h.translatedLang = targetLang; // V28.8: 標記已翻譯語系
+      h.translatedLang = targetLang;
     }
   });
 
-  return updatedHints;
+  // V28.x: 按原始順序合併（已翻譯的保持不動，未翻譯的替換為新版）
+  const translatedMap = new Map(translatedSubset.map(h => [h.id, h]));
+  return hints.map(h => (translatedMap.has(h.id) ? translatedMap.get(h.id)! : h));
 }
 
 /**
