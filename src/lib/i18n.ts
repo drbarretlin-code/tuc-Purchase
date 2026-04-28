@@ -1649,6 +1649,7 @@ If you have any suggestions or concerns regarding the process, please reply to t
     'newPwdPlaceholder': 'รหัสผ่านใหม่...',
     'pwdPlaceholder': 'ป้อนรหัสผ่าน...',
     'saveNewPwd': 'บันทึกรหัสผ่านใหม่',
+    'viewDiagnostic': 'การวินิจฉัยระบบ',
 
     // Static AI Hints
     'hintEnvTitle': 'คำแนะนำด้านสิ่งแวดล้อมและประสิทธิภาพพลังงาน',

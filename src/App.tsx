@@ -1242,11 +1242,8 @@ function App() {
     if (f.parse_status === 'processing' || (f.parse_status && f.parse_status.startsWith('processing:'))) return 'processing';
     if (f.parse_status === 'pending') return 'pending';
     
-    // 具備解析標記且知識條目 > 0 才視為成功
-    if (f.is_parsed && (f.knowledgeCount > 0)) return 'parsed';
-    
-    // 若標記為已解析但條目為 0，視為待處理(幽靈狀態)
-    if (f.is_parsed && f.knowledgeCount === 0) return 'pending';
+    // V28.x: 只要具備解析標記即視為成功 (即使條目為 0 亦視為完成，避免計數混淆)
+    if (f.is_parsed) return 'parsed';
     
     return 'unparsed';
   };
@@ -1668,7 +1665,7 @@ function App() {
                   }}
                 >
                   {isCheckingHealth ? <Loader2 size={16} className="spin" /> : <Info size={16} />}
-                  <span className="header-btn-text">系統診斷</span>
+                  <span className="header-btn-text">{t('viewDiagnostic', data.language)}</span>
                 </button>
                 <button onClick={() => setIsReparseMinimized(true)} className="icon-btn" title={t('minimizeToBg', data.language)}>
                   <Minimize2 size={20} />
