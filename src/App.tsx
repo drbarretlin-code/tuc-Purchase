@@ -197,9 +197,9 @@ function App() {
         const apiKeys = KP.getGeminiKeyPool();
         if (apiKeys.length > 0) {
            KP.getAutoSelectedModel(apiKeys)
-             .then((mId: string) => {
-                console.log('[AI Discovery] 偵測完成，得到型號:', mId);
-                if (mId) setCurrentAIModel(mId);
+             .then(({ modelId }) => {
+                console.log('[AI Discovery] 偵測完成，得到型號:', modelId);
+                if (modelId) setCurrentAIModel(modelId);
              })
              .catch(err => {
                 console.error('[AI Discovery] 偵測失敗:', err);
