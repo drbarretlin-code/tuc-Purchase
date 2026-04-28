@@ -162,7 +162,47 @@ function App() {
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [storageSize, setStorageSize] = useState(0);
   const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
+  const [apiUsage, setApiUsage] = useState({ rpd: 0, rpm: 0 });
   const [currentAIModel, setCurrentAIModel] = useState(KP.getCachedModelId() || '偵測中...');
+
+  // V28.x: 輕量級背景輪詢 API 用量 (每 10 秒)
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const fetchApiUsage = async () => {
+      if (!supabase) return;
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { data } = await supabase
+          .from('tuc_usage_stats')
+          .select('gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update')
+          .eq('stat_date', todayStr)
+          .maybeSingle();
+
+        if (data) {
+          let currentRpm = data.gemini_rpm_current || 0;
+          if (data.gemini_rpm_last_update) {
+            const lastUpdate = new Date(data.gemini_rpm_last_update);
+            const now = new Date();
+            if (
+              lastUpdate.getUTCFullYear() !== now.getUTCFullYear() ||
+              lastUpdate.getUTCMonth() !== now.getUTCMonth() ||
+              lastUpdate.getUTCDate() !== now.getUTCDate() ||
+              lastUpdate.getUTCHours() !== now.getUTCHours() ||
+              lastUpdate.getUTCMinutes() !== now.getUTCMinutes()
+            ) {
+              currentRpm = 0;
+            }
+          }
+          setApiUsage({ rpd: data.gemini_rpd_today || 0, rpm: currentRpm });
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchApiUsage();
+    interval = setInterval(fetchApiUsage, 10000);
+    return () => clearInterval(interval);
+  }, [supabase]);
   const [healthTab, setHealthTab] = useState<'current' | 'paid'>('current');
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);
@@ -1284,6 +1324,49 @@ function App() {
           </button>
         </nav>
       </header>
+
+      {/* V28.x API 用量監控狀態列 */}
+      {(() => {
+        const apiKeys = KP.getGeminiKeyPool();
+        const keyCount = Math.max(1, apiKeys.length);
+        const maxRpd = keyCount * 1500;
+        const maxRpm = keyCount * 15;
+        const rpdPercent = apiUsage.rpd / maxRpd;
+        const rpmPercent = apiUsage.rpm / maxRpm;
+        const isWarning = rpdPercent >= 0.9 || rpmPercent >= 0.9;
+        
+        return (
+          <div style={{
+            background: isWarning ? 'linear-gradient(90deg, #EF4444 0%, #F97316 100%)' : 'var(--bg-secondary)',
+            color: isWarning ? 'white' : 'var(--text-color)',
+            padding: '4px 16px',
+            fontSize: '0.75rem',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '16px',
+            borderBottom: isWarning ? 'none' : '1px solid var(--border-color)',
+            transition: 'all 0.3s ease',
+            fontWeight: isWarning ? 'bold' : 'normal',
+            zIndex: 40
+          }}>
+            {isWarning && <span>⚠️ API 額度即將耗盡！系統將持續運作至完全用盡為止。</span>}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ opacity: 0.8 }}>RPM (每分鐘):</span> 
+              <span style={{ color: isWarning ? 'white' : (rpmPercent > 0.7 ? '#F59E0B' : '#10B981') }}>
+                {apiUsage.rpm} / {maxRpm}
+              </span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ opacity: 0.8 }}>RPD (今日):</span> 
+              <span style={{ color: isWarning ? 'white' : (rpdPercent > 0.7 ? '#F59E0B' : '#3B82F6') }}>
+                {apiUsage.rpd} / {maxRpd}
+              </span>
+            </span>
+            <span style={{ opacity: 0.6 }}>(金鑰池: {keyCount} 把)</span>
+          </div>
+        );
+      })()}
 
       <main className="main-grid" style={{
         gridTemplateColumns: isMobile ? '100%' : `${splitPercentage}% 6px 1fr`,

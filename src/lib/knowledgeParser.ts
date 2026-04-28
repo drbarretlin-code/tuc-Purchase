@@ -44,6 +44,14 @@ export class DiagnosticError extends Error {
   }
 }
 
+export function trackGeminiUsage() {
+  if (supabase) {
+    supabase.rpc('increment_gemini_usage').catch((err: any) => {
+      console.warn('[Usage Tracker] Failed to track API usage:', err.message);
+    });
+  }
+}
+
 /**
  * V27: 瀑布式金鑰輪替輔助函式
  * 整合 localStorage 中的金鑰池與目前活動金鑰
@@ -107,6 +115,7 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
         const model = genAI.getGenerativeModel({ model: mId, safetySettings });
 
         // 探針測試：嘗試生成 1 個 Token
+        trackGeminiUsage();
         await Promise.race([
           model.generateContent({
             contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
@@ -348,6 +357,7 @@ export const processFileToKnowledge = async (file: File, apiKey?: string, equipm
       contents[0].parts.push({ inlineData });
     }
 
+    trackGeminiUsage();
     const result = await model.generateContent({
       contents,
       generationConfig: {
@@ -597,6 +607,7 @@ Term 1 (eq): ${eqK || ' '}
 Term 2 (req): ${reqK || ' '}
     `;
 
+    trackGeminiUsage();
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.1 }
@@ -729,6 +740,7 @@ export const syncFormDataToKnowledge = async (data: any, apiKey?: string | strin
   try {
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
+    trackGeminiUsage();
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
@@ -833,6 +845,7 @@ export const assembleJsonFromExistingEntries = async (docId: string, apiKey?: st
     const genAI = new GoogleGenerativeAI(workingKey);
     const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
 
+    trackGeminiUsage();
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
@@ -929,6 +942,7 @@ GUIDELINES:
 INPUT ARRAY:
 ${JSON.stringify(inputTexts)}`;
 
+  trackGeminiUsage();
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.1, topP: 0.8, topK: 40 }
@@ -1013,6 +1027,7 @@ export async function translateCloudMetadata(
   Return format: [{"idx": number, "name": "translated title", "tags": ["translated tag"]}]`;
 
   try {
+    trackGeminiUsage();
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
@@ -1073,6 +1088,7 @@ Input JSON: ${JSON.stringify(data)}
 Return ONLY the translated JSON.`;
 
   try {
+    trackGeminiUsage();
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const cleanJson = text.replace(/```json|```/g, '').trim();
