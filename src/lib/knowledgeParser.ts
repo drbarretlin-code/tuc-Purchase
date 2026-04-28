@@ -46,8 +46,8 @@ export class DiagnosticError extends Error {
 
 export function trackGeminiUsage() {
   if (supabase) {
-    supabase.rpc('increment_gemini_usage').catch((err: any) => {
-      console.warn('[Usage Tracker] Failed to track API usage:', err.message);
+    supabase.rpc('increment_gemini_usage').then(({ error }) => {
+      if (error) console.warn('[Usage Tracker] Failed to track API usage:', error.message);
     });
   }
 }

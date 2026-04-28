@@ -3,7 +3,7 @@ import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
-import { Ban, ShieldAlert, Settings, X, PenTool, BookOpen, Eye, EyeOff, Trash2, Download, Lock, Save, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info, Clock } from 'lucide-react';
+import { Ban, ShieldAlert, X, PenTool, BookOpen, Eye, Trash2, Download, Lock, Database, CloudUpload, Sparkles, Zap, Loader2, Check, Minimize2, Maximize2, Repeat, Info, Clock } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as KP from './lib/knowledgeParser';
 import ManualModal from './components/ManualModal';
@@ -104,8 +104,6 @@ function App() {
   const [reparseCurrentFile, setReparseCurrentFile] = useState('');
 
   const [mobileAppTab, setMobileAppTab] = useState<'edit' | 'preview'>('edit');
-  const [showApiKey, setShowApiKey] = useState(false);
-
   // V6.1 雲端查閱器狀態 (僅保留歷史檔案)
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [translatedCloudFiles, setTranslatedCloudFiles] = useState<any[]>([]);
@@ -1362,6 +1360,10 @@ function App() {
               <span style={{ color: isWarning ? 'white' : (rpdPercent > 0.7 ? '#F59E0B' : '#3B82F6') }}>
                 {apiUsage.rpd} / {maxRpd}
               </span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ opacity: 0.8 }}>Model:</span>
+              <span style={{ color: isWarning ? 'white' : '#8B5CF6' }}>{currentAIModel}</span>
             </span>
             <span style={{ opacity: 0.6 }}>(金鑰池: {keyCount} 把)</span>
           </div>
