@@ -192,7 +192,7 @@ const UploadWizardModal: React.FC<Props> = ({ isOpen, onClose, onMinimize, isMin
       }
 
       // --- 第四階段：推送至後端解析佇列 ---
-      setCurrentUploadingName('正在將檔案推入雲端解析佇列...');
+      setCurrentUploadingName(t('pushingToQueue', language));
       const fileIdsToEnqueue = uploadResults.map(r => r.id);
       if (fileIdsToEnqueue.length > 0) {
         try {

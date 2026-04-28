@@ -161,7 +161,7 @@ function App() {
   const [storageSize, setStorageSize] = useState(0);
   const [usageStats, setUsageStats] = useState({ qstash_calls_today: 0, estimated_egress_bytes: 0 });
   const [apiUsage, setApiUsage] = useState({ rpd: 0, rpm: 0 });
-  const [currentAIModel, setCurrentAIModel] = useState(KP.getCachedModelId() || '偵測中...');
+  const [currentAIModel, setCurrentAIModel] = useState(KP.getCachedModelId() || 'detecting');
 
   // V28.x: 輕量級背景輪詢 API 用量 (每 10 秒)
   useEffect(() => {
@@ -200,7 +200,7 @@ function App() {
           setApiUsage({ rpd: data.gemini_rpd_today || 0, rpm: currentRpm });
           
           // 同步更新模型名稱
-          if (data.last_ai_model && currentAIModel === '偵測中...') {
+          if (data.last_ai_model && currentAIModel === 'detecting') {
             setCurrentAIModel(data.last_ai_model);
           }
         } else {
@@ -218,14 +218,14 @@ function App() {
 
   // V28.2: 全域主動偵測 AI 模型
   useEffect(() => {
-    if (currentAIModel === '偵測中...') {
+    if (currentAIModel === 'detecting') {
       const apiKeys = KP.getGeminiKeyPool();
       if (apiKeys.length > 0) {
         KP.getAutoSelectedModel(apiKeys)
           .then(({ modelId }) => {
             if (modelId) setCurrentAIModel(modelId);
           })
-          .catch(() => setCurrentAIModel('偵測失敗 (請檢查 Key)'));
+          .catch(() => setCurrentAIModel('detectionFailed'));
       }
     }
   }, []);
@@ -255,8 +255,8 @@ function App() {
       console.log('[Realtime] 雲端查閱器已開啟，啟動即時同步監聽...');
       
       // V26.13: 開啟時主動執行一次 AI 模型試驗偵測
-      if (currentAIModel === '偵測中...') {
-        console.log('[AI Discovery] 偵測中... 嘗試主動觸發試驗');
+      if (currentAIModel === 'detecting') {
+        console.log('[AI Discovery] Detecting... Trying to trigger trial');
         const apiKeys = KP.getGeminiKeyPool();
         if (apiKeys.length > 0) {
            KP.getAutoSelectedModel(apiKeys)
@@ -266,7 +266,7 @@ function App() {
              })
              .catch(err => {
                 console.error('[AI Discovery] 偵測失敗:', err);
-                setCurrentAIModel('偵測失敗 (請檢查 Key)');
+                setCurrentAIModel('detectionFailed');
              });
         } else {
           console.warn('[AI Discovery] 偵測跳過: 找不到 API Key');
@@ -1321,7 +1321,7 @@ function App() {
             {isSyncingHints && (
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', color: '#60A5FA', fontSize: '0.65rem', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', zIndex: 100 }}>
                 <Loader2 size={10} className="animate-spin" />
-                <span>Syncing Hints...</span>
+                <span>{t('syncingHints', data.language)}</span>
               </div>
             )}
           </div>
@@ -1377,24 +1377,24 @@ function App() {
             fontWeight: isWarning ? 'bold' : 'normal',
             zIndex: 40
           }}>
-            {isWarning && <span>⚠️ API 額度即將耗盡！系統將持續運作至完全用盡為止。</span>}
+            {isWarning && <span>{t('apiQuotaWarning', data.language)}</span>}
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ opacity: 0.8 }}>RPM (每分鐘):</span> 
+              <span style={{ opacity: 0.8 }}>{t('rpmLabel', data.language)}</span> 
               <span style={{ color: isWarning ? 'white' : (rpmPercent > 0.7 ? '#F59E0B' : '#10B981') }}>
                 {apiUsage.rpm} / {maxRpm}
               </span>
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ opacity: 0.8 }}>RPD (今日):</span> 
+              <span style={{ opacity: 0.8 }}>{t('rpdLabel', data.language)}</span> 
               <span style={{ color: isWarning ? 'white' : (rpdPercent > 0.7 ? '#F59E0B' : '#3B82F6') }}>
                 {apiUsage.rpd} / {maxRpd}
               </span>
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ opacity: 0.8 }}>Model:</span>
-              <span style={{ color: isWarning ? 'white' : '#8B5CF6' }}>{currentAIModel}</span>
+              <span style={{ opacity: 0.8 }}>{t('modelLabel', data.language)}</span>
+              <span style={{ color: isWarning ? 'white' : '#8B5CF6' }}>{currentAIModel === 'detecting' ? t('detecting', data.language) : currentAIModel}</span>
             </span>
-            <span style={{ opacity: 0.6 }}>(金鑰池: {keyCount} 把)</span>
+            <span style={{ opacity: 0.6 }}>({t('keyPoolLabel', data.language)}: {keyCount} {t('unitKeys', data.language)})</span>
           </div>
         );
       })()}
@@ -1729,7 +1729,7 @@ function App() {
                               outline: 'none',
                               padding: '2px'
                             }}
-                            title="可手動輸入要刪除的容量設定"
+                            title={t('sizeLimitTooltip', data.language)}
                           />
                           <span style={{ fontSize: '0.7rem', color: '#888', marginLeft: '6px' }}>MB</span>
                         </div>
@@ -1761,7 +1761,7 @@ function App() {
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
                           <span style={{ color: '#aaa' }}>{t('knowledgeEntries', data.language)}</span>
-                          <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()} {data.language === 'en-US' ? 'items' : '筆'}</span>
+                          <span style={{ color: kUsage > 80 ? '#EF4444' : '#fff' }}>{knowledgeCount.toLocaleString()} / {knowledgeLimit.toLocaleString()} {t('unitItems', data.language)}</span>
                         </div>
                         <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                           <div style={{
@@ -1847,7 +1847,7 @@ function App() {
                             fontWeight: healthTab === 'current' ? 'bold' : 'normal'
                           }}
                         >
-                          免費版模式
+                          {t('tabFreeMode', data.language)}
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); setHealthTab('paid'); }}
@@ -1862,7 +1862,7 @@ function App() {
                             fontWeight: healthTab === 'paid' ? 'bold' : 'normal'
                           }}
                         >
-                          付費版模式
+                          {t('tabPaidMode', data.language)}
                         </button>
                         <button 
                           onClick={async (e) => { 
@@ -1872,7 +1872,7 @@ function App() {
                             await fetchUsageStats(); 
                             btn.style.opacity = '1';
                           }}
-                          title="強制重新獲取最新統計"
+                          title={t('forceRefreshStats', data.language)}
                           style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '2px', display: 'flex', marginLeft: '4px', transition: 'opacity 0.2s' }}
                         >
                           <Repeat size={12} />
@@ -1886,7 +1886,7 @@ function App() {
                         color: isPaidTier ? '#10B981' : '#666',
                         border: `1px solid ${isPaidTier ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'}`
                       }}>
-                        {isPaidTier ? '已解鎖 Pro' : 'Free Tier'}
+                        {isPaidTier ? t('proUnlocked', data.language) : 'Free Tier'}
                       </span>
                     </div>
                     
@@ -1895,7 +1895,7 @@ function App() {
                         {/* QStash 水位計 */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                            <span style={{ color: '#aaa' }}>QStash 今日用量</span>
+                            <span style={{ color: '#aaa' }}>{t('qstashTodayUsage', data.language)}</span>
                             <span style={{ color: qUsage > 80 ? '#F59E0B' : '#fff' }}>
                               {usageStats.qstash_calls_today} / {qstashLimit}
                             </span>
@@ -1912,7 +1912,7 @@ function App() {
                                const diffMs = nextReset.getTime() - now.getTime();
                                const hours = Math.floor(diffMs / (1000 * 60 * 60));
                                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                               return `距離下次重置: ${hours} 小時 ${mins} 分`;
+                               return `${t('nextResetIn', data.language)} ${hours} ${t('unitHours', data.language)} ${mins} ${t('unitMinutes', data.language)}`;
                              })()}
                           </div>
                         </div>
@@ -1920,7 +1920,7 @@ function App() {
                         {/* Egress 水位計 */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                            <span style={{ color: '#aaa' }}>本月累計傳輸 (Egress)</span>
+                            <span style={{ color: '#aaa' }}>{t('monthlyEgress', data.language)}</span>
                             <span style={{ color: eUsage > 80 ? '#F59E0B' : '#fff' }}>
                               {usageStats.estimated_egress_bytes < 1024 * 1024 * 1024 
                                 ? `${(usageStats.estimated_egress_bytes / (1024 * 1024)).toFixed(2)} MB`
@@ -1941,7 +1941,7 @@ function App() {
                                }
                                const diffTime = resetDate.getTime() - now.getTime();
                                const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                               return `週期重置: 每月 ${resetDay} 號 (剩餘約 ${daysLeft} 天)`;
+                               return `${t('cycleReset', data.language)} ${t('everyMonth', data.language)} ${resetDay} ${t('dayOfOfMonth', data.language)} (${t('remainingAbout', data.language)} ${daysLeft} ${t('unitDaysSuffix', data.language)})`;
                              })()}
                           </div>
                         </div>
@@ -1949,30 +1949,30 @@ function App() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '4px 0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                          <span style={{ color: '#aaa' }}>專業版 QStash 上限</span>
-                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>100,000+ 次 / 日</span>
+                          <span style={{ color: '#aaa' }}>{t('proQStashLimit', data.language)}</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('proQStashLimitVal', data.language)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                          <span style={{ color: '#aaa' }}>專業版 Egress 流量</span>
-                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>250 GB / 月</span>
+                          <span style={{ color: '#aaa' }}>{t('proEgressLimit', data.language)}</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('proEgressLimitVal', data.language)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                          <span style={{ color: '#aaa' }}>Vercel 逾時上限</span>
-                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>300s (Pro Runtime)</span>
+                          <span style={{ color: '#aaa' }}>{t('proTimeoutLimit', data.language)}</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('proTimeoutLimitVal', data.language)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                          <span style={{ color: '#aaa' }}>AI 解析優先級</span>
-                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>Enterprise Quota</span>
+                          <span style={{ color: '#aaa' }}>{t('proAiPriority', data.language)}</span>
+                          <span style={{ color: '#10B981', fontWeight: 'bold' }}>{t('proAiPriorityVal', data.language)}</span>
                         </div>
                       </div>
                     )}
 
                       <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
-                            <Clock size={12} /> 執行上限: {isPaidTier ? '300s' : '60s'}
+                            <Clock size={12} /> {t('execLimitLabel', data.language)}: {isPaidTier ? '300s' : '60s'}
                          </div>
                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#888' }}>
-                            <Zap size={12} /> AI 模型: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{currentAIModel === '偵測中...' ? '等待任務啟動' : currentAIModel}</span>
+                            <Zap size={12} /> {t('aiModelLabel', data.language)}: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{currentAIModel === 'detecting' ? t('waitingForTask', data.language) : (currentAIModel === 'detectionFailed' ? t('detectionFailed', data.language) : currentAIModel)}</span>
                          </div>
                       </div>
                     </div>
@@ -2047,7 +2047,7 @@ function App() {
                     {pendingCount > 0 && (
                       <div style={{ fontSize: '0.75rem', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.1)', padding: '6px 10px', borderRadius: '4px', marginTop: '4px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                         <Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-                        <div>若長時間停滯，可能是雲端佇列逾時休眠。<br />請圈選檔案並點擊上方「全部重新解析」改由本地強制處理。</div>
+                        <div>{t('queueStuckHint', data.language)}</div>
                       </div>
                     )}
 
@@ -2073,8 +2073,7 @@ function App() {
                         }}
                       >
                         {isResetting ? <Loader2 size={14} className="spin" /> : <Repeat size={14} />}
-                        {selectedFileIds.length > 0 
-                          ? `重置並解析選取的 (${selectedFileIds.length})` 
+                          ? `${t('resetAndReparseSelected', data.language)} (${selectedFileIds.length})` 
                           : t('resetAndReparseAll', data.language)}
                       </button>
                       <button
@@ -2097,7 +2096,7 @@ function App() {
                           transition: 'all 0.2s'
                         }}
                       >
-                        <Ban size={14} /> 終止排隊與解析
+                        <Ban size={14} /> {t('abortParsing', data.language)}
                       </button>
                     </div>
                   </div>
