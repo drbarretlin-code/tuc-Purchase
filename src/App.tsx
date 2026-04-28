@@ -93,15 +93,6 @@ function App() {
     }
   };
 
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('gemini_api_key_pool') || localStorage.getItem('tuc_gemini_key') || '');
-  const [showConfig, setShowConfig] = useState(false);
-  const [tempKey, setTempKey] = useState(apiKey);
-  // 每次打開設定頁時，確保 tempKey 載入最新狀態
-  useEffect(() => {
-    if (showConfig) {
-      setTempKey(localStorage.getItem('gemini_api_key_pool') || localStorage.getItem('tuc_gemini_key') || '');
-    }
-  }, [showConfig]);
   const [isResizing, setIsResizing] = useState(false);
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -393,20 +384,6 @@ function App() {
     } finally {
       setIsFixingSystem(false);
     }
-  };
-
-  const handleSaveConfig = () => {
-    const cleanKey = tempKey.trim();
-    setApiKey(cleanKey);
-    setTempKey(cleanKey);
-    // V28.x: 儲存多把金鑰至 pool
-    localStorage.setItem('gemini_api_key_pool', cleanKey);
-    // 為了向下相容，將第一把金鑰存入 tuc_gemini_key
-    const firstKey = cleanKey.split(/[,，\n]/).map(k => k.trim()).filter(k => k)[0] || '';
-    localStorage.setItem('tuc_gemini_key', firstKey);
-    // 清除快取強制重新探針
-    try { sessionStorage.removeItem('tuc_model_cache'); } catch {}
-    setShowConfig(false);
   };
 
   const fetchCloudFiles = async () => {
@@ -1190,14 +1167,6 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDeleteApiKey = () => {
-    if (confirm('確定要刪除 API Key 嗎？')) {
-      setTempKey('');
-      setApiKey('');
-      localStorage.removeItem('tuc_gemini_key');
-    }
-  };
-
 
    // 互斥分類函式：每個檔案只歸屬一個類別，優先順序 failed > processing > pending > parsed
   const getFileCategory = (f: any): 'failed' | 'processing' | 'pending' | 'parsed' | 'unparsed' => {
@@ -1313,14 +1282,6 @@ function App() {
             <BookOpen size={isMobile ? 18 : 20} />
             {!isMobile && <span>{t('userManual', data.language)}</span>}
           </button>
-
-          <button
-            onClick={() => setShowConfig(true)}
-            className="icon-btn"
-            aria-label="Open Settings"
-          >
-            <Settings size={isMobile ? 18 : 20} />
-          </button>
         </nav>
       </header>
 
@@ -1420,65 +1381,6 @@ function App() {
             {t('previewTab', data.language)}
           </button>
         </nav>
-      )}
-
-      {showConfig && (
-        <div className="modal-overlay">
-          <div className="glass-panel modal-content" style={{ padding: '2rem', width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldAlert size={24} color="var(--tuc-red)" /> {t('settings', data.language)}
-              </h2>
-              <button onClick={() => setShowConfig(false)} className="icon-btn">
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="input-with-label">
-              <label>{t('apiKeyLabel', data.language)} (支援金鑰池，請以逗號或換行分隔)</label>
-              <div style={{ position: 'relative', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                <textarea
-                  value={(!showApiKey && tempKey) ? tempKey.replace(/[^\n,，]/g, '*') : tempKey}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!showApiKey && val.includes('*')) return;
-                    setTempKey(val);
-                  }}
-                  placeholder="AIzaSy...&#10;AIzaSy..."
-                  rows={3}
-                  style={{
-                    flex: 1,
-                    resize: 'vertical',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-color)',
-                    color: 'var(--text-color)',
-                    borderColor: (tempKey && !tempKey.includes('AIza')) ? '#EF4444' : 'var(--border-color)'
-                  }}
-                />
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="icon-btn"
-                  style={{ padding: '0 8px' }}
-                >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-                <button
-                  onClick={handleDeleteApiKey}
-                  className="icon-btn"
-                  style={{ padding: '0 8px', color: '#EF4444' }}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-
-            <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
-              <Save size={18} /> {t('save', data.language)}
-            </button>
-          </div>
-        </div>
       )}
 
       {showPasswordPrompt && (
