@@ -170,17 +170,23 @@ function App() {
       if (!supabase) return;
       try {
         const todayStr = new Date().toISOString().split('T')[0];
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('tuc_usage_stats')
-          .select('gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update')
+          .select('gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update, last_ai_model')
           .eq('stat_date', todayStr)
           .maybeSingle();
+
+        if (error) {
+          console.warn('[Usage Polling] Query error:', error.message);
+          return;
+        }
 
         if (data) {
           let currentRpm = data.gemini_rpm_current || 0;
           if (data.gemini_rpm_last_update) {
             const lastUpdate = new Date(data.gemini_rpm_last_update);
             const now = new Date();
+            // 判斷是否已跨分鐘 (UTC)
             if (
               lastUpdate.getUTCFullYear() !== now.getUTCFullYear() ||
               lastUpdate.getUTCMonth() !== now.getUTCMonth() ||
@@ -192,15 +198,37 @@ function App() {
             }
           }
           setApiUsage({ rpd: data.gemini_rpd_today || 0, rpm: currentRpm });
+          
+          // 同步更新模型名稱
+          if (data.last_ai_model && currentAIModel === '偵測中...') {
+            setCurrentAIModel(data.last_ai_model);
+          }
+        } else {
+          // 今日尚無紀錄，重置為 0
+          setApiUsage({ rpd: 0, rpm: 0 });
         }
       } catch (err) {
-        // ignore
+        console.error('[Usage Polling] Unexpected error:', err);
       }
     };
     fetchApiUsage();
     interval = setInterval(fetchApiUsage, 10000);
     return () => clearInterval(interval);
-  }, [supabase]);
+  }, [supabase, currentAIModel]);
+
+  // V28.2: 全域主動偵測 AI 模型
+  useEffect(() => {
+    if (currentAIModel === '偵測中...') {
+      const apiKeys = KP.getGeminiKeyPool();
+      if (apiKeys.length > 0) {
+        KP.getAutoSelectedModel(apiKeys)
+          .then(({ modelId }) => {
+            if (modelId) setCurrentAIModel(modelId);
+          })
+          .catch(() => setCurrentAIModel('偵測失敗 (請檢查 Key)'));
+      }
+    }
+  }, []);
   const [healthTab, setHealthTab] = useState<'current' | 'paid'>('current');
   const [largeFileSizeLimit, setLargeFileSizeLimit] = useState<string>('10'); // 預設 10MB
   const [showCleanupModal, setShowCleanupModal] = useState(false);

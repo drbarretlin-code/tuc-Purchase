@@ -18,8 +18,8 @@ ALTER TABLE public.tuc_usage_stats ADD COLUMN IF NOT EXISTS gemini_rpm_current I
 ALTER TABLE public.tuc_usage_stats ADD COLUMN IF NOT EXISTS gemini_rpm_last_update TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 -- 3. 建立或更新原子遞增 RPC 函式 (Stored Procedure)
--- 此函式將會自動處理每日清零、每分鐘清零與計數累加，避免多 IP 同時寫入覆蓋
-CREATE OR REPLACE FUNCTION increment_gemini_usage()
+-- 此函式將會自動處理每日清零、每分鐘清零與計數累加，並記錄最後使用的模型
+CREATE OR REPLACE FUNCTION increment_gemini_usage(p_model_name TEXT DEFAULT NULL)
 RETURNS void AS $$
 DECLARE
     -- 取得今日日期字串 (與前端使用的 UTC Date 格式一致: YYYY-MM-DD)
@@ -29,8 +29,8 @@ DECLARE
     v_last_update TIMESTAMP WITH TIME ZONE;
 BEGIN
     -- 確保今日資料列存在，若無則建立
-    INSERT INTO public.tuc_usage_stats (stat_date, gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update)
-    VALUES (today_str, 0, 0, now())
+    INSERT INTO public.tuc_usage_stats (stat_date, gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update, last_ai_model)
+    VALUES (today_str, 0, 0, now(), p_model_name)
     ON CONFLICT (stat_date) DO NOTHING;
 
     -- 取出目前的 last_update 以判斷 RPM 是否跨越了分鐘界線
@@ -46,7 +46,8 @@ BEGIN
             WHEN date_trunc('minute', v_last_update) = current_minute THEN COALESCE(gemini_rpm_current, 0) + 1
             ELSE 1
         END,
-        gemini_rpm_last_update = now()
+        gemini_rpm_last_update = now(),
+        last_ai_model = COALESCE(p_model_name, last_ai_model)
     WHERE stat_date = today_str;
 END;
 $$ LANGUAGE plpgsql;
