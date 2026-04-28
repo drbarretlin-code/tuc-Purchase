@@ -171,7 +171,7 @@ export async function getAutoSelectedModel(apiKeys: string | string[]): Promise<
   }
 
   console.error(`[AI Discovery] 嚴重故障：金鑰池中所有組合皆無法連通。`);
-  return { modelId: 'gemini-1.5-flash', apiKey: Array.isArray(apiKeys) ? apiKeys[0] : apiKeys };
+  throw new Error('API_KEY_INVALID: 金鑰池中所有金鑰皆無效或無法連通，請檢查設定頁的金鑰。');
 }
 
 /**

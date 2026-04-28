@@ -93,9 +93,15 @@ function App() {
     }
   };
 
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('gemini_api_key_pool') || localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
+  // 每次打開設定頁時，確保 tempKey 載入最新狀態
+  useEffect(() => {
+    if (showConfig) {
+      setTempKey(localStorage.getItem('gemini_api_key_pool') || localStorage.getItem('tuc_gemini_key') || '');
+    }
+  }, [showConfig]);
   const [isResizing, setIsResizing] = useState(false);
   const [splitPercentage, setSplitPercentage] = useState(45); // 編輯區佔比
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -393,7 +399,13 @@ function App() {
     const cleanKey = tempKey.trim();
     setApiKey(cleanKey);
     setTempKey(cleanKey);
-    localStorage.setItem('tuc_gemini_key', cleanKey);
+    // V28.x: 儲存多把金鑰至 pool
+    localStorage.setItem('gemini_api_key_pool', cleanKey);
+    // 為了向下相容，將第一把金鑰存入 tuc_gemini_key
+    const firstKey = cleanKey.split(/[,，\n]/).map(k => k.trim()).filter(k => k)[0] || '';
+    localStorage.setItem('tuc_gemini_key', firstKey);
+    // 清除快取強制重新探針
+    try { sessionStorage.removeItem('tuc_model_cache'); } catch {}
     setShowConfig(false);
   };
 
@@ -1423,21 +1435,26 @@ function App() {
             </div>
 
             <div className="input-with-label">
-              <label>{t('apiKeyLabel', data.language)}</label>
-              <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={(!showApiKey && tempKey) ? tempKey.substring(0, 8) + "****************" : tempKey}
+              <label>{t('apiKeyLabel', data.language)} (支援金鑰池，請以逗號或換行分隔)</label>
+              <div style={{ position: 'relative', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <textarea
+                  value={(!showApiKey && tempKey) ? tempKey.replace(/[^\n,，]/g, '*') : tempKey}
                   onChange={(e) => {
                     const val = e.target.value;
-                    // 如果目前是遮蔽狀態且有變動，則視為重新輸入
                     if (!showApiKey && val.includes('*')) return;
                     setTempKey(val);
                   }}
-                  placeholder={t('apiKeyPlaceholder', data.language)}
+                  placeholder="AIzaSy...&#10;AIzaSy..."
+                  rows={3}
                   style={{
                     flex: 1,
-                    borderColor: (tempKey && (!tempKey.startsWith('AIza') || tempKey.length < 30)) ? '#EF4444' : 'var(--border-color)'
+                    resize: 'vertical',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-color)',
+                    color: 'var(--text-color)',
+                    borderColor: (tempKey && !tempKey.includes('AIza')) ? '#EF4444' : 'var(--border-color)'
                   }}
                 />
                 <button
