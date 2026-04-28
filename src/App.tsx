@@ -353,7 +353,7 @@ function App() {
     };
   }, [isInspectorResizing]);
 
-  // 自動刷新：當雲端查閱器開啟且有佇列任務時，每 15 秒自動更新狀態
+  // 自動刷新：當雲端查閱器開啟且有佇列任務時，每 60 秒自動更新狀態
   useEffect(() => {
     if (!showCloudInspector) return;
     const hasActiveJobs = cloudFiles.some(f =>
@@ -364,12 +364,12 @@ function App() {
     const timer = setInterval(() => {
       console.log('[AutoRefresh] 偵測到佇列任務，自動刷新狀態...');
       fetchCloudFiles();
-    }, 60000); // V20: Egress 償符，從 15s 延長至 60s
+    }, 60000); 
 
     return () => clearInterval(timer);
   }, [showCloudInspector, cloudFiles]);
 
-  // V18.5: 初始載入時獲取資源使用量 (確保第五章節同步按鈕狀態正確)
+  // V18.5: 初始載入時獲取資源使用量
   useEffect(() => {
     fetchUsageStats();
   }, []);
@@ -377,8 +377,6 @@ function App() {
   // V17.3: 雲端查閱器動態內容翻譯
   useEffect(() => {
     if (cloudFiles.length > 0 && data.language !== 'zh-TW' && showCloudInspector) {
-      // V17.4: 只有在雲端檔案清單變動且長度減少（換頁或刪除）時才重新全量翻譯，避免解析過程中的頻繁閃爍
-      // 但我們需要一個機制來獲取增量翻譯
       translateCloudInspectorItems();
     } else {
       setTranslatedCloudFiles(cloudFiles);
@@ -386,8 +384,12 @@ function App() {
   }, [cloudFiles, data.language, showCloudInspector]);
 
   const translateCloudInspectorItems = async () => {
-    const apiKey = localStorage.getItem('tuc_gemini_key') || '';
-    if (!apiKey) return;
+    // V28.x: 改用全域金鑰池，不再依賴已移除的 localStorage 欄位
+    const apiKeys = KP.getGeminiKeyPool();
+    if (apiKeys.length === 0) {
+      console.warn('[AI Translation] 跳過翻譯：未偵測到 API 金鑰');
+      return;
+    }
 
     // 翻譯前 50 筆，涵蓋大部分視窗範圍
     const itemsToTranslate = cloudFiles.slice(0, 50).map(f => ({
@@ -397,7 +399,7 @@ function App() {
     }));
 
     try {
-      const translated = await KP.translateCloudMetadata(itemsToTranslate, data.language, apiKey);
+      const translated = await KP.translateCloudMetadata(itemsToTranslate, data.language, apiKeys);
       const newFiles = cloudFiles.map(f => {
         const trans = translated.find(t => t.id === f.id);
         if (!trans) return f;
@@ -494,9 +496,8 @@ function App() {
       console.log(`[Debug] 查詢成功，找到 ${enrichedList.length} 筆紀錄。`);
       setCloudFiles(enrichedList);
       // V18.4: 確保翻譯列表在初始加載時也有數據，防止 UI 空白
-      if (data.language === 'zh-TW') {
-        setTranslatedCloudFiles(enrichedList);
-      }
+      // V18.4: 確保翻譯列表在初始加載時也有數據，防止 UI 空白 (不論語系為何)
+      setTranslatedCloudFiles(enrichedList);
       
       // V26.10: 恢復水位計同步。在列表載入後調用輕量化統計，確保總量更新。
       fetchUsageStats();
