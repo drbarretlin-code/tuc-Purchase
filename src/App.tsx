@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import type { FormState, AIHintSelection } from './types/form';
+import { useState, useEffect, useRef } from 'react';
+import type { FormState } from './types/form';
 import { INITIAL_FORM_STATE } from './types/form';
 import SpecForm from './components/SpecForm';
 import SpecPreview from './components/SpecPreview';
@@ -44,9 +44,54 @@ function App() {
 
     // V17.8: 動態網頁標題
     document.title = t('systemTitle', data.language);
+
+    // V28.1: 當語系變更時，自動同步表單中的 AI 建議事項
+    if (prevLangRef.current !== data.language) {
+      syncFormHintsLanguage(data.language);
+      prevLangRef.current = data.language;
+    }
   }, [data.language]);
 
+  const syncFormHintsLanguage = async (targetLang: Language) => {
+    const apiKeys = KP.getGeminiKeyPool();
+    if (!apiKeys || apiKeys.length === 0) return;
 
+    // 1. 收集所有 Hints 欄位
+    const hintFieldKeys = Object.keys(data).filter(k => k.endsWith('Hints')) as (keyof FormState)[];
+    
+    // 2. 收集所有非空的建議項目
+    const allHintsToTranslate: { field: keyof FormState; hints: any[] }[] = [];
+    hintFieldKeys.forEach(key => {
+      const hints = data[key] as any[];
+      if (Array.isArray(hints) && hints.length > 0) {
+        allHintsToTranslate.push({ field: key, hints });
+      }
+    });
+
+    if (allHintsToTranslate.length === 0) return;
+
+    setIsSyncingHints(true);
+    try {
+      // 3. 展平所有建議以進行批次轉譯
+      const flatHints = allHintsToTranslate.flatMap(item => item.hints);
+      const translatedFlat = await KP.translateHints(flatHints, targetLang, apiKeys);
+
+      // 4. 將轉譯後的建議重新分配回各個欄位
+      const nextData = { ...data };
+      let ptr = 0;
+      allHintsToTranslate.forEach(item => {
+        const count = item.hints.length;
+        (nextData as any)[item.field] = translatedFlat.slice(ptr, ptr + count);
+        ptr += count;
+      });
+
+      setData(nextData);
+    } catch (err) {
+      console.error('[SyncHints] 語系同步失敗:', err);
+    } finally {
+      setIsSyncingHints(false);
+    }
+  };
 
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('tuc_gemini_key') || '');
   const [showConfig, setShowConfig] = useState(false);
@@ -131,6 +176,7 @@ function App() {
   const [inspectorDashboardHeight, setInspectorDashboardHeight] = useState(420);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
   const [isSyncingHints, setIsSyncingHints] = useState(false); // V28.1
+  const prevLangRef = useRef(data.language);
 
   useEffect(() => {
     const handleResize = () => {
@@ -151,9 +197,9 @@ function App() {
         const apiKeys = KP.getGeminiKeyPool();
         if (apiKeys.length > 0) {
            KP.getAutoSelectedModel(apiKeys)
-             .then(({ modelId }) => {
-                console.log('[AI Discovery] 偵測完成，得到型號:', modelId);
-                if (modelId) setCurrentAIModel(modelId);
+             .then((mId: string) => {
+                console.log('[AI Discovery] 偵測完成，得到型號:', mId);
+                if (mId) setCurrentAIModel(mId);
              })
              .catch(err => {
                 console.error('[AI Discovery] 偵測失敗:', err);
@@ -306,157 +352,6 @@ function App() {
       console.error('[AI Translation] App metadata translation failed:', err);
     }
   };
-
-  // V27.15: 定義所有需要 AI 轉譯的建議欄位清單 (用於 Deep Sync)
-  const HINT_FIELDS = [
-    'requirementDescHistoryHints', 'requirementDescRegHints',
-    'appearanceHistoryHints', 'appearanceRegHints',
-    'rangeHistoryHints', 'rangeRegHints',
-    'envAIHints', 'envHistoryHints', 'envRegHints',
-    'regAIHints', 'regHistoryHints', 'regRegHints',
-    'maintHistoryHints', 'maintRegHints',
-    'safetyAIHints', 'safetyHistoryHints', 'safetyRegHints',
-    'elecHistoryHints', 'elecRegHints',
-    'mechHistoryHints', 'mechRegHints',
-    'physHistoryHints', 'physRegHints',
-    'relyHistoryHints', 'relyRegHints',
-    'installAIHints', 'installHistoryHints', 'installRegHints',
-    'acceptanceAIHints', 'acceptanceHistoryHints', 'acceptanceRegHints',
-    'complianceAIHints', 'complianceHistoryHints', 'complianceRegHints'
-  ];
-
-  // V27.15: 產生 hints 的結構指紋，用於偵測何時需要觸發轉譯（例如從雲端導入資料後）
-  // V27.26: 增加內容首部指紋與當前語系，確保語系切換時能精確觸發
-  const hintsFingerprint = HINT_FIELDS.map(f => {
-    const hints = (data as any)[f] || [];
-    // V28.5: 指紋排除內容首部，僅保留數量與 ID 異動，避免轉譯過程中內容變動導致無限迴圈
-    return `${f}:${hints.length}:${hints[0]?.id || ''}`;
-  }).join('|') + `:${data.language}`;
-
-  // V28.10: 穩定轉譯監聽器 - 僅在語系或文件 ID 變更時觸發
-  // 避開依賴會隨內容變動的指紋，防止 setData 導致的 Effect 自我取消
-  useEffect(() => {
-    let isCancelled = false;
-    let debounceTimer: any = null;
-
-    // 繁體中文語系下執行「還原」邏輯
-    if (data.language === 'zh-TW') {
-      const hasTranslated = HINT_FIELDS.some(field => {
-        const hints = (data as any)[field] || [];
-        return hints.some((h: any) => h.translatedLang);
-      });
-
-      if (hasTranslated) {
-        const nextData = { ...data };
-        HINT_FIELDS.forEach(field => {
-          const hints = (data as any)[field] || [];
-          if (hints.length > 0) {
-            (nextData as any)[field] = hints.map((h: any) => ({
-              ...h,
-              content: h.originalContent || h.content,
-              translatedLang: undefined
-            }));
-          }
-        });
-        setData(nextData);
-      }
-      return;
-    }
-
-    const translatePendingFields = async () => {
-      const apiPool = KP.getGeminiKeyPool();
-      if (apiPool.length === 0 || isSyncingHints) return;
-
-      // 每次執行時從當前狀態重新計算待處理欄位
-      setIsSyncingHints(true);
-      console.log(`[AI Translation] 檢查待轉譯欄位...`);
-
-      try {
-        for (const field of HINT_FIELDS) {
-          if (isCancelled) break;
-          
-          // 重要：使用函數式更新來讀取與寫入，確保不覆蓋其他狀態
-          let fieldHints: AIHintSelection[] = [];
-          let currentLang: Language = 'zh-TW';
-          
-          setData(prev => {
-            fieldHints = (prev as any)[field] || [];
-            currentLang = prev.language;
-            return prev;
-          });
-
-          if (fieldHints.length === 0 || currentLang === 'zh-TW') continue;
-          if (fieldHints[0].translatedLang === currentLang) continue;
-
-          console.log(`[AI Translation] 正在轉譯欄位: ${field} (${fieldHints.length} 條)...`);
-          
-          try {
-            const translated = await KP.translateHints(fieldHints, currentLang, apiPool);
-            if (isCancelled) break;
-
-            setData(prev => ({
-              ...prev,
-              [field]: translated,
-              searchStatus: { ...prev.searchStatus, [field]: 'success' }
-            }));
-          } catch (err) {
-            console.error(`[AI Translation] 欄位 ${field} 轉譯失敗:`, err);
-            setData(prev => ({
-              ...prev,
-              searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
-            }));
-          }
-        }
-      } finally {
-        setIsSyncingHints(false);
-      }
-    };
-
-    debounceTimer = setTimeout(() => {
-      if (!isCancelled) translatePendingFields();
-    }, 800);
-
-    return () => { 
-      isCancelled = true; 
-      if (debounceTimer) clearTimeout(debounceTimer);
-    };
-  }, [data.language, data.docId, hintsFingerprint]); // V28.11: 重新加入穩定的 hintsFingerprint，確保新搜尋能觸發轉譯
-
-  // V27.32: 強制轉譯單一欄位的函式 (供 SectionEditor 手動觸發)
-  const forceTranslateField = async (field: string) => {
-    const currentHints = (data as any)[field] || [];
-    if (currentHints.length === 0) return;
-    
-    const apiPool = KP.getGeminiKeyPool();
-    if (apiPool.length === 0) {
-      alert('請先設定 Gemini API Key');
-      return;
-    }
-
-    console.log(`[AI Force Translate] 強制處理欄位: ${field}...`);
-    
-    setData(prev => ({
-      ...prev,
-      searchStatus: { ...prev.searchStatus, [field]: 'translating' }
-    }));
-
-    try {
-      const translated = await KP.translateHints(currentHints, data.language, apiPool);
-      setData(prev => ({
-        ...prev,
-        [field]: translated,
-        searchStatus: { ...prev.searchStatus, [field]: 'success' }
-      }));
-    } catch (err) {
-      console.error(`[AI Force Translate] 失敗:`, err);
-      setData(prev => ({
-        ...prev,
-        searchStatus: { ...prev.searchStatus, [field]: 'ai_error' }
-      }));
-    }
-  };
-
-
 
   const handleCheckHealth = async () => {
     setIsCheckingHealth(true);
@@ -1430,12 +1325,7 @@ function App() {
           <div style={{ minWidth: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {(() => {
               const isSyncBlocked = knowledgeCount > 99800 || storageSize > (0.97 * 1024 * 1024 * 1024);
-              return <SpecForm 
-                data={data} 
-                onChange={setData} 
-                isSyncBlocked={isSyncBlocked} 
-                onForceTranslateField={forceTranslateField} 
-              />;
+              return <SpecForm data={data} onChange={setData} isSyncBlocked={isSyncBlocked} />;
             })()}
           </div>
         )}
@@ -1570,20 +1460,6 @@ function App() {
             <button className="primary-button" onClick={handleSaveConfig} style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', marginTop: '1.5rem' }}>
               <Save size={18} /> {t('save', data.language)}
             </button>
-
-            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
-              <button 
-                onClick={() => {
-                  // 觸發強制轉譯指紋變更
-                  setData(prev => ({...prev, language: prev.language}));
-                  alert('已嘗試啟動批量轉譯，請稍候。');
-                }} 
-                className="ghost-button" 
-                style={{ width: '100%', padding: '0.8rem', justifyContent: 'center', fontSize: '0.85rem' }}
-              >
-                <Repeat size={16} /> 手動同步轉譯建議條文
-              </button>
-            </div>
           </div>
         </div>
       )}
