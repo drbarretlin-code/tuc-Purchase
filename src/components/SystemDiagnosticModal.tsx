@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Activity, Server, Database, AlertTriangle, CheckCircle, RefreshCcw, Repeat } from 'lucide-react';
+import { t } from '../lib/i18n';
 
 interface SystemDiagnosticProps {
   isOpen: boolean;
