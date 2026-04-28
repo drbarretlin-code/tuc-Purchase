@@ -5,7 +5,7 @@
 
 -- 1. 確保 tuc_usage_stats 資料表存在（如果尚未建立）
 CREATE TABLE IF NOT EXISTS public.tuc_usage_stats (
-    stat_date TEXT PRIMARY KEY,
+    stat_date DATE PRIMARY KEY,
     qstash_calls_today INTEGER DEFAULT 0,
     estimated_egress_bytes BIGINT DEFAULT 0,
     last_ai_model TEXT,
@@ -22,21 +22,21 @@ ALTER TABLE public.tuc_usage_stats ADD COLUMN IF NOT EXISTS gemini_rpm_last_upda
 CREATE OR REPLACE FUNCTION increment_gemini_usage(p_model_name TEXT DEFAULT NULL)
 RETURNS void AS $$
 DECLARE
-    -- 取得今日日期字串 (與前端使用的 UTC Date 格式一致: YYYY-MM-DD)
-    today_str TEXT := to_char(timezone('utc'::text, now()), 'YYYY-MM-DD');
+    -- V28.x: 直接使用 DATE 型別進行比較，修復 column "stat_date" is of type date but expression is of type text 錯誤
+    today_date DATE := (timezone('utc'::text, now()))::date;
     -- 取得當前時間截斷至「分鐘」
     current_minute TIMESTAMP WITH TIME ZONE := date_trunc('minute', now());
     v_last_update TIMESTAMP WITH TIME ZONE;
 BEGIN
     -- 確保今日資料列存在，若無則建立
     INSERT INTO public.tuc_usage_stats (stat_date, gemini_rpd_today, gemini_rpm_current, gemini_rpm_last_update, last_ai_model)
-    VALUES (today_str, 0, 0, now(), p_model_name)
+    VALUES (today_date, 0, 0, now(), p_model_name)
     ON CONFLICT (stat_date) DO NOTHING;
 
     -- 取出目前的 last_update 以判斷 RPM 是否跨越了分鐘界線
     SELECT gemini_rpm_last_update INTO v_last_update 
     FROM public.tuc_usage_stats 
-    WHERE stat_date = today_str;
+    WHERE stat_date = today_date;
 
     -- 原子更新：更新 RPD (無條件 + 1) 與 RPM (同分鐘 + 1，不同分鐘重置為 1)
     UPDATE public.tuc_usage_stats
@@ -48,7 +48,7 @@ BEGIN
         END,
         gemini_rpm_last_update = now(),
         last_ai_model = COALESCE(p_model_name, last_ai_model)
-    WHERE stat_date = today_str;
+    WHERE stat_date = today_date;
 END;
 $$ LANGUAGE plpgsql;
 

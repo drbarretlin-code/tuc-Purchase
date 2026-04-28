@@ -476,14 +476,18 @@ function App() {
         console.error('無法統計解析條目:', countError);
       } else if (countData) {
         countData.forEach((item: { source_file_name: string; count: number }) => {
-          countMap[item.source_file_name] = item.count;
+          // V28.x: 強化匹配，去除非法空白
+          const safeName = (item.source_file_name || '').trim();
+          countMap[safeName] = item.count;
         });
       }
       console.log(`[Debug] 知識條目統計完成，涵蓋 ${Object.keys(countMap).length} 個檔案`);
 
       // 3. 合併資料 (V17.2: 雙重防呆 - 避免使用者未更新資料庫欄位導致進度遺失。信任資料庫或知識條目數大於 0)
       const enrichedList = (list || []).map(f => {
-        const countFromStats = countMap[f.original_name] || 0;
+        // V28.x: 強化匹配，去除非法空白
+        const fileKey = (f.original_name || '').trim();
+        const countFromStats = countMap[fileKey] || 0;
 
         return {
           ...f,
@@ -808,10 +812,10 @@ function App() {
       const pathsToRemove = toDelete.map(d => d.path);
       const namesToRemove = Array.from(new Set(toDelete.map(d => d.name)));
 
-      // 清理關聯知識庫 (以檔名為準)
-      for (const name of namesToRemove) {
-        await supabase.from('tuc_history_knowledge').delete().eq('source_file_name', name);
-      }
+      // V28.x: 停止在此處清理知識庫 (以檔名為準)。
+      // 因為清理重複項會保留一份原始檔案紀錄，若此時刪除該檔名的知識庫，會導致保留下來的檔案也失去數據。
+      // 知識庫的深度清理應交由專門的「重置與重新解析」功能處理。
+      
       // 清理 Storage 實體
       await supabase.storage.from('spec-files').remove(pathsToRemove);
       // 清理資料庫紀錄
