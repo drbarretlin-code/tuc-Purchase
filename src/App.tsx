@@ -810,7 +810,6 @@ function App() {
       // 3. 執行批次清理
       const idsToRemove = toDelete.map(d => d.id);
       const pathsToRemove = toDelete.map(d => d.path);
-      const namesToRemove = Array.from(new Set(toDelete.map(d => d.name)));
 
       // V28.x: 停止在此處清理知識庫 (以檔名為準)。
       // 因為清理重複項會保留一份原始檔案紀錄，若此時刪除該檔名的知識庫，會導致保留下來的檔案也失去數據。
